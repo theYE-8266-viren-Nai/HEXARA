@@ -18,6 +18,8 @@ import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
 import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
 import { useWebhookSource } from "./lib/useWebhookSource";
+import { useAssessment } from "./lib/useAssessment";
+import { PatternCard } from "./components/PatternCard";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -62,6 +64,8 @@ function HorizonApp() {
   // Demo scenarios have no stored history, so the scenario still supplies their alert.
   const liveAlert = liveIngest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
   const alertBasis = device.alert !== undefined ? "device" as const : "scenario" as const;
+  // Pattern context (adds to alerts, never changes them): completed days only, from the source in use.
+  const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive: webhook.ready && !bluetooth.ready });
   const deviceStatus = useMemo(() => ({
     ...device.status,
     pair: () => { if (stage === "future") setFutureDevicePaired(true); device.status.pair(); },
@@ -167,7 +171,7 @@ function HorizonApp() {
   const content = (() => {
     switch (activeView) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <><PatternCard view={pattern} /><TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} /></>;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
@@ -178,7 +182,7 @@ function HorizonApp() {
         return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":
       default:
-        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
+        return <><HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /><PatternCard view={pattern} /></>;
     }
   })();
 

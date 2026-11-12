@@ -518,4 +518,35 @@ describe("Horizon app shell", () => {
       await waitFor(() => expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Source: Simulated wearable"));
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
+
+  it("shows the pattern card on Home and Trends and changes it for Recovery concern, leaving alerts alone", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await waitForSignals();
+    expect(await screen.findByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Pattern score" })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
+    expect(screen.getByText(/Resting heart rate higher/)).toBeInTheDocument();
+    expect(screen.getByText(/HRV lower/)).toBeInTheDocument();
+    // The existing alert still comes from the existing rules.
+    expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
+  });
+
+  it("pauses the pattern view when the sensor is disconnected", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    expect(await screen.findByText("Pattern view paused")).toBeInTheDocument();
+  });
 });
