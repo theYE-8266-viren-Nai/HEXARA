@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CONNECT_PHASES, STALE_SYNC_AGE_MS, finalPhaseFor, readingAt, type DevicePhase } from "../domain/deviceSimulator";
-import type { MetricCardData, MetricPoint, SimulationScenario } from "../types/horizon";
+import { sanitizeReadings, summarizeIngest, type RawRow } from "../domain/ingest";
+import { metricUnits, type MetricName as BackendMetric } from "../domain/types";
+import type { MetricCardData, MetricName, MetricPoint, SimulationScenario } from "../types/horizon";
+
+/** The simulated wearable speaks the dashboard's metric names; the ingest pipeline uses the backend's. */
+const BACKEND_METRIC: Record<MetricName, BackendMetric> = { resting_hr: "heart_rate", hrv: "hrv", sleep_hours: "sleep_hours", core_temperature: "skin_temperature", spo2: "spo2", radiation_dose: "radiation_dose" };
 
 /** Timing is a mutable object so tests can run instantly and control the clock. */
 export const deviceTiming = { connectMs: 3600, tickMs: 4000, now: () => Date.now() };
@@ -63,19 +68,30 @@ export function useDeviceStream({ enabled, personKey, scenario, seed, baseMetric
   }, [phase, scenario]);
 
   const readingTime = scenario === "stale" ? now - STALE_SYNC_AGE_MS : now;
-  const metrics = useMemo(() => {
-    if (phase !== "streaming") return baseMetrics;
-    return baseMetrics.map((metric) => {
-      const anchor = metric.value;
-      const aligned = Math.floor(readingTime / SAMPLE_STEP_MS) * SAMPLE_STEP_MS;
-      const stamps = Array.from({ length: SAMPLES - 1 }, (_, i) => aligned - (SAMPLES - 2 - i) * SAMPLE_STEP_MS);
+  // The wearable only emits raw rows. Everything on screen comes back out of the shared sanitizer.
+  const { metrics, ingest } = useMemo(() => {
+    if (phase !== "streaming") return { metrics: baseMetrics, ingest: null };
+    const aligned = Math.floor(readingTime / SAMPLE_STEP_MS) * SAMPLE_STEP_MS;
+    const stamps = [...Array.from({ length: SAMPLES - 1 }, (_, i) => aligned - (SAMPLES - 2 - i) * SAMPLE_STEP_MS), readingTime];
+    const rows: RawRow[] = [];
+    for (const metric of baseMetrics) for (const t of stamps) {
+      const reading = readingAt(seed, personKey, metric.metric, t, metric.value);
+      const backend = BACKEND_METRIC[metric.metric];
+      rows.push({ row: rows.length + 1, fields: { timestamp: new Date(t).toISOString(), metric: backend, value: reading.value, unit: metricUnits[backend], context: reading.context, signal_quality: reading.quality === "low" ? "low" : "good", deviceId: "simulated-wearable" } });
+    }
+    const result = sanitizeReadings(rows, { source: "simulated", now: new Date(deviceTiming.now()), defaultDeviceId: "simulated-wearable" });
+    const cards = baseMetrics.map((metric) => {
+      const backend = BACKEND_METRIC[metric.metric];
+      const trusted = result.accepted.filter((reading) => reading.metric === backend && reading.context === "rest" && !reading.flag);
+      if (!trusted.length) return metric;
       const alertFlag = Boolean(metric.points.at(-1)?.alert);
-      const livePoints: MetricPoint[] = [...stamps, readingTime].map((t) => ({ day: clock(t), value: readingAt(seed, personKey, metric.metric, t, anchor).restingValue, baseline: metric.baseline, alert: alertFlag || undefined }));
-      const value = livePoints.at(-1)!.value;
+      const points: MetricPoint[] = trusted.map((reading) => ({ day: clock(new Date(reading.observedAt).getTime()), value: reading.value, baseline: metric.baseline, alert: alertFlag || undefined }));
+      const value = points.at(-1)!.value;
       const tolerance = Math.max(Math.abs(metric.baseline) * 0.01, 0.05);
       const delta = value - metric.baseline;
-      return { ...metric, value, trend: delta > tolerance ? "up" as const : delta < -tolerance ? "down" as const : "steady" as const, points: livePoints };
+      return { ...metric, value, trend: delta > tolerance ? "up" as const : delta < -tolerance ? "down" as const : "steady" as const, points };
     });
+    return { metrics: cards, ingest: summarizeIngest(result, "Simulated wearable") };
   }, [baseMetrics, phase, readingTime, seed, personKey]);
 
   const step = CONNECT_PHASES.find((item) => item.phase === phase);
@@ -90,5 +106,5 @@ export function useDeviceStream({ enabled, personKey, scenario, seed, baseMetric
     reconnect: useCallback(() => { setStopped(false); setPaired(true); setAttempt((n) => n + 1); }, []),
     disconnect: useCallback(() => setStopped(true), []),
   };
-  return { status, metrics };
+  return { status, metrics, ingest };
 }

@@ -38,6 +38,12 @@ describe("sanitizeReadings", () => {
     expect(result.quality).toBe("poor");
   });
 
+  it("rejects samples the device itself marks as poor contact", () => {
+    const result = sanitizeReadings([good(1, { signal_quality: "low" }), good(2, { signal_quality: "good" })], opts);
+    expect(result.accepted).toHaveLength(1);
+    expect(result.rejected).toEqual([{ row: 1, reason: "Device reported poor sensor contact for this sample." }]);
+  });
+
   it("converts units to the canonical unit", () => {
     expect(convertUnit("skin_temperature", 98.6, "F")).toBeCloseTo(37, 1);
     expect(convertUnit("skin_temperature", 310.15, "K")).toBeCloseTo(37, 1);

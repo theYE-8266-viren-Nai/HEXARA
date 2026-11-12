@@ -165,5 +165,5 @@ function HorizonApp() {
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics, ingest: device.ingest }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
 }

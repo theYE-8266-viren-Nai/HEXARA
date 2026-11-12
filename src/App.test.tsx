@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -356,5 +356,17 @@ describe("Horizon app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText("Signal lost · wearable not responding")).toBeInTheDocument();
     expect(screen.queryByLabelText("Live")).not.toBeInTheDocument();
+  });
+
+  it("shows where Home data came from and its quality, and offers file import", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+    await waitForSignals();
+
+    const strip = await screen.findByRole("region", { name: "Data source and quality" });
+    expect(strip).toHaveTextContent("Source: Simulated wearable");
+    expect(strip).toHaveTextContent(/Data quality: (good|limited)/);
+    await user.click(within(strip).getByRole("button", { name: "Import a file instead" }));
+    expect(screen.getByRole("heading", { name: "Import device data" })).toBeInTheDocument();
   });
 });

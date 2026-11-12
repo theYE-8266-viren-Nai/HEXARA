@@ -41,7 +41,19 @@ describe("useDeviceStream", () => {
     const second = result.current.metrics.map((m) => m.value);
     expect(second).not.toEqual(first);
     expect(result.current.metrics.map((m) => m.baseline)).toEqual(base.map((m) => m.baseline));
-    expect(result.current.metrics.every((m) => m.points.length === 7)).toBe(true);
+    // Poor-contact and exercise samples are filtered by the sanitizer, so a card has at most 7 trusted points.
+    expect(result.current.metrics.every((m) => m.points.length >= 1 && m.points.length <= 7)).toBe(true);
+  });
+
+  it("routes the wearable through the sanitizer and reports where the data came from", () => {
+    const { result } = setup();
+    expect(result.current.ingest).toBeNull();
+    act(() => { vi.advanceTimersByTime(1100); });
+    const ingest = result.current.ingest!;
+    expect(ingest.sourceLabel).toBe("Simulated wearable");
+    expect(ingest.accepted + ingest.rejected).toBe(42); // 6 metrics x 7 samples
+    expect(["good", "limited", "poor"]).toContain(ingest.quality);
+    for (const metric of result.current.metrics) for (const point of metric.points) expect(Number.isFinite(point.value)).toBe(true);
   });
 
   it("ends in signal_lost or offline for those scenarios and shows no invented live values", () => {
@@ -50,6 +62,7 @@ describe("useDeviceStream", () => {
       act(() => { vi.advanceTimersByTime(1100); });
       expect(result.current.status.phase).toBe(phase);
       expect(result.current.metrics).toBe(base);
+      expect(result.current.ingest).toBeNull();
       unmount();
     }
   });

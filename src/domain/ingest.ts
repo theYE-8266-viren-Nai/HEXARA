@@ -131,6 +131,10 @@ export function sanitizeReadings(rows: RawRow[], options: SanitizeOptions): Sani
     const converted = convertUnit(metric, numeric, cleanText(pick("unit", "units"), 16));
     if (converted === null) { rejected.push({ row, reason: `Unit "${cleanText(pick("unit", "units"), 16)}" is not supported for ${metric}.` }); continue; }
 
+    // Devices can report their own signal quality. A poor-contact sample is not trusted.
+    const signal = cleanText(pick("signal_quality", "signalquality", "contact")).toLowerCase();
+    if (signal === "low" || signal === "poor" || signal === "bad") { rejected.push({ row, reason: "Device reported poor sensor contact for this sample." }); continue; }
+
     const [min, max] = PLAUSIBLE_RANGE[metric];
     if (converted < min || converted > max) {
       const contact = metric === "heart_rate" && converted === 0 ? " Likely lost sensor contact." : "";
@@ -217,6 +221,13 @@ export function toDailyObservations(readings: Reading[], personId: string): Obse
     return { id: `ingest-${personId}-${day}-${metric}-${context}`, person_id: personId, observed_on: day, metric, unit: metricUnits[metric], value: round(value), context, seed: 0, is_synthetic: true } as Observation;
   });
   return observations.sort((a, b) => a.observed_on.localeCompare(b.observed_on) || a.metric.localeCompare(b.metric));
+}
+
+/** Compact, UI-friendly description of one ingest run. */
+export interface IngestSummary { sourceLabel: string; quality: IngestQuality; notes: string[]; accepted: number; rejected: number; flagged: number; }
+
+export function summarizeIngest(result: SanitizeResult, sourceLabel: string): IngestSummary {
+  return { sourceLabel, quality: result.quality, notes: result.qualityNotes, accepted: result.accepted.length, rejected: result.rejected.length, flagged: result.flagged };
 }
 
 export interface IngestAnalysis {
