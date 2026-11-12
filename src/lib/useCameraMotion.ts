@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { assessCameraQuality, frameStats, type CameraQuality, type MotionSample } from "../domain/visualCheck";
+import type { Landmark, PoseFrame } from "../domain/poseFeatures";
+import type { PoseDetector } from "./poseLandmarker";
 
 /**
  * Local-only camera processing. Frames are drawn to a tiny off-screen canvas,
@@ -92,5 +94,20 @@ export function useCameraMotion() {
     }, 100);
   }), [grab]);
 
-  return { videoRef, status, error, start, stop, checkQuality, captureMotion };
+  /** Track body points for `seconds` at about 10 frames per second. Only numbers are kept; frames are discarded. */
+  const capturePose = useCallback((detector: PoseDetector, seconds: number, onTick?: (remaining: number) => void, onFrame?: (landmarks: Landmark[] | null) => void) => new Promise<PoseFrame[]>((resolve) => {
+    const frames: PoseFrame[] = [];
+    const started = performance.now();
+    const timer = window.setInterval(() => {
+      const t = (performance.now() - started) / 1000;
+      let landmarks: Landmark[] | null = null;
+      try { landmarks = videoRef.current ? detector.detect(videoRef.current, performance.now()) : null; } catch { landmarks = null; }
+      onFrame?.(landmarks);
+      if (landmarks) frames.push({ t, landmarks });
+      onTick?.(Math.max(0, Math.ceil(seconds - t)));
+      if (t >= seconds) { window.clearInterval(timer); onFrame?.(null); resolve(frames); }
+    }, 100);
+  }), []);
+
+  return { videoRef, status, error, start, stop, checkQuality, captureMotion, capturePose };
 }

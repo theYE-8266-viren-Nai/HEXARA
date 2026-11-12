@@ -12,6 +12,7 @@
  */
 import type { LifeStage } from "../types/horizon";
 import { mulberry32 } from "../lib/prng";
+import type { JointName } from "./poseFeatures";
 
 export const VISUAL_CHECK_DISCLAIMER = "Camera observations are experimental context only. They are not medical measurements, diagnosis, or flight clearance.";
 
@@ -44,6 +45,10 @@ export interface ObservedFeatures {
   pauseCount: number;
   cameraQuality: CameraQuality;
   qualityNotes: string[];
+  /** How the numbers were produced. Missing means the older motion-based or synthetic path. Only same-method sessions are compared for balance and range. */
+  method?: "pose" | "motion";
+  /** Approximate joint-angle ranges in degrees (5th to 95th percentile), from body tracking on this device. */
+  jointAngleRanges?: Partial<Record<JointName, { min: number; max: number }>>;
 }
 
 export interface UserReportedContext {
@@ -173,6 +178,12 @@ const avg = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.len
  * Compare with the same owner's previous sessions of the same task only.
  * There is no population norm and no cross-user comparison.
  */
+/** Average range (degrees) across the tracked joints, or null when none were tracked. */
+function totalRange(features: ObservedFeatures): number | null {
+  const spans = Object.values(features.jointAngleRanges ?? {}).map((range) => range.max - range.min);
+  return spans.length ? avg(spans) : null;
+}
+
 export function compareWithPersonalHistory(current: ObservedFeatures, checkType: VisualCheckType, ownerKey: string, history: VisualCheck[]): ComparisonSummary {
   const prior = history.filter((check) => check.ownerKey === ownerKey && check.checkType === checkType && check.completionStatus !== "not_assessable").slice(-5);
   const statements: string[] = [];
@@ -189,9 +200,16 @@ export function compareWithPersonalHistory(current: ObservedFeatures, checkType:
     const change = current.repetitionCount - avg(priorReps);
     if (Math.abs(change) >= 2) { different = true; statements.push(`You completed ${change < 0 ? "fewer" : "more"} repetitions than your recent pattern.`); }
   }
-  const priorSway = prior.map((p) => p.observedFeatures.balanceDeviation).filter((v): v is number => v !== undefined);
+  const priorSway = prior.filter((p) => (p.observedFeatures.method ?? "motion") === (current.method ?? "motion")).map((p) => p.observedFeatures.balanceDeviation).filter((v): v is number => v !== undefined);
   if (current.balanceDeviation !== undefined && priorSway.length && pct(current.balanceDeviation, avg(priorSway)) > 0.3) {
     different = true; statements.push("There was more visible sway than in your recent practice.");
+  }
+  // Range of movement: only against earlier sessions tracked the same way.
+  const priorRanges = prior.filter((p) => (p.observedFeatures.method ?? "motion") === (current.method ?? "motion")).map((p) => totalRange(p.observedFeatures)).filter((v): v is number => v !== null);
+  const currentRange = totalRange(current);
+  if (currentRange !== null && priorRanges.length) {
+    const change = currentRange - avg(priorRanges);
+    if (Math.abs(change) >= 15) { different = true; statements.push(change < 0 ? "Your range of movement was smaller than in your recent practice." : "Your range of movement was larger than in your recent practice."); }
   }
   if (current.pauseCount > avg(prior.map((p) => p.observedFeatures.pauseCount)) + 1) { different = true; statements.push("You paused more often than in your recent practice."); }
 
@@ -209,10 +227,22 @@ export function completionFor(features: ObservedFeatures, task: VisualCheckTask)
   return "completed";
 }
 
+/** The left/right range to quote in words: the task's main joint pair, when both sides were tracked. */
+function rangePair(features: ObservedFeatures, task: VisualCheckTask): { noun: string; left: number; right: number } | null {
+  const ranges = features.jointAngleRanges;
+  if (!ranges) return null;
+  const arms = task.type === "shoulder_mobility" || task.type === "reach_and_return";
+  const left = ranges[arms ? "left_shoulder" : "left_knee"]; const right = ranges[arms ? "right_shoulder" : "right_knee"];
+  return left && right ? { noun: arms ? "shoulder" : "knee", left: left.max - left.min, right: right.max - right.min } : null;
+}
+
 export function describeObservations(features: ObservedFeatures, task: VisualCheckTask): string[] {
   const lines: string[] = [];
   if (features.repetitionCount !== undefined) lines.push(`You completed ${features.repetitionCount} repetition${features.repetitionCount === 1 ? "" : "s"}.`);
+  if (features.method === "pose") lines.push("Body points were tracked on your device; no video was recorded or saved.");
   lines.push(`The ${task.label.toLowerCase()} lasted about ${Math.round(features.movementDurationSeconds)} seconds.`);
+  const pair = rangePair(features, task);
+  if (pair) lines.push(`Your left ${pair.noun} moved through about ${pair.left}° and your right ${pair.noun} about ${pair.right}°.`);
   if (Math.abs(features.leftRightBalance - 0.5) > 0.12) lines.push("Your left and right movement ranges were different during this session.");
   if (features.pauseCount > 0) lines.push(`There ${features.pauseCount === 1 ? "was 1 pause" : `were ${features.pauseCount} pauses`} during the movement.`);
   if (features.cameraQuality !== "good") lines.push("The camera angle or lighting made part of the movement difficult to assess.");
