@@ -39,7 +39,7 @@ function HorizonApp() {
   const [seed, setSeed] = usePersistedState<number>("horizon:seed", 42);
   const [replayCount, setReplayCount] = usePersistedState<number>("horizon:replay-count", 0);
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
-  const [checkIn, setCheckIn] = usePersistedState("horizon:wellbeing", { mood: "", stress: "", sleepQuality: "", note: "" });
+  const [checkIn, setCheckIn] = usePersistedState("horizon:wellbeing", { mood: "3", stress: "3", sleepQuality: "3", energy: "3", purpose: "3", socialConnection: "3", transitionTags: [] as string[], note: "" });
   const [privacy, setPrivacy] = usePersistedState("horizon:privacy", { mood: true, notes: false, trends: true });
   const [futureDevicePaired, setFutureDevicePaired] = usePersistedState<boolean>("horizon:device-paired", false);
   const [backendLoading, setBackendLoading] = useState(true);
@@ -179,9 +179,9 @@ function HorizonApp() {
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
-        return <WellbeingView checkIn={checkIn} onCheckInChange={setCheckIn} privacy={privacy} onPrivacyChange={setPrivacy} />;
+        return <WellbeingView stage={stage} checkIn={checkIn} onCheckInChange={setCheckIn} privacy={privacy} onPrivacyChange={setPrivacy} />;
       case "guidance":
-        return <GuidanceView stage={stage} preparationRepository={preparationRepository} />;
+        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
       case "profile":
         return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":

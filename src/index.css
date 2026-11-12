@@ -208,6 +208,39 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .signals-section > div:first-child { margin-bottom: 15px; }
 .signals-section > div:first-child > button { font-size: 11px; }
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.retired-wearable-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.retired-wearable-card { min-width: 0; min-height: 178px; padding: 20px 20px 17px; }
+.retired-wearable-card > div { display: flex; align-items: center; gap: 11px; color: var(--text-secondary); }
+.retired-wearable-card > div > p { min-width: 0; font-size: 12px; }
+.retired-wearable-icon { display: grid; flex: 0 0 auto; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: var(--accent-text); background: rgba(58, 205, 211, .1); }
+.retired-wearable-icon > svg { width: 20px; height: 20px; }
+
+/* Expanded follow-up cards need their own row; otherwise CSS Grid leaves a
+   large empty area beside the taller card. */
+@media (min-width: 768px) {
+  .health-areas-grid:has(> details[open]) { grid-template-columns: minmax(0, 1fr); }
+}
+.retired-wearable-card > strong { display: block; margin-top: 17px; overflow-wrap: anywhere; color: var(--text-primary); font-size: 27px; font-weight: 500; line-height: 1.1; letter-spacing: -.035em; }
+.retired-wearable-card > span { display: block; margin-top: 15px; padding-top: 11px; border-top: 1px solid rgba(196, 218, 236, .065); color: var(--muted); font-size: 9px; line-height: 1.5; }
+.connected-measurements { display: grid; grid-template-columns: minmax(210px, 1.25fr) repeat(4, minmax(120px, 1fr)); align-items: stretch; margin-top: 14px; padding: 17px 20px; }
+.connected-measurements-title, .connected-measurement { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.connected-measurements-title { color: var(--accent-text); padding-right: 16px; }
+.connected-measurements-title h3 { color: var(--text-primary); font-size: 15px; font-weight: 600; }
+.connected-measurements-title p { margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.connected-measurement { border-left: 1px solid var(--border-soft); padding: 3px 14px; color: var(--accent-text); }
+.connected-measurement > span { min-width: 0; }
+.connected-measurement small, .connected-measurement strong { display: block; overflow-wrap: anywhere; }
+.connected-measurement small { color: var(--text-secondary); font-size: 9px; line-height: 1.3; }
+.connected-measurement strong { margin-top: 4px; color: var(--text-primary); font-size: 16px; font-weight: 600; line-height: 1.25; }
+.wellbeing-slider { padding: 2px 0 8px; }
+.wellbeing-slider-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wellbeing-slider-heading label { color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.wellbeing-slider-heading span { color: var(--muted); font-size: 10px; }
+.wellbeing-slider output { display: block; margin-top: 10px; color: var(--accent-text); font-size: 12px; font-weight: 600; }
+.wellbeing-slider input[type="range"] { display: block; width: 100%; height: 7px; margin-top: 12px; border: 1px solid var(--border-soft); border-radius: 999px; appearance: none; cursor: pointer; }
+.wellbeing-slider input[type="range"]::-webkit-slider-thumb { width: 21px; height: 21px; border: 3px solid var(--option-bg); border-radius: 50%; appearance: none; background: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(0, 0, 0, .2); }
+.wellbeing-slider input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 3px solid var(--option-bg); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(0, 0, 0, .2); }
+.wellbeing-slider-scale { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; color: var(--muted); font-size: 9px; }
 .metric-tile { position: relative; overflow: hidden; padding: 18px 19px 13px; min-width: 0; }
 .metric-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--text-secondary); }
 .metric-header p { font-size: 11px; }
@@ -302,6 +335,10 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .dashboard-hero-visual { width: 50%; opacity: .48; }
   .dashboard-hero-visual > span { display: none; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+  .retired-wearable-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+  .connected-measurements { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; }
+  .connected-measurements-title { grid-column: 1 / -1; padding: 0 0 12px; }
+  .connected-measurement { border-top: 1px solid var(--border-soft); border-left: 0; padding: 12px 4px 4px; }
   .metric-tile { padding: 15px 14px 12px; }
   .metric-value { font-size: 27px; }
   .metric-header p { font-size: 10px; }
@@ -321,6 +358,8 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .journey-description { font-size: 10px; }
   .journey-arrow { width: 23px; height: 23px; }
   .metric-sparkline { display: none; }
+  .retired-wearable-grid, .connected-measurements { grid-template-columns: 1fr; }
+  .connected-measurements-title { grid-column: auto; }
   .workspace-breadcrumb { font-size: 9px; }
   .stage-control { gap: 6px; }
 }

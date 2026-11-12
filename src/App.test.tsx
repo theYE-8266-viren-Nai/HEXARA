@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -76,7 +76,7 @@ describe("Horizon app shell", () => {
   it("requires a stage choice and keeps all three paths accessible", async () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Future traveler" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Future traveler" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Active astronaut" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retired astronaut" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Life stage" })).not.toBeInTheDocument();
@@ -90,6 +90,29 @@ describe("Horizon app shell", () => {
     await openWorkspace(stage);
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue(stage);
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+  });
+
+  it("shows wearable-supported activity cards on the retired Home view", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
+    await openWorkspace("retired");
+
+    expect(await screen.findByRole("heading", { name: "Wearable activity, at a glance" })).toBeInTheDocument();
+    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
+    expect(screen.getByText("Mobility")).toBeInTheDocument();
+    expect(screen.getByText("Walking steadiness · Updated today")).toBeInTheDocument();
+    expect(screen.getByText("Estimated stress level")).toBeInTheDocument();
+    expect(screen.getByText("Moderate")).toBeInTheDocument();
+    expect(screen.getByText("HRV and resting heart rate · Wellness only")).toBeInTheDocument();
+    expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
+    expect(screen.getByText("Connected measurements")).toBeInTheDocument();
+    expect(screen.queryByText("Wrist-temperature trend")).not.toBeInTheDocument();
+    expect(screen.queryByText("Radiation context")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Core temperature" })).not.toBeInTheDocument();
   });
 
   it("renders the safety disclaimer and switches the life stage", async () => {
@@ -121,7 +144,6 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    expect(screen.getByRole("progressbar", { name: "Wearable connection progress" })).toBeInTheDocument();
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
 
@@ -201,8 +223,8 @@ describe("Horizon app shell", () => {
     await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Mood" }), "4");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Stress" }), "2");
+    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Stress" }), { target: { value: "2" } });
     await user.type(screen.getByRole("textbox", { name: "Optional note" }), "Felt steady after exercise.");
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
 
@@ -226,9 +248,9 @@ describe("Horizon app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Mood" }), "4");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Stress" }), "2");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Sleep quality" }), "Mixed");
+    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Stress" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Sleep quality" }), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
     expect(screen.getByText("Saved on this device")).toBeInTheDocument();
   });
@@ -241,8 +263,11 @@ describe("Horizon app shell", () => {
     await user.click(screen.getByRole("button", { name: "Open support options" }));
 
     expect(screen.getByRole("region", { name: "Support options" })).toBeInTheDocument();
-    expect(screen.getByText("Crew medic")).toBeInTheDocument();
-    expect(screen.getByText(/This demo does not send messages/)).toBeInTheDocument();
+    expect(screen.getByText("Former astronaut peer")).toBeInTheDocument();
+    expect(screen.getByText("Behavioral-health professional")).toBeInTheDocument();
+    expect(screen.getByText("Family or trusted person")).toBeInTheDocument();
+    expect(screen.getByText("Urgent support")).toBeInTheDocument();
+    expect(screen.getByText(/This demo helps you review your choices but does not contact anyone/)).toBeInTheDocument();
   });
 
   it("persists wellbeing privacy choices locally", async () => {
@@ -255,6 +280,29 @@ describe("Horizon app shell", () => {
     await user.click(notesToggle);
 
     expect(JSON.parse(window.localStorage.getItem("horizon:privacy") ?? "{}")).toMatchObject({ notes: true });
+  });
+
+  it("adds retired wellbeing context without removing support or privacy choices", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("retired");
+
+    await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+    expect(screen.getByRole("heading", { name: "A private moment to check in" })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Mood" })).toHaveValue("3");
+    expect(screen.getByRole("slider", { name: "Stress" })).toHaveValue("3");
+    expect(screen.getByRole("slider", { name: "Sleep quality" })).toHaveValue("3");
+    expect(screen.getByRole("slider", { name: "Energy" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Sense of purpose" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Social connection" })).toHaveValue("3");
+
+    await user.click(screen.getByRole("button", { name: "Family adjustment" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sense of purpose" }), "4");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Social connection" }), "4");
+    expect(JSON.parse(window.localStorage.getItem("horizon:wellbeing") ?? "{}")).toMatchObject({ purpose: "4", socialConnection: "4", transitionTags: ["Family adjustment"] });
+
+    expect(screen.getByRole("heading", { name: "Talk to a person" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Privacy choices" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Free-text notes" })).toBeInTheDocument();
   });
 
   it("opens future preparation practices and the adaptation timeline without certifying readiness", async () => {
@@ -277,9 +325,73 @@ describe("Horizon app shell", () => {
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
-    await user.click(screen.getByRole("checkbox", { name: "Private reflection" }));
+    expect(screen.getByRole("heading", { name: "Your long-term follow-up" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Maintain physical and mental wellbeing" })).toBeInTheDocument();
+    await user.click(screen.getByText("Physical health"));
+    expect(screen.getByText("Movement & strength")).toBeInTheDocument();
+    expect(screen.getByText("Bone & balance")).toBeInTheDocument();
+    expect(screen.getByText("Heart & circulation")).toBeInTheDocument();
+    expect(screen.getByText("Sleep & recovery")).toBeInTheDocument();
+    expect(screen.getByText("Nutrition & preventive care")).toBeInTheDocument();
+    await user.click(screen.getByText("Movement & strength"));
+    expect(screen.getByRole("link", { name: /NASA strength, conditioning and rehabilitation/ })).toHaveAttribute("href", expect.stringContaining("nasa.gov"));
+    await user.click(screen.getByText("Mental health"));
+    expect(screen.getByText("Emotional wellbeing")).toBeInTheDocument();
+    expect(screen.getByText("Social connection")).toBeInTheDocument();
+    expect(screen.getByText("Purpose & daily routine")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Long-term follow-up preview" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Life after flying reflection" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Private reflection" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Wellbeing check-ins" }));
+    await user.click(screen.getByRole("button", { name: "Preview summary" }));
 
-    expect(JSON.parse(window.localStorage.getItem("horizon:retired-summary-fields") ?? "{}")).toMatchObject({ reflection: true });
+    expect(JSON.parse(window.localStorage.getItem("horizon:retired-summary-fields") ?? "{}")).toMatchObject({ wellbeing: true });
+    expect(screen.getByRole("region", { name: "Appointment summary preview" })).toHaveTextContent("Locally saved wellbeing check-ins");
+  });
+
+  it("imports a synthetic DXA report and creates a local sample reminder", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
+    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
+    await user.click(screen.getByText("Bone-density trend over years"));
+    await user.click(screen.getByRole("button", { name: "Import sample DXA report" }));
+
+    expect(screen.getByText("Synthetic sample · not a real medical record")).toBeInTheDocument();
+    expect(screen.getByText("Horizon displays the supplied note; it does not calculate a diagnosis.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Bone health follow-up due · May 12, 2027/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Create sample appointment" }));
+    await user.click(screen.getByRole("checkbox", { name: "Create local reminder" }));
+
+    expect(screen.getByRole("heading", { name: /Bone health appointment · May 18, 2027/ })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("No external calendar or clinic was contacted");
+    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-dxa") ?? "null")).toMatchObject({ id: "sample-dxa-2026-05" });
+    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-appointment") ?? "null")).toMatchObject({ reminder: true });
+  });
+
+  it("imports sample vision guidance and routes heart and wellbeing actions", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
+    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
+    expect(screen.getByRole("heading", { name: "No sample follow-up scheduled" })).toBeInTheDocument();
+
+    await user.click(screen.getByText("Vision and cardiovascular trend"));
+    await user.click(screen.getByRole("button", { name: "Import sample eye-exam record" }));
+    expect(screen.getByText("Synthetic sample · not a real eye exam")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Vision follow-up · December 15, 2026/ })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-vision") ?? "null")).toMatchObject({ id: "sample-vision-2026-08" });
+
+    await user.click(screen.getByRole("button", { name: "Review wearable trends" }));
+    expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
+    await user.click(screen.getByText("Sleep and mood context"));
+    await user.click(screen.getByRole("button", { name: "Complete wellbeing check-in" }));
+    expect(screen.getByRole("heading", { name: "A private moment to check in" })).toBeInTheDocument();
   });
 
   it("restores local check-in state after reselecting a workspace on refresh", async () => {
@@ -287,14 +399,14 @@ describe("Horizon app shell", () => {
     const first = await openWorkspace();
     await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Mood" }), "5");
+    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
     first.unmount();
 
     await openWorkspace("retired");
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    expect(screen.getByRole("combobox", { name: "Mood" })).toHaveValue("5");
+    expect(screen.getByRole("slider", { name: "Mood" })).toHaveValue("5");
   });
 
   it("opens the Movement check with its camera disclaimer and privacy limits", async () => {

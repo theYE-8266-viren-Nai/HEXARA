@@ -1,7 +1,9 @@
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MetricCardData } from "../types/horizon";
 
-export function TrendChart({ metric }: { metric: MetricCardData }) {
+type TrendMetric = Pick<MetricCardData, "label" | "baseline" | "points">;
+
+export function TrendChart({ metric }: { metric: TrendMetric }) {
   return (
     <div className="h-48" role="img" aria-label={`${metric.label} trend chart`}>
       <ResponsiveContainer width="100%" height="100%">
