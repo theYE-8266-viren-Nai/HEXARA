@@ -68,11 +68,11 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
-- **Immediate task:** Apply and verify the Future preparation and `visual_checks` migrations in the configured Supabase project (including cross-user RLS denial). The UI redesign, light/dark appearance, and stage-selection test updates are verified.
+- **Immediate task:** Verify cross-user RLS denial for the Future preparation and `visual_checks` tables with two anonymous sessions, then smoke-test Movement in a browser with a real camera.
 - **Required tables:** `sample_people`, `health_observations`, and `demo_events`.
 - **Required seed:** Four synthetic travelers with 180 days of observations.
 - **Security requirement:** Enable RLS on every exposed table and allow only the intended synthetic-data reads.
-- **Current blocker:** The Future preparation and `visual_checks` migrations are not yet applied/verified against the live Supabase project, so cloud saves show a visible "Not saved to cloud" message. This checkout has no `.env.local`; the local preview uses the synthetic fallback.
+- **Current blocker:** None for deployment: both migrations are applied (user-confirmed; all six tables respond via the publishable key and return no rows to an unauthenticated request). Not yet verified: that one anonymous user cannot read another's rows, and Movement has had no browser or real-camera check.
 
 ## 🧭 Implementation Roadmap
 
@@ -182,7 +182,8 @@ Complete phases in order. Do not mark a phase complete until its verification ch
 - [x] Combine sleep, stress, and energy context with neutral pattern language.
 - [x] Add the user-controlled crew-medic summary (never sent automatically).
 - [x] Add the `visual_checks` migration with owner-only RLS and no media columns.
-- [ ] Apply the `visual_checks` migration and verify cross-user RLS denial.
+- [x] Apply the `visual_checks` migration (user-confirmed).
+- [ ] Verify cross-user RLS denial with two anonymous sessions.
 - [ ] Browser smoke test on desktop and mobile layouts with a real camera.
 - [ ] Optional: browser pose-landmark library for joint-angle ranges (after the deterministic flow is validated).
 
