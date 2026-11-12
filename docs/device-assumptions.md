@@ -28,6 +28,7 @@ Device or file, then a source adapter, then the sanitizer (shape, units, ranges,
 - **Simulated wearable (demo):** All six signals.
 - **File import (CSV or JSON):** Any of the six signals present in the file.
 - **Bluetooth heart-rate device:** Heart rate and, if the device sends beat-to-beat intervals, HRV. Other signals stay simulated.
+- **Webhook (local demo receiver):** Any of the six signals the sending service includes; the rest stay simulated. Readings are held in dev-server memory for up to 48 hours and are display-only for alerts until a full day is collected.
 
 ## Entered by the user, not from a device
 

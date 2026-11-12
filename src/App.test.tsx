@@ -6,6 +6,8 @@ import { deviceTiming } from "./lib/useDeviceStream";
 import { bluetoothTiming } from "./lib/useBluetoothHeartRate";
 import { bluetoothAccess } from "./lib/adapters/webBluetoothHeartRate";
 import { createFakeBluetooth, hrBytes } from "./test/fakeBluetooth";
+import { webhookTiming } from "./lib/useWebhookSource";
+import { createFakeReceiver } from "./test/fakeReceiverFetch";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
@@ -465,5 +467,55 @@ describe("Horizon app shell", () => {
     expect(await screen.findByRole("heading", { name: "Your baseline so far" })).toBeInTheDocument();
     expect(await screen.findByText(/0 of 3 check-ins/)).toBeInTheDocument();
     expect(screen.getByText(/Cloud save (is )?unavailable/)).toBeInTheDocument();
+  });
+
+  it("explains that the webhook receiver is unavailable outside the dev server", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("not json"); } }));
+    try {
+      await openWorkspace();
+      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+      const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
+      await waitFor(() => expect(card).toHaveTextContent("Not available in this build"));
+      expect(card).toHaveTextContent(/only runs on the development server/);
+      expect(within(card).queryByRole("button")).not.toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("receives a service's readings, cleans them, and shows them as the source for those signals only", async () => {
+    const user = userEvent.setup();
+    const fake = createFakeReceiver(() => Date.now());
+    vi.stubGlobal("fetch", fake.fetchImpl);
+    const savedPoll = webhookTiming.pollMs; webhookTiming.pollMs = 30;
+    try {
+      await openWorkspace();
+      await waitForSignals();
+      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+      const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
+      await waitFor(() => expect(within(card).getByRole("button", { name: "Start receiving" })).toBeInTheDocument());
+      await user.click(within(card).getByRole("button", { name: "Start receiving" }));
+      await waitFor(() => expect(card).toHaveTextContent("Listening"));
+      expect(within(card).getByLabelText("Example request")).toHaveTextContent("Authorization: Bearer test-token");
+      expect(card).toHaveTextContent(/never saved or sent to the cloud/);
+
+      const t = Date.now();
+      const row = (offset: number, metric: string, value: number, unit: string) => ({ timestamp: new Date(t - offset * 1000).toISOString(), metric, value, unit, deviceId: "svc" });
+      fake.send([...[5, 4, 3, 2, 1].flatMap((o, n) => [row(o, "heart_rate", 66 + (n % 3), "bpm"), row(o, "spo2", 97 + n / 10, "%")]), row(1, "heart_rate", 0, "bpm"), row(1, "spo2", 120, "%")]);
+      await waitFor(() => expect(card).toHaveTextContent("readings received"));
+
+      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+      const strip = await screen.findByRole("region", { name: "Data source and quality" });
+      expect(strip).toHaveTextContent("Connected service (webhook): Heart rate, Blood oxygen (SpO₂) · other signals simulated");
+      expect(strip).toHaveTextContent("Webhook readings are display-only until a full day is collected");
+      expect(strip).toHaveTextContent(/2 set aside/); // the lost-contact zero and the impossible SpO₂
+
+      await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+      expect(await screen.findAllByText("From a connected service (webhook).")).toHaveLength(2); // heart rate and SpO₂ only
+
+      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+      await user.click(await screen.findByRole("button", { name: "Stop receiving" }));
+      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+      await waitFor(() => expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Source: Simulated wearable"));
+    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 });

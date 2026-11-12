@@ -55,6 +55,7 @@ export const SOURCE_SUPPORT: Array<{ source: string; supplies: string }> = [
   { source: "Simulated wearable (demo)", supplies: "All six signals." },
   { source: "File import (CSV or JSON)", supplies: "Any of the six signals present in the file." },
   { source: "Bluetooth heart-rate device", supplies: "Heart rate and, if the device sends beat-to-beat intervals, HRV. Other signals stay simulated." },
+  { source: "Webhook (local demo receiver)", supplies: "Any of the six signals the sending service includes; the rest stay simulated. Readings are held in dev-server memory for up to 48 hours and are display-only for alerts until a full day is collected." },
 ];
 
 /** Friendly unit for people; `unit` keeps the sanitizer's canonical code. */

@@ -11,7 +11,8 @@
     "test:backend": "node --import ./tests/register.mjs --test tests/*.test.mjs",
     "test:db": "node --import ./tests/register.mjs scripts/check-database.mjs",
     "seed:generate": "node --import ./tests/register.mjs scripts/generate-seed.mjs",
-    "docs:assumptions": "node --import ./tests/register.mjs scripts/generate-assumptions-doc.mjs"
+    "docs:assumptions": "node --import ./tests/register.mjs scripts/generate-assumptions-doc.mjs",
+    "send:sample": "node scripts/send-sample-readings.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

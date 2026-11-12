@@ -17,6 +17,7 @@ import { ThemeProvider } from "./lib/theme";
 import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
 import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
+import { useWebhookSource } from "./lib/useWebhookSource";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -54,8 +55,9 @@ function HorizonApp() {
   const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
   // An optional Bluetooth heart-rate device replaces only the heart-rate and HRV cards; everything else stays simulated.
   const bluetooth = useBluetoothHeartRate(dashboard.metrics);
-  const liveMetrics = useMemo(() => device.metrics.map((metric) => (metric.metric === "resting_hr" || metric.metric === "hrv" ? bluetooth.cards[metric.metric] : undefined) ?? metric), [device.metrics, bluetooth.cards]);
-  const liveIngest = bluetooth.ready && bluetooth.ingest ? bluetooth.ingest : device.ingest;
+  const webhook = useWebhookSource(dashboard.metrics); // priority for the cards below: Bluetooth, then webhook, then the simulated wearable
+  const liveMetrics = useMemo(() => device.metrics.map((metric) => (metric.metric === "resting_hr" || metric.metric === "hrv" ? bluetooth.cards[metric.metric] : undefined) ?? webhook.cards[metric.metric] ?? metric), [device.metrics, bluetooth.cards, webhook.cards]);
+  const liveIngest = bluetooth.ready && bluetooth.ingest ? bluetooth.ingest : webhook.ready && webhook.ingest ? webhook.ingest : device.ingest;
   // The wearable's own cleaned readings decide the alert when history allows it; poor-quality data never alerts.
   // Demo scenarios have no stored history, so the scenario still supplies their alert.
   const liveAlert = liveIngest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
@@ -180,5 +182,5 @@ function HorizonApp() {
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
 }
