@@ -549,4 +549,18 @@ describe("Horizon app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText("Pattern view paused")).toBeInTheDocument();
   });
+
+  it("explains the pattern on request with the built-in text when cloud is not configured", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    await user.click(await screen.findByRole("button", { name: "Explain this pattern" }));
+    expect(await screen.findByText("Built-in explanation")).toBeInTheDocument();
+    expect(screen.getByText(/Cloud explanations are not set up/)).toBeInTheDocument();
+    expect(screen.getByText(/Resting heart rate was higher/i)).toBeInTheDocument();
+    expect(screen.getByText(/tell the crew medic/)).toBeInTheDocument();
+  });
 });

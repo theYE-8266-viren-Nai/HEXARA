@@ -1,9 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 import { describe, expect, it } from "vitest";
 import { PatternCard, describeDriver } from "./PatternCard";
 import { isNonDiagnostic } from "../domain/visualCheck";
 import type { AnomalyAssessment, PatternLevel } from "../domain/anomalyModel";
 import type { AssessmentView } from "../lib/useAssessment";
+import type { ExplainRequest } from "../domain/explainTypes";
+import type { ExplainResult } from "../lib/explainRepository";
 
 const assessment = (level: PatternLevel, extra: Partial<AnomalyAssessment> = {}): AnomalyAssessment => ({
   asOf: "2026-05-05", level, patternScore: level === "usual" ? 8 : level === "different" ? 55 : level === "notably_different" ? 100 : 0, baselineDays: 28, metricsUsed: ["heart_rate", "hrv", "sleep_hours"], elevatedDays: 0,
@@ -55,5 +59,56 @@ describe("PatternCard", () => {
       unmount();
     }
     expect(describeDriver(assessment("different").drivers[0])).toBe("Sleep lower (−12.4%)");
+  });
+});
+
+describe("PatternCard explain button", () => {
+  const request: ExplainRequest = { stage: "active", level: "notably_different", patternScore: 100, dataQuality: "good", source: "simulated", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
+
+  it("is on demand: nothing runs until pressed, and the privacy line is shown first", async () => {
+    const run = vi.fn<(r: ExplainRequest) => Promise<ExplainResult>>().mockResolvedValue({ text: "Sleep was lower than your usual range. Tell the crew medic if it continues.", source: "ai" });
+    const user = userEvent.setup();
+    render(<PatternCard view={ok("notably_different")} explain={{ request, run }} />);
+    expect(run).not.toHaveBeenCalled();
+    expect(screen.getByText(/de-identified summary.*Raw readings never leave your device/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+    expect(run).toHaveBeenCalledWith(request);
+    expect(await screen.findByText("Explanation by Horizon (AI-assisted)")).toBeInTheDocument();
+    expect(screen.getByText(/Sleep was lower than your usual range/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explain again" })).toBeInTheDocument();
+  });
+
+  it("shows a loading state, and labels the built-in text with the reason it was used", async () => {
+    let resolve!: (value: ExplainResult) => void;
+    const run = vi.fn(() => new Promise<ExplainResult>((r) => { resolve = r; }));
+    const user = userEvent.setup();
+    render(<PatternCard view={ok("different")} explain={{ request, run }} />);
+    await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+    expect(screen.getByText("Writing a short explanation…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explain this pattern" })).toBeDisabled();
+    resolve({ text: "Sleep was lower, compared with your own usual range.", source: "template", reason: "timeout" });
+    expect(await screen.findByText("Built-in explanation")).toBeInTheDocument();
+    expect(screen.getByText(/took too long, so this is the built-in text/)).toBeInTheDocument();
+    expect(screen.queryByText(/AI-assisted/)).not.toBeInTheDocument();
+  });
+
+  it("has no button when there is nothing to explain, and never for paused or too-little-history cards", () => {
+    const { rerender } = render(<PatternCard view={ok("usual")} explain={{ request: null, run: vi.fn() }} />);
+    expect(screen.queryByRole("button", { name: /Explain/ })).not.toBeInTheDocument();
+    rerender(<PatternCard view={{ status: "unavailable", reason: "poor_quality" }} explain={{ request, run: vi.fn() }} />);
+    expect(screen.queryByRole("button", { name: /Explain/ })).not.toBeInTheDocument();
+    rerender(<PatternCard view={ok("insufficient_baseline")} explain={{ request, run: vi.fn() }} />);
+    expect(screen.queryByRole("button", { name: /Explain/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the explanation area free of diagnostic wording in every fallback state", async () => {
+    const user = userEvent.setup();
+    for (const reason of ["not_configured", "error", "timeout", "unsafe", "invalid_request"] as const) {
+      const { container, unmount } = render(<PatternCard view={ok("notably_different")} explain={{ request, run: async () => ({ text: "Sleep was lower, compared with your own usual range.", source: "template", reason }) }} />);
+      await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+      await waitFor(() => expect(screen.getByText("Built-in explanation")).toBeInTheDocument());
+      expect(isNonDiagnostic((container.textContent ?? "").replace("Not a diagnosis.", "").replace(/did not pass Horizon's wording check/, ""))).toBe(true);
+      unmount();
+    }
   });
 });

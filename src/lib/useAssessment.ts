@@ -46,9 +46,11 @@ export function buildAssessment(input: AssessmentInput): AssessmentView {
   }
 
   if (input.scenario === "recovery_concern") {
-    const own = generateSyntheticData(input.seed).observations.filter((observation) => observation.person_id === input.personId);
-    if (own.length) return { status: "ok", basis: "scenario", assessment: assessAt(own, dateAt(RECOVERY_DAY)) };
-    return { status: "unavailable", reason: "no_history" };
+    // The demo scenario is generic (its cards are the same for every profile), so a profile without its own
+    // stored series, such as a demo-only Future/Retired/Maya profile, uses the first synthetic traveler's series.
+    const all = generateSyntheticData(input.seed);
+    const personId = all.people.some((person) => person.id === input.personId) ? input.personId : all.people[0].id;
+    return { status: "ok", basis: "scenario", assessment: assessAt(all.observations.filter((observation) => observation.person_id === personId), dateAt(RECOVERY_DAY)) };
   }
 
   if (!input.history?.length) return { status: "unavailable", reason: "no_history" };
