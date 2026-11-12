@@ -2,9 +2,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { deviceTiming } from "./lib/useDeviceStream";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
+
+async function waitForSignals() {
+  await waitFor(() => {
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument();
+  });
+}
 
 async function openWorkspace(stage: "active" | "future" | "retired" = "active") {
   const view = render(<App />);
@@ -108,8 +116,8 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    expect(screen.getByText("Loading simulated signals…")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    expect(screen.getByRole("progressbar", { name: "Wearable connection progress" })).toBeInTheDocument();
+    await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
 
     expect(screen.getByText("Watch")).toBeInTheDocument();
@@ -123,7 +131,7 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "stale");
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
     expect(screen.getByText(/These readings are stale/)).toBeInTheDocument();
@@ -136,7 +144,7 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
 
     expect(screen.getByText("Data unavailable")).toBeInTheDocument();
@@ -149,7 +157,7 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "offline");
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
     expect(screen.getByRole("heading", { name: "Trends are unavailable" })).toBeInTheDocument();
@@ -162,7 +170,7 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     await user.click(screen.getByRole("button", { name: "Show alert reason" }));
 
@@ -204,7 +212,7 @@ describe("Horizon app shell", () => {
     expect(screen.getByRole("heading", { name: "How are you doing today?" })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
+    await waitForSignals();
 
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(screen.getByText("Watch")).toBeInTheDocument();
@@ -292,5 +300,61 @@ describe("Horizon app shell", () => {
     expect(screen.getByRole("heading", { name: "Practise before you fly" })).toBeInTheDocument();
     expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
+  });
+
+  it("shows the staged wearable loader, then live readings with a freshness badge", async () => {
+    deviceTiming.connectMs = 400;
+    try {
+      await openWorkspace("active");
+      expect(await screen.findByRole("progressbar", { name: "Wearable connection progress" })).toBeInTheDocument();
+      expect(screen.getByText("Searching for your wearable…")).toBeInTheDocument();
+      expect(await screen.findByText("Pairing securely…")).toBeInTheDocument();
+      expect(await screen.findByText("Syncing recent readings…")).toBeInTheDocument();
+      expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      expect(screen.getAllByLabelText("Live").length).toBeGreaterThan(0);
+      expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
+    } finally { deviceTiming.connectMs = 30; }
+  });
+
+  it("starts Future with no device paired, then pairs and fills the baseline from the wearable", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("future");
+
+    expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
+    expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mission day/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Pre-mission/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Pair simulated wearable" }));
+    expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
+    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
+    await user.click(screen.getByRole("button", { name: "Fill from my wearable" }));
+    expect(Number((screen.getByLabelText("Resting heart rate") as HTMLInputElement).value)).toBeGreaterThan(30);
+    expect(window.localStorage.getItem("horizon:device-paired")).toBe("true");
+  });
+
+  it("lets the user disconnect and reconnect the wearable from Profile", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.click(await screen.findByRole("button", { name: "Disconnect wearable" }));
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    expect(screen.getByRole("heading", { name: "Device disconnected" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reconnect wearable" }));
+    expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
+  });
+
+  it("reports a lost signal without inventing readings", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    expect(await screen.findByText("Signal lost · wearable not responding")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Live")).not.toBeInTheDocument();
   });
 });

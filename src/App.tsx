@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
@@ -14,6 +14,8 @@ import { createPreparationRepository } from "./lib/preparationRepository";
 import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 import { ThemeProvider } from "./lib/theme";
+import { DeviceContext } from "./lib/deviceContext";
+import { useDeviceStream } from "./lib/useDeviceStream";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -33,14 +35,13 @@ function HorizonApp() {
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
   const [checkIn, setCheckIn] = usePersistedState("horizon:wellbeing", { mood: "", stress: "", sleepQuality: "", note: "" });
   const [privacy, setPrivacy] = usePersistedState("horizon:privacy", { mood: true, notes: false, trends: true });
-  const [loading, setLoading] = useState(false);
+  const [futureDevicePaired, setFutureDevicePaired] = usePersistedState<boolean>("horizon:device-paired", false);
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendSnapshot, setBackendSnapshot] = useState<DashboardSnapshot | null>(null);
   const [dataSource, setDataSource] = useState<DashboardSource>("local");
   const [dataWarning, setDataWarning] = useState<string | undefined>();
   const [backendQuality, setBackendQuality] = useState<DataQualityState>("current");
   const [solarEvents, setSolarEvents] = useState<SolarEventResult | null>(null);
-  const loadingTimer = useRef<number | undefined>(undefined);
 
   const profile = profiles.find((candidate) => candidate.id === profileId) ?? profiles[0];
   const preparationRepository = useMemo(() => createPreparationRepository(supabase, userId), [userId]);
@@ -48,9 +49,16 @@ function HorizonApp() {
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
+  const futurePaired = futureDevicePaired;
+  const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics });
+  const deviceStatus = useMemo(() => ({
+    ...device.status,
+    pair: () => { if (stage === "future") setFutureDevicePaired(true); device.status.pair(); },
+    disconnect: () => { if (stage === "future") setFutureDevicePaired(false); device.status.disconnect(); },
+  }), [device.status, stage, setFutureDevicePaired]);
   const viewSource = scenario === "usual" ? dataSource : "local";
   const viewWarning = scenario === "usual" ? dataWarning : undefined;
-  const viewLoading = loading || (scenario === "usual" && backendLoading);
+  const viewLoading = device.status.connecting || (scenario === "usual" && backendLoading);
   const backendRepository = useMemo(() => createBackendDashboardRepository(
     createHorizonRepository(supabaseConfigured && seed === 42 ? supabase : null, seed),
   ), [seed]);
@@ -84,8 +92,6 @@ function HorizonApp() {
     });
   };
 
-  useEffect(() => () => window.clearTimeout(loadingTimer.current), []);
-
   useEffect(() => {
     let cancelled = false;
     void fetchRecentSolarEvents().then((result) => { if (!cancelled) setSolarEvents(result); });
@@ -103,10 +109,20 @@ function HorizonApp() {
       try {
         const profileResult = await backendRepository.loadProfiles();
         if (cancelled) return;
-        const nextProfiles = profileResult.data.length ? profileResult.data : mockProfiles;
+        const backendProfiles = profileResult.data;
+        // Backend travelers are all "active"; keep demo profiles so Future and Retired have their own person.
+        const nextProfiles = backendProfiles.length ? [...backendProfiles, ...mockProfiles.filter((demo) => !backendProfiles.some((person) => person.stage === demo.stage))] : mockProfiles;
         const nextProfileId = nextProfiles.some((candidate) => candidate.id === profileId) ? profileId : nextProfiles[0].id;
         setProfiles(nextProfiles);
         if (nextProfileId !== profileId) setProfileId(nextProfileId);
+        if (!backendProfiles.some((person) => person.id === nextProfileId)) {
+          // Demo-only profile (e.g. Future): use the deterministic local snapshot, not an empty backend lookup.
+          setBackendSnapshot(null);
+          setDataSource("local");
+          setDataWarning(undefined);
+          setBackendQuality("current");
+          return;
+        }
         const snapshotResult = await backendRepository.loadSnapshot(nextProfileId, { seed, replayCount });
         if (cancelled) return;
         setBackendSnapshot(snapshotResult.data);
@@ -126,26 +142,7 @@ function HorizonApp() {
     return () => { cancelled = true; };
   }, [backendRepository, mockProfiles, profileId, replayCount, scenario, seed, setProfileId]);
 
-  const setScenarioWithLoading = (nextScenario: SimulationScenario) => {
-    window.clearTimeout(loadingTimer.current);
-    setLoading(true);
-    setScenario(nextScenario);
-    loadingTimer.current = window.setTimeout(() => setLoading(false), 180);
-  };
-
-  const setSeedWithLoading = (nextSeed: number) => {
-    window.clearTimeout(loadingTimer.current);
-    setLoading(true);
-    setSeed(nextSeed);
-    loadingTimer.current = window.setTimeout(() => setLoading(false), 180);
-  };
-
-  const replayEvents = () => {
-    window.clearTimeout(loadingTimer.current);
-    setLoading(true);
-    setReplayCount((count) => count + 1);
-    loadingTimer.current = window.setTimeout(() => setLoading(false), 180);
-  };
+  const replayEvents = () => setReplayCount((count) => count + 1);
 
   if (authLoading) return <StageSelectionView loading />;
   if (!stage) return <StageSelectionView warning={cloudWarning} onSelect={setStageAndProfile} />;
@@ -153,7 +150,7 @@ function HorizonApp() {
   const content = (() => {
     switch (activeView) {
       case "trends":
-        return <TrendsView metrics={dashboard.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <TrendsView stage={stage} metrics={device.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
@@ -161,12 +158,12 @@ function HorizonApp() {
       case "guidance":
         return <GuidanceView stage={stage} preparationRepository={preparationRepository} />;
       case "profile":
-        return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenarioWithLoading} onSeedChange={setSeedWithLoading} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
+        return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":
       default:
-        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={dashboard.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
+        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={device.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
     }
   })();
 
-  return <AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
 }

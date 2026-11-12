@@ -448,3 +448,23 @@ input[type="checkbox"] { accent-color: var(--accent); }
   :root[data-theme="light"] .orbit-path { top: -14%; }
 }
 @media (max-width: 374px) { .onboarding-actions .research-badge { display: none; } }
+
+/* Simulated wearable: connection loader, live badge, live dot */
+.device-connect-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: rgba(85,224,244,.12); color: var(--accent, #55e0f4); }
+.device-connect-icon.is-active { animation: device-pulse 1.6s ease-in-out infinite; }
+.device-progress { margin-top: 14px; height: 6px; overflow: hidden; border-radius: 999px; background: rgba(160,190,210,.18); }
+.device-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #55e0f4); transition: width .5s ease; }
+.device-steps { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted, #8ba2b1); }
+.device-steps li::before { content: "○ "; }
+.device-steps li[data-state="current"] { color: var(--text-primary, #f4f7ff); font-weight: 600; }
+.device-steps li[data-state="current"]::before { content: "◉ "; }
+.device-steps li[data-state="done"]::before { content: "✓ "; color: var(--accent, #55e0f4); }
+.device-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 5px 12px; border: 1px solid var(--glass-border, rgba(196,218,236,.2)); border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-secondary, #c2d0e4); }
+.device-dot, .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #8ba2b1; }
+.device-badge[data-state="live"] .device-dot, .live-dot { background: #4ade80; animation: device-live 2s ease-in-out infinite; }
+.device-badge[data-state="stale"] .device-dot { background: #fbbf24; }
+.device-badge[data-state="lost"] .device-dot, .device-badge[data-state="offline"] .device-dot { background: #94a3b8; }
+.live-dot { margin-left: 8px; vertical-align: middle; }
+@keyframes device-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes device-live { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
+@media (prefers-reduced-motion: reduce) { .device-connect-icon.is-active, .device-badge .device-dot, .live-dot { animation: none; } .device-progress > span { transition: none; } }
