@@ -51,16 +51,19 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Original Horizon palette restored:** The visual system now uses the screenshot palette: deep navy surfaces, cyan primary accent, blue-grey text, purple accent context, rounded dark panels, and preserved amber/green statuses.
 - **Palette refresh verification:** 21 frontend tests, `npm run build`, and `git diff --check` pass after restoring the original Horizon colors.
 - **Future persistence foundation:** Stage selection now gates the app, anonymous Supabase sessions are restored or created, Future preparation UI includes baseline, practice, and Days 1–14 adaptation flows, and typed cloud persistence adapters plus an RLS migration are present.
+- **Visual Health Check (non-diagnostic):** A Movement view adds a guided webcam practice flow (privacy/limits screen, consent, lighting/framing check, countdown, local frame-difference capture, context check-in, observation summary) with a labelled synthetic demo mode. `src/domain/visualCheck.ts` holds the typed contract, deterministic feature extraction, same-owner-only comparison, crew-medic escalation for reported pain/severe symptoms, a diagnostic-language guard, and the crew summary composer. Frames are never stored; `src/lib/visualCheckRepository.ts` saves derived summaries locally and to `visual_checks` without reporting false success.
+- **Stage-selection UI tests:** `src/App.test.tsx` now mocks the Supabase client to `null`, enters a stage from the required selection screen, verifies the offline "selection will not persist" warning, Future non-certifying copy without false cloud-save success, Movement navigation, and refresh behavior (local check-in restored, stage re-selected offline). 44 frontend tests (stable across 3 runs), 9 backend tests, `npm run build`, and `git diff --check` pass.
+- **Visual check verification:** 22 new tests (`src/domain/visualCheck.test.ts`, `src/components/VisualCheckView.test.tsx`), `tsc -b`, `npm run build`, and `git diff --check` pass. A browser smoke test was not run because the in-app browser could not open localhost.
 
 ### 🟡 Active Focus
 
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
-- **Immediate task:** Apply and verify the new Future preparation migration in the configured Supabase project, then update the UI tests for the required stage-selection onboarding.
+- **Immediate task:** Apply and verify the Future preparation and `visual_checks` migrations in the configured Supabase project (including cross-user RLS denial).
 - **Required tables:** `sample_people`, `health_observations`, and `demo_events`.
 - **Required seed:** Four synthetic travelers with 180 days of observations.
 - **Security requirement:** Enable RLS on every exposed table and allow only the intended synthetic-data reads.
-- **Current blocker:** The new migration has not yet been applied to the live Supabase project, and the existing UI tests still assume the removed Active-by-default onboarding flow.
+- **Current blocker:** `20261112000000_future_preparation.sql` and `20261112010000_visual_checks.sql` are not applied to the live Supabase project, so cloud saves currently fail with a visible "Not saved to cloud" message.
 
 ## 🧭 Implementation Roadmap
 
@@ -160,6 +163,21 @@ Complete phases in order. Do not mark a phase complete until its verification ch
 - [x] Run the production build and smoke-test the complete demo flow through the automated Active-flow UI suite and production-server HTTP check.
 
 **Exit check:** The demo is stable, responsive, clearly synthetic, and safe to present to judges.
+
+### Phase 8 — Visual Health Check (non-diagnostic webcam practice)
+
+- [x] Define the `VisualCheck` contract, allowed features, and mandatory camera disclaimer.
+- [x] Build the guided movement check with permission, quality, countdown, capture, and summary steps.
+- [x] Add the labelled synthetic demo mode for browsers without a camera.
+- [x] Compare only with the same stage/profile's prior sessions of the same task.
+- [x] Combine sleep, stress, and energy context with neutral pattern language.
+- [x] Add the user-controlled crew-medic summary (never sent automatically).
+- [x] Add the `visual_checks` migration with owner-only RLS and no media columns.
+- [ ] Apply the `visual_checks` migration and verify cross-user RLS denial.
+- [ ] Browser smoke test on desktop and mobile layouts with a real camera.
+- [ ] Optional: browser pose-landmark library for joint-angle ranges (after the deterministic flow is validated).
+
+**Exit check:** A Future traveler can complete a movement check, see a personal comparison, save the derived summary, and prepare a crew summary without any raw video persisted.
 
 ## 🔴 Current Backlog Summary
 

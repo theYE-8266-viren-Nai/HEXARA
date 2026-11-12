@@ -11,6 +11,8 @@ import { fetchRecentSolarEvents, type SolarEventResult } from "./lib/nasaDonki";
 import type { DataQualityState, LifeStage, SimulationScenario } from "./types/horizon";
 import { ensureAnonymousSession } from "./lib/anonymousAuth";
 import { createPreparationRepository } from "./lib/preparationRepository";
+import { VisualCheckView } from "./components/VisualCheckView";
+import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 
 export default function App() {
   const mockProfiles = mockDashboardRepository.getProfiles();
@@ -37,6 +39,7 @@ export default function App() {
 
   const profile = profiles.find((candidate) => candidate.id === profileId) ?? profiles[0];
   const preparationRepository = useMemo(() => createPreparationRepository(supabase, userId), [userId]);
+  const visualCheckRepository = useMemo(() => createVisualCheckRepository(supabase, userId), [userId]);
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
@@ -146,6 +149,8 @@ export default function App() {
     switch (activeView) {
       case "trends":
         return <TrendsView metrics={dashboard.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+      case "movement":
+        return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
         return <WellbeingView checkIn={checkIn} onCheckInChange={setCheckIn} privacy={privacy} onPrivacyChange={setPrivacy} />;
       case "guidance":
