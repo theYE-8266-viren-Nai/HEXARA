@@ -37,8 +37,13 @@ describe("buildAssessment", () => {
     }
   });
 
-  it("has no scenario history for a demo-only profile", () => {
-    expect(buildAssessment({ ...base, history: undefined, scenario: "recovery_concern", personId: "leon" })).toEqual({ status: "unavailable", reason: "no_history" });
+  it("uses the demo series for Recovery concern when the profile has no stored history of its own", () => {
+    const view = buildAssessment({ ...base, history: undefined, scenario: "recovery_concern", personId: "maya" });
+    expect(view.status).toBe("ok");
+    if (view.status === "ok") { expect(view.assessment.level).toBe("notably_different"); expect(view.assessment.asOf).toBe(dateAt(124)); }
+  });
+
+  it("has no pattern for a demo-only profile on the usual scenario", () => {
     expect(buildAssessment({ ...base, history: undefined, personId: "leon" })).toEqual({ status: "unavailable", reason: "no_history" });
   });
 

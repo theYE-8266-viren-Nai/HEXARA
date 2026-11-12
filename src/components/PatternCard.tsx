@@ -1,6 +1,12 @@
-import { Layers } from "lucide-react";
+import { useState } from "react";
+import { Layers, Sparkles } from "lucide-react";
 import type { AnomalyAssessment, PatternLevel } from "../domain/anomalyModel";
 import type { AssessmentView } from "../lib/useAssessment";
+import type { ExplainRequest } from "../domain/explainTypes";
+import type { ExplainResult } from "../lib/explainRepository";
+
+/** Optional "Explain this pattern" support. `request` is null when there is nothing honest to explain. */
+export interface ExplainSupport { request: ExplainRequest | null; run: (request: ExplainRequest) => Promise<ExplainResult>; }
 
 const LEVEL_TITLE: Record<PatternLevel, string> = {
   usual: "Close to your usual pattern",
@@ -22,7 +28,7 @@ export function describeDriver(driver: AnomalyAssessment["drivers"][number]): st
   return `${driver.label} ${driver.direction} (${sign}${Math.abs(driver.changePct)}%)`;
 }
 
-export function PatternCard({ view }: { view: AssessmentView }) {
+export function PatternCard({ view, explain }: { view: AssessmentView; explain?: ExplainSupport }) {
   if (view.status === "unavailable") {
     return <section className="tech-card pattern-card p-5 sm:p-6" aria-labelledby="pattern-title" data-tone="unavailable">
       <Header />
@@ -44,6 +50,7 @@ export function PatternCard({ view }: { view: AssessmentView }) {
         <ul className="mt-2 space-y-1 text-sm text-slate-300">{assessment.drivers.map((driver) => <li key={driver.metric}>{describeDriver(driver)}{driver.caveat ? <span className="text-xs text-slate-500"> · {driver.caveat}</span> : null}</li>)}</ul>
       </> : <p className="mt-4 text-sm text-slate-400">No single signal stands out from your usual range.</p>}
       <p className="mt-4 text-xs leading-5 text-slate-500">Compared with your own earlier readings: {assessment.baselineDays} days, {assessment.metricsUsed.length} signal{assessment.metricsUsed.length === 1 ? "" : "s"}{basis === "scenario" ? " (demo scenario)" : basis === "webhook" ? " (webhook readings added)" : ""}.{assessment.elevatedDays >= 3 ? " Several recent days stood out, not just today." : ""}</p>
+      {explain?.request ? <ExplainSection key={JSON.stringify(explain.request)} request={explain.request} run={explain.run} /> : null}
     </> : <p className="mt-2 text-sm leading-6 text-slate-400">A pattern needs about two weeks of your own readings across at least two signals. {assessment.baselineDays ? `So far there are ${assessment.baselineDays} days.` : ""}</p>}
     <Footer />
   </section>;
@@ -51,3 +58,30 @@ export function PatternCard({ view }: { view: AssessmentView }) {
 
 function Header() { return <div className="flex items-center gap-2"><Layers size={15} className="text-cyan-200" aria-hidden="true" /><p className="eyebrow">PATTERN ACROSS SIGNALS</p></div>; }
 function Footer() { return <p className="mt-3 text-xs leading-5 text-slate-500">Context only, from simulated readings. Not a diagnosis. Alerts work as before.</p>; }
+
+const FALLBACK_NOTE: Record<NonNullable<ExplainResult["reason"]>, string> = {
+  not_configured: "Cloud explanations are not set up, so this is the built-in text.",
+  error: "The cloud explanation was unavailable, so this is the built-in text.",
+  timeout: "The cloud explanation took too long, so this is the built-in text.",
+  unsafe: "The cloud text did not pass Horizon's wording check, so this is the built-in text.",
+  invalid_request: "The summary could not be sent, so this is the built-in text.",
+};
+
+function ExplainSection({ request, run }: { request: ExplainRequest; run: ExplainSupport["run"] }) {
+  const [state, setState] = useState<{ phase: "idle" | "loading" | "done"; result?: ExplainResult }>({ phase: "idle" });
+  const press = async () => {
+    setState({ phase: "loading" });
+    const result = await run(request);
+    setState({ phase: "done", result });
+  };
+  return <div className="mt-5 border-t border-slate-700/60 pt-4">
+    <button type="button" onClick={() => void press()} disabled={state.phase === "loading"} className="btn-square inline-flex items-center gap-2 border border-cyan-300/40 px-4 py-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10 disabled:cursor-wait disabled:opacity-60"><Sparkles size={15} aria-hidden="true" />{state.phase === "done" ? "Explain again" : "Explain this pattern"}</button>
+    <p className="mt-2 text-xs leading-5 text-slate-500">Pressing this may send a de-identified summary (level, score, top signals, data quality, source) to a cloud AI service. Raw readings never leave your device. If the cloud is unavailable, a built-in explanation is shown.</p>
+    {state.phase === "loading" ? <p className="mt-3 text-sm text-slate-400" role="status">Writing a short explanation…</p> : null}
+    {state.phase === "done" && state.result ? <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-950/30 p-4" role="status">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">{state.result.source === "ai" ? "Explanation by Horizon (AI-assisted)" : "Built-in explanation"}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-200">{state.result.text}</p>
+      {state.result.source === "template" && state.result.reason ? <p className="mt-2 text-xs text-slate-500">{FALLBACK_NOTE[state.result.reason]}</p> : null}
+    </div> : null}
+  </div>;
+}
