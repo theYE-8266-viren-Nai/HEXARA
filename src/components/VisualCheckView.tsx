@@ -5,6 +5,9 @@ import {
   type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckType, type VisualWorkflow,
 } from "../domain/visualCheck";
 import { cameraSupported, useCameraMotion } from "../lib/useCameraMotion";
+import { loadPoseDetector, type PoseDetector } from "../lib/poseLandmarker";
+import { extractPoseFeatures } from "../domain/poseFeatures";
+import { drawSkeleton } from "./drawSkeleton";
 import type { VisualCheckRepository } from "../lib/visualCheckRepository";
 import type { LifeStage } from "../types/horizon";
 
@@ -55,17 +58,26 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   const [result, setResult] = useState<VisualCheck | null>(null);
   const [startedAt, setStartedAt] = useState("");
   const cancelled = useRef(false);
+  const detectorRef = useRef<PoseDetector | null>(null);
+  const overlayRef = useRef<HTMLCanvasElement | null>(null);
+  const [pose, setPose] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
+  const [skeleton, setSkeleton] = useState(false);
   useEffect(() => () => { cancelled.current = true; }, []);
 
   const task = taskFor(taskType);
   const ownHistory = useMemo(() => history.filter((check) => check.ownerKey === ownerKey), [history, ownerKey]);
 
-  const reset = () => { camera.stop(); setStep("intro"); setQuality(null); setFeatures(null); setResult(null); setContext(emptyContext); };
+  const reset = () => { camera.stop(); setPose("idle"); setStep("intro"); setQuality(null); setFeatures(null); setResult(null); setContext(emptyContext); };
 
   const begin = async () => {
     if (mode === "synthetic") { setStep("countdown"); return; }
     const ok = await camera.start();
-    if (ok) { setStep("quality"); window.setTimeout(() => { if (!cancelled.current) setQuality(camera.checkQuality()); }, 600); }
+    if (ok) {
+      setStep("quality");
+      setPose("loading");
+      void loadPoseDetector().then((loaded) => { if (cancelled.current) return; detectorRef.current = loaded.ok ? loaded.detector : null; setPose(loaded.ok ? "ready" : "unavailable"); });
+      window.setTimeout(() => { if (!cancelled.current) setQuality(camera.checkQuality()); }, 600);
+    }
   };
 
   // Countdown, then capture.
@@ -85,6 +97,16 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     setStartedAt(new Date().toISOString());
     if (mode === "synthetic") { setFeatures(generateSyntheticFeatures(task, seed + ownHistory.length)); setStep("context"); return; }
     setRemaining(task.durationSeconds);
+    const detector = pose === "ready" ? detectorRef.current : null;
+    if (detector) {
+      void camera.capturePose(detector, task.durationSeconds, setRemaining, skeleton ? (landmarks) => drawSkeleton(overlayRef.current, landmarks) : undefined).then((frames) => {
+        if (cancelled.current) return;
+        camera.stop();
+        setFeatures(extractPoseFeatures(frames, task, quality ?? { quality: "limited", notes: [] }));
+        setStep("context");
+      });
+      return;
+    }
     void camera.captureMotion(task.durationSeconds, setRemaining).then((samples) => {
       if (cancelled.current) return;
       camera.stop();
@@ -114,6 +136,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     <div className={mode === "camera" && (step === "quality" || step === "countdown" || step === "capture") ? "max-w-3xl" : "hidden"}>
       <div className="relative overflow-hidden rounded-2xl border border-[#293d59] bg-black">
         <video ref={camera.videoRef} muted playsInline aria-label="Live camera preview (not recorded)" className="aspect-video w-full -scale-x-100 object-cover" />
+        <canvas ref={overlayRef} width={640} height={480} aria-hidden="true" className={`pointer-events-none absolute inset-0 size-full -scale-x-100 ${skeleton && step === "capture" ? "" : "hidden"}`} />
         <div aria-hidden="true" className="pointer-events-none absolute inset-[8%] rounded-xl border-2 border-dashed border-cyan-200/60" />
         <p className="absolute bottom-2 left-2 rounded-full bg-black/70 px-3 py-1 font-mono text-xs text-slate-200">Processed on this device · not recorded</p>
       </div>
@@ -127,8 +150,10 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
         {quality.notes.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">{quality.notes.map((note) => <li key={note}>{note}</li>)}</ul> : <p className="text-sm text-slate-300">Lighting and contrast look usable.</p>}
         {quality.quality === "poor" ? <p className="text-sm text-slate-400">Results under these conditions would not be assessable. Adjust lighting or position and check again.</p> : null}
       </div> : <p className="mt-4 text-sm text-slate-400" role="status">Checking the camera image…</p>}
+      <p className="mt-4 text-sm text-slate-300" role="status">{pose === "loading" ? "Body tracking is loading…" : pose === "ready" ? "Body tracking is ready. Joint angles will be measured on your device." : pose === "unavailable" ? "Body tracking is not available here, so the motion-based check will be used. Results stay on your device." : ""}</p>
+      {pose === "ready" ? <label className="mt-2 flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" className="size-4" checked={skeleton} onChange={(event) => setSkeleton(event.target.checked)} />Show body points on the preview</label> : null}
       <div className="mt-5 flex flex-wrap gap-3">
-        <PrimaryButton disabled={!quality || quality.quality === "poor"} onClick={() => setStep("countdown")}><Play size={16} aria-hidden="true" />Start {task.label.toLowerCase()}</PrimaryButton>
+        <PrimaryButton disabled={!quality || quality.quality === "poor" || pose === "loading"} onClick={() => setStep("countdown")}><Play size={16} aria-hidden="true" />Start {task.label.toLowerCase()}</PrimaryButton>
         <SecondaryButton onClick={() => setQuality(camera.checkQuality())}><RotateCcw size={16} aria-hidden="true" />Check again</SecondaryButton>
         <SecondaryButton onClick={reset}>Cancel</SecondaryButton>
       </div>
@@ -164,7 +189,7 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
         <h2 id="privacy-title" className="text-xl font-semibold text-white">Camera privacy and limits</h2>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
           <li>Video is processed on this device and never recorded or uploaded.</li>
-          <li>Only derived numbers — repetitions, timing, left/right balance, pauses, and camera quality — are kept.</li>
+          <li>Only derived numbers — repetitions, timing, left/right balance, joint-angle ranges, pauses, and camera quality — are kept.</li>
           <li>Results are compared only with your own previous practice. There is no “normal astronaut” score.</li>
           <li>The camera cannot assess bone, vision, blood flow, radiation effects, or any medical condition.</li>
           <li>If you have pain or severe or worsening symptoms, contact the crew medic instead of using this check.</li>
