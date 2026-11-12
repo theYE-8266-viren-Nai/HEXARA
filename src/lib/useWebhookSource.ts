@@ -5,6 +5,7 @@ import type { MetricName as BackendMetric } from "../domain/types";
 import type { StoredRow } from "../server/ingestReceiver";
 import type { MetricCardData, MetricName, MetricPoint } from "../types/horizon";
 import { fetchWebhookRows, fetchWebhookStatus } from "./adapters/webhookSource";
+import { wellCoveredReadings } from "./dayCoverage";
 import { deviceTiming } from "./useDeviceStream";
 
 /** Mutable so tests can run quickly. */
@@ -12,7 +13,11 @@ export const webhookTiming = { pollMs: 2_000, freshMs: 120_000, windowMs: 10 * 6
 
 export type WebhookPhase = "checking" | "unavailable" | "off" | "waiting" | "receiving" | "idle" | "error";
 
-/** The shape every source with its own readings exposes, so the pattern model can score completed days. */
+/**
+ * The shape every source with its own readings exposes, so completed days can be scored (alerts and the pattern model).
+ * For the webhook, an earlier day is included only when it is well covered (see dayCoverage.ts); the latest,
+ * still-open day is kept as the end marker and is never scored.
+ */
 export interface SourceReadings { readings: SanitizeResult; source: DataSource; }
 
 export interface WebhookSource {
@@ -26,7 +31,7 @@ export interface WebhookSource {
   ready: boolean;
   cards: Partial<Record<MetricName, MetricCardData>>;
   ingest: IngestSummary | null;
-  /** Cleaned readings for the retained period (all days). Null until something was received. */
+  /** Cleaned readings for the retained period; earlier days only when well covered. Null until something was received. */
   completed: SourceReadings | null;
   start: () => void;
   stop: () => void;
@@ -122,7 +127,7 @@ export function useWebhookSource(baseMetrics: MetricCardData[]): WebhookSource {
 
   const completed = useMemo<SourceReadings | null>(() => {
     if (!buffer.current.length) return null;
-    return { readings: sanitizeReadings(buffer.current.map(toRaw), { source: "api", now: new Date(deviceTiming.now()), defaultDeviceId: "webhook" }), source: "api" };
+    return { readings: wellCoveredReadings(sanitizeReadings(buffer.current.map(toRaw), { source: "api", now: new Date(deviceTiming.now()), defaultDeviceId: "webhook" })), source: "api" };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 

@@ -123,11 +123,24 @@ describe("useWebhookSource", () => {
     expect(result.current.completed).toBeNull();
   });
 
+  it("leaves out an earlier day that was only thinly covered, so a few minutes before midnight is never a 'completed day'", async () => {
+    const { result, fake } = await setup();
+    act(() => { result.current.start(); });
+    const at = (iso: string, value: number) => ({ timestamp: iso, metric: "heart_rate", value, unit: "bpm", deviceId: "svc" });
+    fake.send([at("2026-11-11T23:55:00Z", 95), at("2026-11-11T23:56:00Z", 96), at("2026-11-11T23:57:00Z", 94.5), at("2026-11-12T00:01:00Z", 62), at("2026-11-12T00:02:00Z", 62.3), at("2026-11-12T00:03:00Z", 62.6)]);
+    await flush();
+    const days = new Set(result.current.completed!.readings.accepted.map((r) => r.observedAt.slice(0, 10)));
+    expect([...days]).toEqual(["2026-11-12"]);
+  });
+
   it("exposes cleaned readings for every retained day in the agreed shape, and only completed days can be scored", async () => {
     const { result, fake } = await setup();
     act(() => { result.current.start(); });
-    const day = (offsetDays: number, value: number) => [6, 10, 14, 18].map((h) => ({ timestamp: new Date(START - offsetDays * 86_400_000 + (h - 9) * 3_600_000).toISOString(), metric: "heart_rate", value: value + h * 0.01, unit: "bpm", deviceId: "svc" }));
-    fake.send([...day(1, 62), ...day(0, 62)]);
+    // Yesterday is a full day (a reading every hour, UTC); today only has a few readings so far.
+    const dayStart = Date.UTC(2026, 10, 12) - 86_400_000;
+    const full = (value: number) => Array.from({ length: 24 }, (_, h) => ({ timestamp: new Date(dayStart + h * 3_600_000 + 1_800_000).toISOString(), metric: "heart_rate", value: value + h * 0.01, unit: "bpm", deviceId: "svc" }));
+    const today = [0, 1, 2].map((h) => ({ timestamp: new Date(Date.UTC(2026, 10, 12) + h * 3_600_000 + 1_800_000).toISOString(), metric: "heart_rate", value: 62 + h * 0.01, unit: "bpm", deviceId: "svc" }));
+    fake.send([...full(62), ...today]);
     await flush();
     const completed = result.current.completed!;
     expect(completed.source).toBe("api");

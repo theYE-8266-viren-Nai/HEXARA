@@ -4,6 +4,11 @@
 //   npm run send:sample -- --count 30           send 30 rounds, then stop
 //   npm run send:sample -- --bad                also mix in junk rows to show the cleaning
 //   npm run send:sample -- --url http://localhost:5174 --interval 2000
+//   npm run send:sample -- --backfill           first post yesterday as a full day (a reading every hour)
+//   npm run send:sample -- --backfill --shift 28   ...with heart rate 28 bpm above usual, so an alert appears
+//
+// Alerts only ever come from COMPLETED, well-covered days (a reading in at least 18 different hours),
+// never from today's partial day, so use --backfill to see one.
 //
 // The token is read from the receiver's status endpoint (same machine), or from
 // HORIZON_INGEST_TOKEN / --token. All values are synthetic.
@@ -16,6 +21,8 @@ const base = option('url', 'http://localhost:5173').replace(/\/$/, '');
 const interval = Math.max(100, Number(option('interval', '1000')) || 1000);
 const count = Number(option('count', '0')) || Infinity;
 const withBad = flag('bad');
+const backfill = flag('backfill');
+const shift = Number(option('shift', '0')) || 0;
 const deviceId = 'sample-sender';
 
 let token = option('token', process.env.HORIZON_INGEST_TOKEN);
@@ -52,6 +59,23 @@ function round(now) {
   }
   return rows;
 }
+
+// Yesterday (UTC) as a complete day: one reading per hour for each signal.
+async function postBackfill() {
+  const today = new Date();
+  const dayStart = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - 86_400_000;
+  const rows = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    const iso = new Date(dayStart + hour * 3_600_000 + 1_800_000).toISOString();
+    rows.push({ timestamp: iso, metric: 'heart_rate', value: Math.round((64 + shift + wave(hour, 24, 3) + wobble(1)) * 10) / 10, unit: 'bpm', deviceId });
+    rows.push({ timestamp: iso, metric: 'spo2', value: Number((97.8 + wobble(0.25)).toFixed(1)), unit: '%', deviceId });
+    rows.push({ timestamp: iso, metric: 'skin_temperature', value: Number((33.3 + wave(hour, 24, 0.12) + wobble(0.03)).toFixed(2)), unit: 'C', deviceId });
+  }
+  const response = await fetch(`${base}/api/ingest`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ readings: rows }) });
+  const body = await response.json();
+  console.log(`Backfilled yesterday: ${response.status} accepted=${body.accepted ?? '-'} rejected=${body.rejected ?? '-'}${shift ? ` (heart rate ${shift > 0 ? '+' : ''}${shift} bpm)` : ''}`);
+}
+if (backfill) await postBackfill();
 
 let sent = 0;
 console.log(`Sending synthetic readings to ${base}/api/ingest every ${interval} ms${withBad ? ' (with junk rows)' : ''}. Ctrl+C to stop.`);

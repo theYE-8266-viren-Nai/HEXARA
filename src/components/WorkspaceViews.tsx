@@ -447,7 +447,7 @@ function DataTrustStrip({ onImport }: { onImport?: () => void }) {
     <span data-quality={ingest.quality}>Data quality: <span className="font-semibold text-white">{ingest.quality}</span></span>
     <span className="text-slate-400">{ingest.accepted} readings checked{ingest.rejected ? ` · ${ingest.rejected} set aside` : ""}{ingest.flagged ? ` · ${ingest.flagged} flagged` : ""}</span>
     {ingest.quality === "poor" ? <span className="font-semibold text-amber-100">Not enough reliable data to assess</span> : null}
-    <span className="text-slate-400">Alerts from: {ctx.bluetooth?.ready ? "completed days only. Bluetooth readings are display-only until a full day is collected." : ctx.webhook?.ready ? "completed days only. Webhook readings are display-only until a full day is collected." : ctx.alertBasis === "device" ? "completed days of device readings" : "demo scenario"}</span>
+    <span className="text-slate-400">Alerts from: {ctx.bluetooth?.ready ? "completed days only. Bluetooth readings are display-only until a full day is collected." : ctx.webhook?.ready ? (ctx.alertBasis === "webhook" ? "completed days of webhook readings, plus the simulated wearable for other signals" : "completed days only. Webhook readings are display-only until a full day is collected.") : ctx.alertBasis === "device" ? "completed days of device readings" : "demo scenario"}</span>
     <span className="basis-full text-xs text-slate-500">Signals assume a crew wearable and a personal dosimeter. Nothing here is measured by Horizon. See Profile for details.</span>
     {onImport ? <button type="button" onClick={onImport} className="ml-auto text-sm font-semibold text-cyan-200 hover:text-cyan-100">Import a file instead</button> : null}
   </section>;

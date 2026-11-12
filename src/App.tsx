@@ -19,6 +19,8 @@ import { useDeviceStream } from "./lib/useDeviceStream";
 import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
 import { useWebhookSource } from "./lib/useWebhookSource";
 import { useAssessment } from "./lib/useAssessment";
+import { analyzeLiveReadings } from "./lib/liveAnalysis";
+import { hasCompletedDay } from "./lib/dayCoverage";
 import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
@@ -64,10 +66,16 @@ function HorizonApp() {
   const liveIngest = bluetooth.ready && bluetooth.ingest ? bluetooth.ingest : webhook.ready && webhook.ingest ? webhook.ingest : device.ingest;
   // The wearable's own cleaned readings decide the alert when history allows it; poor-quality data never alerts.
   // Demo scenarios have no stored history, so the scenario still supplies their alert.
-  const liveAlert = liveIngest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
-  const alertBasis = device.alert !== undefined ? "device" as const : "scenario" as const;
+  // A webhook that has delivered a well-covered completed day is analyzed itself, with the same 30-day baseline and rules.
+  // Only completed days count and poor-quality data never alerts; the open day is display-only.
+  const webhookActive = webhook.ready && !bluetooth.ready;
+  const webhookHistory = scenario === "usual" ? backendSnapshot?.history : undefined;
+  const webhookScored = webhookActive && Boolean(webhook.completed) && Boolean(webhookHistory?.length) && hasCompletedDay(webhook.completed!.readings);
+  const webhookAlert = useMemo(() => (webhookScored && webhookHistory ? analyzeLiveReadings(webhookHistory, webhook.completed!.readings) : null), [webhookScored, webhookHistory, webhook.completed]);
+  const liveAlert = liveIngest?.quality === "poor" ? null : webhookAlert ?? (device.alert !== undefined ? device.alert : dashboard.alert);
+  const alertBasis = webhookScored ? "webhook" as const : device.alert !== undefined ? "device" as const : "scenario" as const;
   // Pattern context (adds to alerts, never changes them): completed days only, from the source in use.
-  const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive: webhook.ready && !bluetooth.ready });
+  const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive });
   const explainRepository = useMemo(() => createExplainRepository(supabase), []);
   const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, explainRepository]);
   const deviceStatus = useMemo(() => ({
