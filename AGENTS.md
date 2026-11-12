@@ -385,7 +385,7 @@ Initial shared types:
 - [x] Replace the usual-day frontend mock with repository calls and retain local fallback.
 - [x] Run the combined build, unit tests, RLS checks, and active-flow smoke test after branch integration.
 - [x] Review synthetic-data labels and safety copy for the frontend flow.
-- [ ] Merge the verified integration pull request into `main`.
+- [x] Merge the verified integration work into `main` (`codex/integration` is an ancestor of `main`; the UI redesign and Visual Health Check followed).
 - [x] Integrate the verified space-health UI, Profile icon, and light/dark appearance into `main`.
 
 ### Current Blockers
@@ -394,7 +394,7 @@ Initial shared types:
 
 ### Next Coordination Point
 
-The verified space-health UI is integrated into `main`, including stage-selection coverage, NASA imagery, and the revised light/dark appearance. The next backend task remains live verification of the Future preparation migration.
+`main` includes the integration branch, the space-health UI with light/dark appearance, and the Visual Health Check. Next: verify cross-user RLS denial on the Future preparation and `visual_checks` tables, then browser and real-camera checks of Movement.
 
 ## 📈 Delegated Progress Rules
 
