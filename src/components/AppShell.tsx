@@ -1,15 +1,54 @@
-import { Activity, Camera, ChartNoAxesCombined, Compass, HeartHandshake, Menu, Orbit, SlidersHorizontal, X } from "lucide-react";
+import { Activity, ArrowUpRight, Camera, ChartNoAxesCombined, Compass, HeartHandshake, Menu, Orbit, ShieldCheck, UserRound, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { LifeStage } from "../types/horizon";
+import { ThemeToggle } from "./ThemeToggle";
 
 export type ViewName = "home" | "trends" | "movement" | "wellbeing" | "guidance" | "profile";
-const navigation: Array<{ id: ViewName; label: string; icon: typeof Activity }> = [{ id: "home", label: "Home", icon: Activity }, { id: "trends", label: "Trends", icon: ChartNoAxesCombined }, { id: "movement", label: "Movement", icon: Camera }, { id: "wellbeing", label: "Wellbeing", icon: HeartHandshake }, { id: "guidance", label: "Guidance", icon: Compass }, { id: "profile", label: "Profile", icon: SlidersHorizontal }];
+const navigation: Array<{ id: ViewName; label: string; icon: typeof Activity }> = [
+  { id: "home", label: "Home", icon: Activity },
+  { id: "trends", label: "Trends", icon: ChartNoAxesCombined },
+  { id: "movement", label: "Movement", icon: Camera },
+  { id: "wellbeing", label: "Wellbeing", icon: HeartHandshake },
+  { id: "guidance", label: "Guidance", icon: Compass },
+  { id: "profile", label: "Profile", icon: UserRound },
+];
+
+export function Brand() {
+  return <div className="brand"><span className="brand-symbol"><Orbit size={25} strokeWidth={1.5} aria-hidden="true" /></span><div><p className="brand-name">horizon<span>.</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
+}
+
+export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
+  return <div className={`safety-disclaimer ${landing ? "landing-disclaimer" : ""}`}><ShieldCheck size={13} aria-hidden="true" /><span>Simulated data. Not medical advice. Not diagnostic.</span></div>;
+}
 
 export function AppShell({ activeView, onViewChange, stage, onStageChange, children }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const workspaceLabel = stage === "future" ? "Preparation workspace" : stage === "retired" ? "Post-mission workspace" : "Active monitoring workspace";
   const chooseView = (view: ViewName) => { onViewChange(view); setMobileOpen(false); };
-  return <div className="star-field min-h-screen bg-[#080d21] text-[#f4f7ff]"><aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[#293d59] bg-[#080d21]/95 p-5 lg:block"><Brand /><Nav activeView={activeView} onChoose={chooseView} /><p className="absolute bottom-5 left-5 right-5 font-mono text-xs leading-5 text-[#7589a5]">Research demo using synthetic data only.</p></aside><header className="sticky top-0 z-20 flex items-center justify-between border-b border-[#293d59] bg-[#080d21]/95 px-4 py-4 backdrop-blur lg:ml-64 lg:px-8"><button type="button" className="btn-square border border-[#526783] p-2 text-[#f4f7ff] lg:hidden" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X /> : <Menu />}</button><div className="hidden sm:block"><p className="font-mono text-xs uppercase tracking-[0.2em] text-[#91a4bf]">Mission support</p><p className="font-medium text-white">{workspaceLabel}</p></div><label className="flex items-center gap-2 text-sm font-medium text-[#c2d0e4]">Stage<select aria-label="Life stage" value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)} className="field w-auto py-2"><option value="future">Future</option><option value="active">Active</option><option value="retired">Retired</option></select></label></header>{mobileOpen ? <div className="fixed inset-x-0 top-[69px] z-30 border-b border-[#293d59] bg-[#080d21] p-4 lg:hidden"><Nav activeView={activeView} onChoose={chooseView} /></div> : null}<main className="mx-auto max-w-7xl px-4 py-6 pb-28 lg:ml-64 lg:px-8 lg:py-8">{children}</main><nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-[#293d59] bg-[#080d21]/95 px-2 py-2 backdrop-blur lg:hidden">{navigation.slice(0,5).map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => chooseView(id)} aria-current={activeView === id ? "page" : undefined} className={`btn-square flex min-w-14 flex-col items-center gap-1 px-2 py-1 text-xs ${activeView === id ? "text-[#55e0f4]" : "text-[#91a4bf]"}`}><Icon size={19} aria-hidden="true" />{label}</button>)}</nav><div className="pointer-events-none fixed inset-x-0 bottom-[68px] z-20 border-y border-[#55e0f4]/30 bg-[#102f3e]/95 px-4 py-2 text-center font-mono text-xs font-medium text-[#f4f7ff] lg:bottom-0 lg:ml-64">Simulated data. Not medical advice. Not diagnostic.</div></div>;
+  return <div className="star-field app-layout">
+    <a href="#workspace" className="skip-link">Skip to workspace</a>
+    <aside className="app-sidebar">
+      <Brand />
+      <p className="nav-caption">YOUR WORKSPACE</p>
+      <Nav activeView={activeView} onChoose={chooseView} />
+      <div className="sidebar-bottom"><div className="mission-note"><Orbit size={23} strokeWidth={1} aria-hidden="true" /><p>A little perspective.<br /><span>A clearer next step.</span></p><button type="button" onClick={() => chooseView("guidance")}>Explore guidance <ArrowUpRight size={14} /></button></div><p className="demo-label"><span /> SYNTHETIC RESEARCH DEMO</p></div>
+    </aside>
+    <div className="app-body">
+      <header className="app-topbar">
+        <button type="button" className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-menu" onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={19} /> : <Menu size={19} />}</button>
+        <div className="workspace-breadcrumb"><span>Mission control</span><span aria-hidden="true">/</span><p>{workspaceLabel}</p></div>
+        <label className="stage-control">Stage<select aria-label="Life stage" value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)}><option value="future">Future</option><option value="active">Active</option><option value="retired">Retired</option></select></label>
+        <ThemeToggle />
+        <span className="workspace-avatar" aria-hidden="true"><Orbit size={19} /></span>
+      </header>
+      {mobileOpen ? <div id="mobile-menu" className="mobile-drawer"><Nav activeView={activeView} onChoose={chooseView} /></div> : null}
+      <main id="workspace" className="workspace-content" tabIndex={-1}>{children}</main>
+    </div>
+    <nav aria-label="Mobile navigation" className="mobile-bottom-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => chooseView(id)} aria-current={activeView === id ? "page" : undefined}><Icon size={18} aria-hidden="true" />{label}</button>)}</nav>
+    <SafetyDisclaimer />
+  </div>;
 }
-function Brand() { return <div className="mb-10 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#55e0f4] text-[#080d21]"><Orbit aria-hidden="true" size={24} /></span><div><p className="text-lg font-bold tracking-tight text-white">Horizon</p><p className="text-xs text-[#91a4bf]">Space health companion</p></div></div>; }
-function Nav({ activeView, onChoose }: { activeView: ViewName; onChoose: (view: ViewName) => void }) { return <nav className="space-y-1">{navigation.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => onChoose(id)} aria-current={activeView === id ? "page" : undefined} className={`btn-square flex w-full items-center gap-3 border-l-2 px-3 py-3 text-left text-sm font-semibold transition ${activeView === id ? "border-[#55e0f4] bg-[#123047] text-[#b8f5ff]" : "border-transparent text-[#91a4bf] hover:bg-[#102334] hover:text-white"}`}><Icon size={19} aria-hidden="true" />{label}</button>)}</nav>; }
+
+function Nav({ activeView, onChoose }: { activeView: ViewName; onChoose: (view: ViewName) => void }) {
+  return <nav aria-label="Workspace navigation" className="workspace-nav">{navigation.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => onChoose(id)} aria-current={activeView === id ? "page" : undefined}><Icon size={18} strokeWidth={1.6} aria-hidden="true" />{label}{activeView === id ? <span className="nav-active-dot" /> : null}</button>)}</nav>;
+}

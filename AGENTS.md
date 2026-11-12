@@ -51,19 +51,28 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Original Horizon palette restored:** The visual system now uses the screenshot palette: deep navy surfaces, cyan primary accent, blue-grey text, purple accent context, rounded dark panels, and preserved amber/green statuses.
 - **Palette refresh verification:** 21 frontend tests, `npm run build`, and `git diff --check` pass after restoring the original Horizon colors.
 - **Future persistence foundation:** Stage selection now gates the app, anonymous Supabase sessions are restored or created, Future preparation UI includes baseline, practice, and Days 1–14 adaptation flows, and typed cloud persistence adapters plus an RLS migration are present.
+- **Space-health UI redesign:** Replaced the oversized landing page with a compact three-stage picker, locally bundled NASA astronaut photography and credit, glass cards, restrained charcoal/cyan colors, smaller type, and consistent desktop/mobile navigation across all views. Metric cards include synthetic sparklines; connection details are expandable.
+- **Redesign verification:** 24 frontend tests, `npm run build`, and `git diff --check` pass. Headless Chrome checks covered all main views, recovery alerts, Future/Retired guidance, and 1440/390/320-pixel layouts with no horizontal overflow or uncaught errors. App and image HTTP checks return 200. Vite retains its existing large-bundle warning.
+- **Stage-selection test coverage:** UI tests now enter through the required stage picker and cover Future practices/timeline and local check-in restoration after reselecting a stage.
+- **Profile navigation icon:** Desktop and mobile navigation now share the `UserRound` person icon for Profile. `npm run build` and `git diff --check` pass.
+- **Light and dark appearance:** Landing and workspace headers include an accessible sun/moon toggle. Appearance starts from the device preference, saves explicit choices in LocalStorage, and restores before first paint. Light mode uses warm ivory, white glass cards, ink text, and subdued teal; dark mode keeps charcoal/cyan. Charts, controls, notices, and status colors adapt across all stages.
+- **Theme verification:** 27 frontend tests, production build, and diff checks pass. Chrome checks verified both themes at 1440/390/320 pixels, all workspace views, Future/Retired guidance, saved preferences, pre-React restoration, and no horizontal overflow or page errors. Core text/action contrast exceeds 4.5:1 and chart contrast exceeds 3:1 in both palettes. Chart animation is disabled for immediate, stable rendering.
+- **Light-mode refinement:** Removed the blue-grey wash and heavy shadows, simplified card and navigation surfaces, and restyled NASA imagery into circular navy space views. The revised light palette passes the build, 27 tests, diff checks, and 1440/390/320-pixel browser checks; artwork/caption spacing and text/chart contrast are verified.
+- **Main UI integration:** Fast-forwarded `main` to include all four verified `codex/space-health-ui` commits, through `a93a83c`, at the user's request. Application files match the tested UI branch; no merge conflicts or code changes were needed.
 - **Visual Health Check (non-diagnostic):** A Movement view adds a guided webcam practice flow (privacy/limits screen, consent, lighting/framing check, countdown, local frame-difference capture, context check-in, observation summary) with a labelled synthetic demo mode. `src/domain/visualCheck.ts` holds the typed contract, deterministic feature extraction, same-owner-only comparison, crew-medic escalation for reported pain/severe symptoms, a diagnostic-language guard, and the crew summary composer. Frames are never stored; `src/lib/visualCheckRepository.ts` saves derived summaries locally and to `visual_checks` without reporting false success.
 - **Stage-selection UI tests:** `src/App.test.tsx` now mocks the Supabase client to `null`, enters a stage from the required selection screen, verifies the offline "selection will not persist" warning, Future non-certifying copy without false cloud-save success, Movement navigation, and refresh behavior (local check-in restored, stage re-selected offline). 44 frontend tests (stable across 3 runs), 9 backend tests, `npm run build`, and `git diff --check` pass.
+- **Visual check + redesign integration:** `codex/visual-check` merges `origin/main` (through `e77a7ff`, the glass UI with light/dark themes) with the Movement view. Movement is a sixth item in desktop/mobile navigation (mobile buttons now share the bar width). `src/App.test.tsx` keeps `origin/main`'s `openWorkspace()` helper, mocks the Supabase client so a local `.env.local` cannot trigger real sign-in, and adds a Movement test. The Future view keeps its no-false-success baseline/timeline messaging plus the redesign's `preparation-hero` and `aria-pressed` attributes. 50 frontend tests and `npm run build` pass after the merge; Movement was not browser-checked at 320/390/1440 px.
 - **Visual check verification:** 22 new tests (`src/domain/visualCheck.test.ts`, `src/components/VisualCheckView.test.tsx`), `tsc -b`, `npm run build`, and `git diff --check` pass. A browser smoke test was not run because the in-app browser could not open localhost.
 
 ### 🟡 Active Focus
 
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
-- **Immediate task:** Apply and verify the Future preparation and `visual_checks` migrations in the configured Supabase project (including cross-user RLS denial).
+- **Immediate task:** Apply and verify the Future preparation and `visual_checks` migrations in the configured Supabase project (including cross-user RLS denial). The UI redesign, light/dark appearance, and stage-selection test updates are verified.
 - **Required tables:** `sample_people`, `health_observations`, and `demo_events`.
 - **Required seed:** Four synthetic travelers with 180 days of observations.
 - **Security requirement:** Enable RLS on every exposed table and allow only the intended synthetic-data reads.
-- **Current blocker:** `20261112000000_future_preparation.sql` and `20261112010000_visual_checks.sql` are not applied to the live Supabase project, so cloud saves currently fail with a visible "Not saved to cloud" message.
+- **Current blocker:** The Future preparation and `visual_checks` migrations are not yet applied/verified against the live Supabase project, so cloud saves show a visible "Not saved to cloud" message. This checkout has no `.env.local`; the local preview uses the synthetic fallback.
 
 ## 🧭 Implementation Roadmap
 
@@ -350,6 +359,8 @@ Initial shared types:
 - [x] Verify offline Trends fallback and recovery guidance.
 - [x] Integrate Agent 1's repository contract for the usual-day flow, with deterministic local fallback.
 - [x] Import Agent 1's replay/data-quality contract and map its quality warnings into the UI.
+- [x] Redesign the complete UI with compact typography, glass cards, NASA space imagery, responsive navigation, and stage-selection coverage.
+- [x] Add persistent light/dark appearance across landing, workspaces, charts, and forms; verify desktop/mobile layouts and contrast.
 
 ### Agent 1 — Backend Checklist
 
@@ -374,14 +385,15 @@ Initial shared types:
 - [x] Run the combined build, unit tests, RLS checks, and active-flow smoke test after branch integration.
 - [x] Review synthetic-data labels and safety copy for the frontend flow.
 - [ ] Merge the verified integration pull request into `main`.
+- [x] Integrate the verified space-health UI, Profile icon, and light/dark appearance into `main`.
 
 ### Current Blockers
 
-- Browser automation is unavailable in the current Codex Work settings; automated Active-flow coverage and the production-server HTTP smoke check pass.
+- The Future preparation migration still needs live Supabase verification; this checkout has no `.env.local`. UI browser checks are available through headless Chrome; interactive computer-use helpers fail with `failed to write kernel assets: The system cannot find the path specified. (os error 3)`.
 
 ### Next Coordination Point
 
-The integration branch is verified and pushed as `d57085b`. Next coordination point: review and merge its pull request into `main`.
+The verified space-health UI is integrated into `main`, including stage-selection coverage, NASA imagery, and the revised light/dark appearance. The next backend task remains live verification of the Future preparation migration.
 
 ## 📈 Delegated Progress Rules
 

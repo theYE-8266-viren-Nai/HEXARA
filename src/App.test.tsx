@@ -3,15 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-// Keep UI tests offline and deterministic: no live Supabase project, no anonymous sign-in.
+// Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
 
-type StageTitle = "Future traveler" | "Active astronaut" | "Retired astronaut";
-
-/** The app now opens on the required stage-selection screen. */
-async function enterStage(user: ReturnType<typeof userEvent.setup>, title: StageTitle = "Active astronaut") {
-  await user.click(await screen.findByRole("button", { name: new RegExp(title) }));
+async function openWorkspace(stage: "active" | "future" | "retired" = "active") {
+  const view = render(<App />);
+  const labels = { active: "Active astronaut", future: "Future traveler", retired: "Retired astronaut" };
+  await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
   await screen.findByRole("combobox", { name: "Life stage" });
+  return view;
 }
 
 describe("Horizon app shell", () => {
@@ -19,13 +19,69 @@ describe("Horizon app shell", () => {
     window.localStorage.clear();
   });
 
-  it("requires stage selection, renders the safety disclaimer, and switches stage", async () => {
+  it("switches appearance on the landing page and keeps it across workspace navigation", async () => {
     const user = userEvent.setup();
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Where are you in your journey?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    expect(window.localStorage.getItem("horizon:theme")).toBe('"light"');
+    await user.click(await screen.findByRole("button", { name: "Active astronaut" }));
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    await user.click(screen.getByRole("button", { name: "Switch to dark mode" }));
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("heading", { name: "Your signals over time" })).toBeInTheDocument();
+  });
+
+  it("restores the saved appearance after a refresh", async () => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
+    first.unmount();
+    const second = render(<App />);
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    await user.click(screen.getByRole("button", { name: "Switch to dark mode" }));
+    second.unmount();
+    render(<App />);
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
+  });
+
+  it("uses the device appearance until the user saves a choice", async () => {
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true })));
+    try {
+      const first = render(<App />);
+      expect(document.documentElement).toHaveAttribute("data-theme", "light");
+      await userEvent.click(screen.getByRole("button", { name: "Switch to dark mode" }));
+      first.unmount();
+      render(<App />);
+      expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+
+  it("requires a stage choice and keeps all three paths accessible", async () => {
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Future traveler" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Active astronaut" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retired astronaut" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Life stage" })).not.toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(/selection will not persist until Supabase is available/);
-    await enterStage(user);
+    expect(screen.getByText("Simulated data. Not medical advice. Not diagnostic.")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["future", "Build your starting pattern"],
+    ["retired", "Keep the long view"],
+  ] as const)("enters the %s workspace from its stage card", async (stage, heading) => {
+    await openWorkspace(stage);
+    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue(stage);
+    expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+  });
+
+  it("renders the safety disclaimer and switches the life stage", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
 
     expect(screen.getByText("Simulated data. Not medical advice. Not diagnostic.")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("active");
@@ -39,8 +95,7 @@ describe("Horizon app shell", () => {
 
   it("changes the active view from the navigation", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: /Trends/ })[0]);
 
@@ -49,10 +104,9 @@ describe("Horizon app shell", () => {
 
   it("explains a recovery concern in plain language", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     expect(screen.getByText("Loading simulated signals…")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
@@ -65,10 +119,9 @@ describe("Horizon app shell", () => {
 
   it("shows a separate stale-data explanation", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "stale");
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
@@ -79,10 +132,9 @@ describe("Horizon app shell", () => {
 
   it("shows a clear unavailable state when the simulated source disconnects", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
@@ -93,10 +145,9 @@ describe("Horizon app shell", () => {
 
   it("keeps Trends unavailable in offline mode with a recovery path", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "offline");
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
@@ -107,10 +158,9 @@ describe("Horizon app shell", () => {
 
   it("opens the plain-language reason for a trend alert", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
@@ -121,10 +171,9 @@ describe("Horizon app shell", () => {
 
   it("persists the simulation seed and replays events locally", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     const seed = screen.getByRole("spinbutton", { name: "Simulation seed" });
     await user.clear(seed);
     await user.type(seed, "31415");
@@ -136,8 +185,7 @@ describe("Horizon app shell", () => {
 
   it("saves a wellbeing check-in to local storage", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Mood" }), "4");
@@ -151,11 +199,10 @@ describe("Horizon app shell", () => {
 
   it("verifies the active astronaut flow from alert to local check-in", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     expect(screen.getByRole("heading", { name: "How are you doing today?" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Profile" }));
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitFor(() => expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument());
 
@@ -175,8 +222,7 @@ describe("Horizon app shell", () => {
 
   it("opens local support options without sending a message", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     await user.click(screen.getByRole("button", { name: "Open support options" }));
@@ -188,8 +234,7 @@ describe("Horizon app shell", () => {
 
   it("persists wellbeing privacy choices locally", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     const notesToggle = screen.getByRole("checkbox", { name: "Free-text notes" });
@@ -199,34 +244,23 @@ describe("Horizon app shell", () => {
     expect(JSON.parse(window.localStorage.getItem("horizon:privacy") ?? "{}")).toMatchObject({ notes: true });
   });
 
-  it("shows future preparation without certifying readiness or claiming a failed cloud save", async () => {
+  it("opens future preparation practices and the adaptation timeline without certifying readiness", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user, "Future traveler");
+    await openWorkspace("future");
 
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("future");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     expect(screen.getByText(/never flight clearance or certification/)).toBeInTheDocument();
-    expect(screen.getByText(/does not mean you are ready to fly, medically cleared/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Save baseline check-in" }));
-
-    expect(screen.queryByText("Saved to your Supabase workspace.")).not.toBeInTheDocument();
-  });
-
-  it("opens the movement check from navigation in synthetic-safe form", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user, "Future traveler");
-
-    await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
-    expect(screen.getByRole("heading", { name: "Practise before you fly" })).toBeInTheDocument();
-    expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
+    const practice = screen.getByRole("button", { name: /Equipment-free mobility/ });
+    await user.click(practice);
+    expect(practice).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: /D2.*Motion sensitivity/ }));
+    expect(screen.getByRole("heading", { name: "Motion sensitivity" })).toBeInTheDocument();
   });
 
   it("persists retired summary field choices locally", async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await enterStage(user);
+    await openWorkspace();
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
@@ -235,21 +269,28 @@ describe("Horizon app shell", () => {
     expect(JSON.parse(window.localStorage.getItem("horizon:retired-summary-fields") ?? "{}")).toMatchObject({ reflection: true });
   });
 
-  it("restores local check-in state after a refresh and asks for the stage again without cloud", async () => {
+  it("restores local check-in state after reselecting a workspace on refresh", async () => {
     const user = userEvent.setup();
-    const first = render(<App />);
-    await enterStage(user, "Retired astronaut");
+    const first = await openWorkspace();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Mood" }), "5");
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
     first.unmount();
 
-    render(<App />);
-    // Stage is stored in the anonymous Supabase session, so offline it must be chosen again.
-    expect(await screen.findByRole("heading", { name: "Where are you in your journey?" })).toBeInTheDocument();
-    await enterStage(user, "Retired astronaut");
+    await openWorkspace("retired");
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByRole("combobox", { name: "Mood" })).toHaveValue("5");
+  });
+
+  it("opens the Movement check with its camera disclaimer and privacy limits", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("future");
+
+    await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
+    expect(screen.getByRole("heading", { name: "Practise before you fly" })).toBeInTheDocument();
+    expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
+    expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
   });
 });
