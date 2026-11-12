@@ -25,9 +25,10 @@ describe("Home data trust", () => {
   it("replaces the alert with a clear message when data is not reliable enough", () => {
     renderHome({ sourceLabel: "Simulated wearable", quality: "poor", notes: ["Too few valid readings to assess."], accepted: 1, rejected: 30, flagged: 0 });
     expect(screen.getByText("Not enough reliable data")).toBeInTheDocument();
-    expect(screen.getByText(/Not enough reliable data to assess/)).toBeInTheDocument();
+    expect(screen.getByText(/Check that the wearable is worn snugly/)).toBeInTheDocument();
     expect(screen.queryByText(/Sleep was below your usual range/)).not.toBeInTheDocument();
     expect(screen.queryByText("A pattern is worth reviewing")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Data quality: poor");
+    expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Not enough reliable data to assess");
   });
 });

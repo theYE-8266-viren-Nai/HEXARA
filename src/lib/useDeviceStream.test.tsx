@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deviceTiming, useDeviceStream } from "./useDeviceStream";
 import { mockDashboardRepository } from "./mockDashboardRepository";
 import { STALE_SYNC_AGE_MS } from "../domain/deviceSimulator";
+import { createBackendDashboardRepository } from "./backendDashboardRepository";
+import { createHorizonRepository } from "../data/repository";
 import type { SimulationScenario } from "../types/horizon";
 
 const base = mockDashboardRepository.getSnapshot("usual", { seed: 42, replayCount: 0 }).metrics;
@@ -97,5 +99,24 @@ describe("useDeviceStream", () => {
     expect(result.current.status.phase).toBe("searching");
     act(() => { vi.advanceTimersByTime(1100); });
     expect(result.current.status.phase).toBe("offline");
+  });
+
+  it("analyzes the wearable itself when history exists, without false alerts through the day", async () => {
+    const repo = createBackendDashboardRepository(createHorizonRepository(null, 42));
+    const snapshot = (await repo.loadSnapshot("traveler-01", { seed: 42, replayCount: 0 })).data;
+    expect(snapshot.history!.length).toBeGreaterThan(30);
+    for (const hour of [0, 4, 8, 12, 15, 20]) {
+      clock = new Date(2026, 10, 12, hour, 30, 0).getTime();
+      const { result, unmount } = renderHook(() => useDeviceStream({ enabled: true, personKey: "active:traveler-01", scenario: "usual", seed: 42, baseMetrics: snapshot.metrics, history: snapshot.history }));
+      act(() => { vi.advanceTimersByTime(1100); });
+      expect(result.current.alert).toBeNull(); // analyzed (not undefined), and nothing unusual
+      unmount();
+    }
+  });
+
+  it("leaves the alert to the scenario when there is no stored history", () => {
+    const { result } = setup("recovery_concern");
+    act(() => { vi.advanceTimersByTime(1100); });
+    expect(result.current.alert).toBeUndefined();
   });
 });

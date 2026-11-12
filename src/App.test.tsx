@@ -369,4 +369,17 @@ describe("Horizon app shell", () => {
     await user.click(within(strip).getByRole("button", { name: "Import a file instead" }));
     expect(screen.getByRole("heading", { name: "Import device data" })).toBeInTheDocument();
   });
+
+  it("shows source, last sync and quality on Trends too", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+
+    const strip = await screen.findByRole("region", { name: "Data source and quality" });
+    expect(strip).toHaveTextContent("Source: Simulated wearable");
+    expect(strip).toHaveTextContent(/Last sync: \d{1,2}:\d{2}/);
+    expect(strip).toHaveTextContent(/Data quality: (good|limited)/);
+    expect(strip).toHaveTextContent(/Alerts from: (completed days of device readings|demo scenario)/);
+  });
 });

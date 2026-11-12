@@ -90,7 +90,7 @@ export function readingAt(seed: number, personKey: string, metric: MetricName, t
       break;
     }
     case "core_temperature": {
-      resting = clamp(round(anchor + 0.3 * Math.sin(((h - 11) / 24) * 2 * Math.PI) + 0.05 * slow + 0.015 * mid + 0.02 * fast, 2), 34, 40);
+      resting = clamp(round(anchor + 0.3 * Math.sin(((h - 11) / 24) * 2 * Math.PI) + 0.05 * slow + 0.015 * mid + 0.02 * fast, 2), Math.max(30, anchor - 1.5), Math.min(42, anchor + 1.5));
       value = resting;
       break;
     }

@@ -100,4 +100,14 @@ describe("device simulator", () => {
     expect(finalPhaseFor("offline")).toBe("offline");
     expect(STALE_SYNC_AGE_MS).toBeGreaterThan(30 * 60_000);
   });
+
+  it("keeps core temperature near the person's own usual level, whatever that level is", () => {
+    // Regression: a fixed 34–40 °C clamp pushed a 33.2 °C person ~9 SD above their usual.
+    for (const anchor of [33.2, 36.8]) {
+      for (let h = 0; h < 48; h += 1) {
+        const reading = readingAt(42, "active:maya", "core_temperature", Date.UTC(2026, 10, 12) + h * 30 * 60_000, anchor);
+        expect(Math.abs(reading.restingValue - anchor)).toBeLessThanOrEqual(0.5);
+      }
+    }
+  });
 });

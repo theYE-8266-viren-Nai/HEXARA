@@ -50,7 +50,11 @@ function HorizonApp() {
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
   const futurePaired = futureDevicePaired;
-  const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics });
+  const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
+  // The wearable's own cleaned readings decide the alert when history allows it; poor-quality data never alerts.
+  // Demo scenarios have no stored history, so the scenario still supplies their alert.
+  const liveAlert = device.ingest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
+  const alertBasis = device.alert !== undefined ? "device" as const : "scenario" as const;
   const deviceStatus = useMemo(() => ({
     ...device.status,
     pair: () => { if (stage === "future") setFutureDevicePaired(true); device.status.pair(); },
@@ -150,7 +154,7 @@ function HorizonApp() {
   const content = (() => {
     switch (activeView) {
       case "trends":
-        return <TrendsView stage={stage} metrics={device.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <TrendsView stage={stage} metrics={device.metrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
@@ -161,9 +165,9 @@ function HorizonApp() {
         return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":
       default:
-        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={device.metrics} alert={dashboard.alert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
+        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={device.metrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics, ingest: device.ingest }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics, ingest: device.ingest, alertBasis }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
 }

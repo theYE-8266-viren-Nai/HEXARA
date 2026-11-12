@@ -1,7 +1,7 @@
 import type { DashboardSnapshot } from "./dashboardRepository";
 import { evaluateAlerts } from "../domain/alertEngine";
-import type { LifeStage, MetricCardData, MetricName, SimulationControls, TravelerProfile } from "../types/horizon";
-import type { DataQualityState as BackendQuality, HorizonRepository, MetricName as BackendMetricName, Observation, RepositoryResult, Traveler } from "../domain/types";
+import type { Alert, LifeStage, MetricCardData, MetricName, SimulationControls, TravelerProfile } from "../types/horizon";
+import type { Alert as DomainAlert, DataQualityState as BackendQuality, HorizonRepository, MetricName as BackendMetricName, Observation, RepositoryResult, Traveler } from "../domain/types";
 
 export type DashboardSource = "supabase" | "local";
 
@@ -91,21 +91,27 @@ function toMetricCards(result: Observation[], controls: SimulationControls): Met
   });
 }
 
+/** Maps a domain alert to the UI alert. Used for stored history and for live-device analysis. */
+export function toUiAlert(domainAlert: DomainAlert): Alert {
+  return {
+    id: domainAlert.id,
+    severity: "watch",
+    metric: metricMap[domainAlert.metric],
+    reason: domainAlert.explanation,
+    nextAction: "Review the trend and complete the optional wellbeing check-in.",
+  };
+}
+
 function toDashboardSnapshot(observations: Observation[], controls: SimulationControls): DashboardSnapshot {
   const domainAlert = evaluateAlerts(observations)[0];
   const metrics = toMetricCards(observations, controls);
-  if (!domainAlert) return { metrics, alert: null };
+  if (!domainAlert) return { metrics, alert: null, history: observations };
   return {
     metrics: metrics.map((metric) => metric.metric === metricMap[domainAlert.metric]
       ? { ...metric, points: metric.points.map((point) => ({ ...point, alert: point.day === domainAlert.observed_on.slice(5) })) }
       : metric),
-    alert: {
-      id: domainAlert.id,
-      severity: "watch",
-      metric: metricMap[domainAlert.metric],
-      reason: domainAlert.explanation,
-      nextAction: "Review the trend and complete the optional wellbeing check-in.",
-    },
+    alert: toUiAlert(domainAlert),
+    history: observations,
   };
 }
 
