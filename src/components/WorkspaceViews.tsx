@@ -129,12 +129,37 @@ function RadiationPanel({ metric, solarEvents }: { metric?: MetricCardData; sola
   return <section className={`${panelClass} ${tone}`} aria-labelledby="radiation-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-slate-400">Radiation context</p><h2 id="radiation-title" className="mt-1 text-xl font-semibold text-white">{level}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Today’s synthetic dose is {metric.value} {metric.unit}; the illustrative personal baseline is {metric.baseline} {metric.unit}. This is context only, not a safety clearance.</p></div><span className="rounded-full border border-current px-3 py-1 text-sm font-semibold">{level}</span></div><p className="mt-4 text-xs text-slate-400">{solarEvents?.source === "nasa" ? `NASA DONKI events loaded: ${solarEvents.events.length}.` : solarEvents?.warning ?? "Loading optional NASA solar-event context…"}</p></section>;
 }
 
+const retiredActivityTrends = [
+  {
+    metric: "mobility",
+    label: "Mobility",
+    unit: "%",
+    value: 92,
+    baseline: 90,
+    trend: "up" as const,
+    plainLanguage: "Walking steadiness is slightly above your recent pattern.",
+    points: [88, 89, 90, 91, 90, 92, 92].map((value, index) => ({ day: `Day ${index + 1}`, value, baseline: 90, alert: false })),
+  },
+  {
+    metric: "exercise_minutes",
+    label: "Exercise minutes",
+    unit: "min",
+    value: 28,
+    baseline: 25,
+    trend: "up" as const,
+    plainLanguage: "Today’s movement is a little above your recent daily pattern.",
+    points: [18, 22, 24, 30, 20, 26, 28].map((value, index) => ({ day: `Day ${index + 1}`, value, baseline: 25, alert: false })),
+  },
+];
+
 export function TrendsView({ stage = "active", metrics, alert, dataQuality, loading, source, warning }: { stage?: LifeStage; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string }) {
   const dataUnavailable = dataQuality === "disconnected" || dataQuality === "offline";
   const stale = dataQuality === "stale";
   const [alertOpen, setAlertOpen] = useState(false);
   const retired = stage === "retired";
-  const visibleMetrics = retired ? metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature") : metrics;
+  const visibleMetrics = retired
+    ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
+    : metrics;
   return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="grid gap-5 xl:grid-cols-2">{visibleMetrics.map((metric) => <article key={metric.metric} className={panelClass}><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold text-white">{metric.label}</h2><p className="mt-1 text-sm text-slate-400">{metric.plainLanguage}</p></div><p className="text-2xl font-semibold text-white">{metric.value}<span className="ml-1 text-sm font-medium text-slate-400">{metric.unit}</span></p></div><div className="mt-4"><TrendChart metric={metric} /></div><div className="mt-3 flex items-center justify-between text-xs text-slate-400"><span>Dotted line: usual baseline ({metric.baseline} {metric.unit})</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
 }
 

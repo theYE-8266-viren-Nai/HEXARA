@@ -113,6 +113,10 @@ describe("Horizon app shell", () => {
     expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Core temperature" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Mobility" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Mobility trend chart" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Exercise minutes" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Exercise minutes trend chart" })).toBeInTheDocument();
   });
 
   it("renders the safety disclaimer and switches the life stage", async () => {
