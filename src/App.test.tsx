@@ -433,4 +433,27 @@ describe("Horizon app shell", () => {
       bluetoothAccess.get = savedGet; deviceTiming.now = savedNow; bluetoothTiming.refreshMs = savedRefresh;
     }
   });
+
+  it("states the assumed devices and signals on Profile", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+
+    const panel = await screen.findByRole("region", { name: "Assumed data sources" });
+    expect(panel).toHaveTextContent("does not measure anything");
+    expect(panel).toHaveTextContent("Personal dosimeter");
+    expect(panel).toHaveTextContent("Skin temperature, not core body temperature");
+    expect(within(panel).getAllByRole("listitem").length).toBeGreaterThanOrEqual(6);
+    expect(within(panel).getByRole("heading", { name: "Not assumed" })).toBeInTheDocument();
+    expect(panel.textContent).not.toMatch(/blood pressure detected|diagnosed|medical condition/i);
+  });
+
+  it("labels temperature as skin temperature and notes the assumed devices on Home", async () => {
+    await openWorkspace();
+    await waitForSignals();
+
+    expect(await screen.findByText("Skin temperature")).toBeInTheDocument();
+    expect(screen.queryByText("Core temperature")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Signals assume a crew wearable and a personal dosimeter");
+  });
 });

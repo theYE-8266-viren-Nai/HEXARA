@@ -53,7 +53,7 @@ export function rollingBaseline(observations: Observation[], metric: MetricName)
 }
 
 function label(metric: MetricName): string {
-  return metric === "heart_rate" ? "Resting heart rate" : metric === "hrv" ? "HRV" : metric === "sleep_hours" ? "Sleep" : metric === "skin_temperature" ? "Core temperature" : metric === "spo2" ? "SpO₂" : "Radiation dose";
+  return metric === "heart_rate" ? "Resting heart rate" : metric === "hrv" ? "HRV" : metric === "sleep_hours" ? "Sleep" : metric === "skin_temperature" ? "Skin temperature" : metric === "spo2" ? "SpO₂" : "Radiation dose";
 }
 
 function average(values: number[]): number {

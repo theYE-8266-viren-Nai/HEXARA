@@ -3,7 +3,7 @@ import { finalPhaseFor, readingAt, smoothNoise, STALE_SYNC_AGE_MS } from "./devi
 import type { MetricName } from "../types/horizon";
 
 const at = (h: number, m = 0, day = 12) => new Date(2026, 10, day, h, m, 0).getTime();
-const anchors: Record<MetricName, number> = { resting_hr: 63, hrv: 44, spo2: 97.4, core_temperature: 36.8, radiation_dose: 0.5, sleep_hours: 6.6 };
+const anchors: Record<MetricName, number> = { resting_hr: 63, hrv: 44, spo2: 97.4, core_temperature: 33.2, radiation_dose: 0.5, sleep_hours: 6.6 };
 const metrics = Object.keys(anchors) as MetricName[];
 
 describe("device simulator", () => {

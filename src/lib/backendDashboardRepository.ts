@@ -30,7 +30,7 @@ const metricCopy: Record<MetricName, { label: string; unit: string }> = {
   resting_hr: { label: "Resting heart rate", unit: "bpm" },
   hrv: { label: "HRV", unit: "ms" },
   sleep_hours: { label: "Sleep", unit: "h" },
-  core_temperature: { label: "Core temperature", unit: "°C" },
+  core_temperature: { label: "Skin temperature", unit: "°C" },
   spo2: { label: "SpO₂", unit: "%" },
   radiation_dose: { label: "Radiation dose", unit: "mSv/day" },
 };
