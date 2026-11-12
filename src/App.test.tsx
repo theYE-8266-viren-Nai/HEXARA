@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { deviceTiming } from "./lib/useDeviceStream";
+import { bluetoothTiming } from "./lib/useBluetoothHeartRate";
+import { bluetoothAccess } from "./lib/adapters/webBluetoothHeartRate";
+import { createFakeBluetooth, hrBytes } from "./test/fakeBluetooth";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
@@ -381,5 +384,53 @@ describe("Horizon app shell", () => {
     expect(strip).toHaveTextContent(/Last sync: \d{1,2}:\d{2}/);
     expect(strip).toHaveTextContent(/Data quality: (good|limited)/);
     expect(strip).toHaveTextContent(/Alerts from: (completed days of device readings|demo scenario)/);
+  });
+
+  it("explains that Bluetooth is unavailable and keeps the simulated wearable", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+
+    const card = await screen.findByLabelText("Bluetooth heart-rate device", { selector: "div" });
+    expect(card).toHaveTextContent("Not supported in this browser");
+    expect(card).toHaveTextContent(/Chrome and Edge/);
+    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("connects a Bluetooth heart-rate device and shows its cleaned data as the heart-rate source", async () => {
+    const user = userEvent.setup();
+    const fake = createFakeBluetooth({ name: "Test Strap" });
+    const savedGet = bluetoothAccess.get; const savedNow = deviceTiming.now; const savedRefresh = bluetoothTiming.refreshMs;
+    let clock = Date.now();
+    bluetoothAccess.get = () => fake.bluetooth; deviceTiming.now = () => clock; bluetoothTiming.refreshMs = 20;
+    try {
+      await openWorkspace();
+      await waitForSignals();
+      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+      await user.click(await screen.findByRole("button", { name: "Connect Bluetooth heart-rate device" }));
+
+      const card = await screen.findByLabelText("Bluetooth heart-rate device", { selector: "div" });
+      await waitFor(() => expect(card).toHaveTextContent("Connected · Test Strap"));
+      for (const bpm of [71, 72, 73, 72, 71, 72, 73, 74]) { clock += 1000; fake.emit(hrBytes(bpm)); }
+      await waitFor(() => expect(card).toHaveTextContent("Live · Test Strap"));
+      expect(card).toHaveTextContent("Receiving clean readings");
+      expect(card).not.toHaveTextContent("Collecting readings");
+
+      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+      const strip = await screen.findByRole("region", { name: "Data source and quality" });
+      expect(strip).toHaveTextContent("Bluetooth heart-rate device");
+      expect(strip).toHaveTextContent("other signals simulated");
+      expect(strip).toHaveTextContent("Bluetooth readings are display-only until a full day is collected");
+
+      await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+      expect(await screen.findByText("Live from your Bluetooth heart-rate device.")).toBeInTheDocument();
+
+      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+      await user.click(await screen.findByRole("button", { name: "Disconnect device" }));
+      expect(await screen.findByRole("button", { name: "Connect Bluetooth heart-rate device" })).toBeInTheDocument();
+      expect(fake.state.serverDisconnected).toBe(true);
+    } finally {
+      bluetoothAccess.get = savedGet; deviceTiming.now = savedNow; bluetoothTiming.refreshMs = savedRefresh;
+    }
   });
 });

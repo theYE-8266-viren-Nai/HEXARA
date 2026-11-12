@@ -16,6 +16,7 @@ import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 import { ThemeProvider } from "./lib/theme";
 import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
+import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -51,15 +52,25 @@ function HorizonApp() {
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
   const futurePaired = futureDevicePaired;
   const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
+  // An optional Bluetooth heart-rate device replaces only the heart-rate and HRV cards; everything else stays simulated.
+  const bluetooth = useBluetoothHeartRate(dashboard.metrics);
+  const liveMetrics = useMemo(() => device.metrics.map((metric) => (metric.metric === "resting_hr" || metric.metric === "hrv" ? bluetooth.cards[metric.metric] : undefined) ?? metric), [device.metrics, bluetooth.cards]);
+  const liveIngest = bluetooth.ready && bluetooth.ingest ? bluetooth.ingest : device.ingest;
   // The wearable's own cleaned readings decide the alert when history allows it; poor-quality data never alerts.
   // Demo scenarios have no stored history, so the scenario still supplies their alert.
-  const liveAlert = device.ingest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
+  const liveAlert = liveIngest?.quality === "poor" ? null : device.alert !== undefined ? device.alert : dashboard.alert;
   const alertBasis = device.alert !== undefined ? "device" as const : "scenario" as const;
   const deviceStatus = useMemo(() => ({
     ...device.status,
     pair: () => { if (stage === "future") setFutureDevicePaired(true); device.status.pair(); },
     disconnect: () => { if (stage === "future") setFutureDevicePaired(false); device.status.disconnect(); },
   }), [device.status, stage, setFutureDevicePaired]);
+  const bluetoothControls = useMemo(() => ({
+    phase: bluetooth.phase, message: bluetooth.message, deviceName: bluetooth.deviceName, ready: bluetooth.ready,
+    // Connecting a heart-rate device also pairs the simulated wearable that supplies the other signals.
+    connect: async () => { const ok = await bluetooth.connect(); if (ok && deviceStatus.phase === "idle") deviceStatus.pair(); return ok; },
+    disconnect: bluetooth.disconnect,
+  }), [bluetooth.phase, bluetooth.message, bluetooth.deviceName, bluetooth.ready, bluetooth.connect, bluetooth.disconnect, deviceStatus]);
   const viewSource = scenario === "usual" ? dataSource : "local";
   const viewWarning = scenario === "usual" ? dataWarning : undefined;
   const viewLoading = device.status.connecting || (scenario === "usual" && backendLoading);
@@ -154,7 +165,7 @@ function HorizonApp() {
   const content = (() => {
     switch (activeView) {
       case "trends":
-        return <TrendsView stage={stage} metrics={device.metrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
@@ -165,9 +176,9 @@ function HorizonApp() {
         return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":
       default:
-        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={device.metrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
+        return <HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} />;
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: device.metrics, ingest: device.ingest, alertBasis }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile}>{content}</AppShell></DeviceContext.Provider>;
 }
