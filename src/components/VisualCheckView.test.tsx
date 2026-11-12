@@ -100,4 +100,19 @@ describe("VisualCheckView", () => {
     render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.queryByRole("heading", { name: "Your practice history" })).not.toBeInTheDocument();
   });
+
+  it("turns off the countdown pulse when the user prefers reduced motion", async () => {
+    const user = userEvent.setup();
+    const media = (matches: boolean) => vi.stubGlobal("matchMedia", (query: string) => ({ matches: matches && query.includes("reduce"), media: query, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false }));
+    for (const [reduced, expectPulse] of [[true, false], [false, true]] as const) {
+      media(reduced);
+      const { unmount } = render(<VisualCheckView stage="future" profileId={`rm-${reduced}`} seed={42} repository={createVisualCheckRepository(null, null)} />);
+      await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
+      await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
+      const countdown = await screen.findByLabelText(/Starting in/);
+      expect(countdown.className.includes("animate-pulse"), `reduced=${reduced}`).toBe(expectPulse);
+      await screen.findByRole("heading", { name: "How did that feel?" }, { timeout: 3000 });
+      unmount();
+    }
+  });
 });

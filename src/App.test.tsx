@@ -456,4 +456,14 @@ describe("Horizon app shell", () => {
     expect(screen.queryByText("Core temperature")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Signals assume a crew wearable and a personal dosimeter");
   });
+
+  it("shows the Future baseline progress without a cloud session", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("future");
+    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
+
+    expect(await screen.findByRole("heading", { name: "Your baseline so far" })).toBeInTheDocument();
+    expect(await screen.findByText(/0 of 3 check-ins/)).toBeInTheDocument();
+    expect(screen.getByText(/Cloud save (is )?unavailable/)).toBeInTheDocument();
+  });
 });
