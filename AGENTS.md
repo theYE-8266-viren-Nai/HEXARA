@@ -72,17 +72,18 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Bluetooth verification:** 126 frontend tests (a fake strap covers parsing, every connect outcome, the pipeline and the UI), `tsc -b` and `npm run build` pass. Browser-checked with an injected fake `navigator.bluetooth` in a real browser: connect, live values on Home, signal loss and fallback. Not tested on real Bluetooth hardware.
 - **Assumed devices and signals made explicit:** `src/domain/deviceAssumptions.ts` is the single source of truth for what Horizon assumes it receives: six signals (heart rate, HRV, SpO₂, skin temperature, sleep, radiation dose), each with unit, accepted range (taken from the sanitizer), assumed device (crew wearable or chest strap, plus a personal dosimeter for radiation), cadence and note, plus what each source can supply, what the user enters, and what is NOT assumed (blood pressure, glucose, ECG, bone density, anything diagnostic). `docs/device-assumptions.md` is generated from it (`npm run docs:assumptions`) and a test fails if it is stale; Profile shows the same content in an "Assumed data sources" panel, and the Home/Trends strip notes the assumption. The temperature label was corrected from "Core temperature" to "Skin temperature" (the data is skin temperature, about 33 °C) and the demo fixture now matches; the internal id `core_temperature` is unchanged. Real hardware is untested by design.
 - **Assumptions verification:** 133 frontend tests, `tsc -b`, `npm run build` and `git diff --check` pass. Browser-checked in the light theme (Home strip, Bluetooth card, assumptions panel) and at 375 px with no horizontal overflow.
+- **RLS verification (live project):** With two anonymous sessions and the publishable key only, a scripted check on `traveler_preferences`, `baseline_checkins`, `preparation_sessions`, `adaptation_progress`, `privacy_preferences` and `visual_checks` confirmed for each table: the owner can write and read its own row; another user cannot read, update or delete it and cannot insert a row as the owner; a signed-out visitor can read and write nothing (60/60 checks). All test rows were deleted afterwards. The two anonymous accounts remain, because deleting auth users needs an admin key.
 - **Ingestion verification:** 103 frontend tests, `tsc -b`, `npm run build` and `git diff --check` pass. Browser-checked at desktop width (live source/quality strip, sample import) and 375 px (no horizontal overflow). Phase 4 (Web Bluetooth adapter) is not started.
 
 ### 🟡 Active Focus
 
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
-- **Immediate task:** Verify cross-user RLS denial for the Future preparation and `visual_checks` tables with two anonymous sessions, then smoke-test Movement in a browser with a real camera.
+- **Immediate task:** Smoke-test Movement with a real webcam (desktop and 320/390 px layouts), then decide whether the Future profile should build its baseline from the wearable.
 - **Required tables:** `sample_people`, `health_observations`, and `demo_events`.
 - **Required seed:** Four synthetic travelers with 180 days of observations.
 - **Security requirement:** Enable RLS on every exposed table and allow only the intended synthetic-data reads.
-- **Current blocker:** None for deployment: both migrations are applied (user-confirmed; all six tables respond via the publishable key and return no rows to an unauthenticated request). Not yet verified: that one anonymous user cannot read another's rows, and Movement has had no browser or real-camera check.
+- **Current blocker:** None for deployment. Cross-user RLS is verified for all six user-owned tables. Movement has had no real-camera check, and real Bluetooth hardware is untested by design.
 
 ## 🧭 Implementation Roadmap
 
@@ -193,7 +194,7 @@ Complete phases in order. Do not mark a phase complete until its verification ch
 - [x] Add the user-controlled crew-medic summary (never sent automatically).
 - [x] Add the `visual_checks` migration with owner-only RLS and no media columns.
 - [x] Apply the `visual_checks` migration (user-confirmed).
-- [ ] Verify cross-user RLS denial with two anonymous sessions.
+- [x] Verify cross-user RLS denial with two anonymous sessions (2026-11-12: 60/60 checks passed against the live project using the publishable key).
 - [ ] Browser smoke test on desktop and mobile layouts with a real camera.
 - [ ] Optional: browser pose-landmark library for joint-angle ranges (after the deterministic flow is validated).
 
@@ -404,7 +405,7 @@ Initial shared types:
 
 ### Next Coordination Point
 
-`main` includes the integration branch, the space-health UI with light/dark appearance, and the Visual Health Check. Next: verify cross-user RLS denial on the Future preparation and `visual_checks` tables, then browser and real-camera checks of Movement.
+`main` includes the ingestion pipeline (simulated wearable, file import, Bluetooth), live-device analysis on completed days, the assumed-devices contract, and the Visual Health Check. Cross-user RLS is verified. Next: real-webcam check of Movement.
 
 ## 📈 Delegated Progress Rules
 
