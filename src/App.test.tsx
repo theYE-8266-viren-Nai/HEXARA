@@ -685,4 +685,45 @@ describe("Horizon app shell", () => {
     expect(screen.getByText(/Resting heart rate was higher/i)).toBeInTheDocument();
     expect(screen.getByText(/tell the crew medic/)).toBeInTheDocument();
   });
+
+  /** Runs the webhook flow: start receiving, post rows, return to Home. */
+  async function receiveWebhookRows(rows: (todayStart: number) => unknown[]) {
+    const user = userEvent.setup();
+    const fake = createFakeReceiver(() => Date.now());
+    vi.stubGlobal("fetch", fake.fetchImpl);
+    webhookTiming.pollMs = 30;
+    await openWorkspace();
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
+    await user.click(await within(card).findByRole("button", { name: "Start receiving" }));
+    await waitFor(() => expect(card).toHaveTextContent("Listening"));
+    const now = new Date();
+    fake.send(rows(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+    await waitFor(() => expect(card).toHaveTextContent("readings received"));
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    return await screen.findByRole("region", { name: "Data source and quality" });
+  }
+  const hr = (timestamp: number, value: number) => ({ timestamp: new Date(timestamp).toISOString(), metric: "heart_rate", value, unit: "bpm", deviceId: "svc" });
+  const todayRows = (todayStart: number) => [1, 2, 3, 4, 5].map((k) => hr(todayStart + k * 1000, 64 + k * 0.1));
+
+  it("raises an explained alert when a webhook delivers a fully covered day that differs from the person's usual pattern", async () => {
+    const savedPoll = webhookTiming.pollMs;
+    try {
+      const strip = await receiveWebhookRows((todayStart) => [...Array.from({ length: 24 }, (_, h) => hr(todayStart - 86_400_000 + h * 3_600_000 + 1_800_000, 92 + h * 0.05)), ...todayRows(todayStart)]);
+      await waitFor(() => expect(strip).toHaveTextContent("Alerts from: completed days of webhook readings"));
+      expect(await screen.findByText(/Resting heart rate .* outside your usual range/)).toBeInTheDocument();
+      expect(screen.getByText("A pattern is worth reviewing")).toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
+  });
+
+  it("raises no alert from a webhook day that is only thinly covered, however different it looks", async () => {
+    const savedPoll = webhookTiming.pollMs;
+    try {
+      const strip = await receiveWebhookRows((todayStart) => [95, 96, 94.5, 95.5].map((value, n) => hr(todayStart - 5 * 60_000 + n * 60_000, value)).concat(todayRows(todayStart)));
+      expect(strip).toHaveTextContent("Webhook readings are display-only until a full day is collected");
+      expect(screen.queryByText(/Resting heart rate .* outside your usual range/)).not.toBeInTheDocument();
+      expect(screen.getByText("Your signals look usual")).toBeInTheDocument();
+    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
+  });
 });
