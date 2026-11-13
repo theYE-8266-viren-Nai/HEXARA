@@ -4,3 +4,5 @@ dist
 .env.*.local
 *.tsbuildinfo
 supabase/.temp/
+# Body-tracking files (about 34 MB) are fetched with: npm run setup:pose -- --yes
+public/mediapipe/
