@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANTHROPIC_MODEL, buildProviderRequest, chooseProvider, extractText } from "../../supabase/functions/_shared/providers";
+import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage } from "../../supabase/functions/_shared/providers";
 import { buildSystemPrompt, buildUserPrompt, type ExplainRequest } from "../../supabase/functions/_shared/validate";
 
 const summary: ExplainRequest = { stage: "active", level: "different", patternScore: 60, dataQuality: "good", source: "api", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
@@ -22,6 +22,13 @@ describe("provider choice", () => {
     expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "  " })).toEqual({ ok: false, error: "model_missing" });
   });
 
+  it("accepts the free router and up to three fallback models, and rejects more", () => {
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openrouter/free" })).toMatchObject({ ok: true, model: "openrouter/free" });
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "a/one:free, b/two:free ,c/three" })).toMatchObject({ ok: true, model: "a/one:free,b/two:free,c/three" });
+    for (const model of ["a/1,b/2,c/3,d/4", "a/1,,b/2", "a/1,", ",a/1", "a/1,bad model"])
+      expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: model }), model).toEqual({ ok: false, error: "model_invalid" });
+  });
+
   it("rejects model ids with unexpected characters", () => {
     for (const model of ["bad model", "vendor/model;rm -rf", "a".repeat(101), "../etc", "vendor/model\nx", "-leading"])
       expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: model }), model).toEqual({ ok: false, error: "model_invalid" });
@@ -38,7 +45,8 @@ describe("provider requests", () => {
     expect(request.headers.authorization).toBe(`Bearer ${SECRET}`);
     expect(request.body).not.toContain(SECRET);
     const body = JSON.parse(request.body);
-    expect(body).toMatchObject({ model: "vendor/model", max_tokens: 220, temperature: 0.2 });
+    expect(body).toMatchObject({ model: "vendor/model", max_tokens: OPENROUTER_MAX_TOKENS, temperature: 0.2 });
+    expect(body.models).toBeUndefined();
     expect(body.messages).toEqual([{ role: "system", content: system }, { role: "user", content: user }]);
   });
 
@@ -48,6 +56,12 @@ describe("provider requests", () => {
     expect(request.headers["x-api-key"]).toBe(SECRET);
     expect(request.body).not.toContain(SECRET);
     expect(JSON.parse(request.body)).toMatchObject({ model: ANTHROPIC_MODEL, system, messages: [{ role: "user", content: user }] });
+  });
+
+  it("sends a fallback list as `models` instead of `model` when several are chosen", () => {
+    const body = JSON.parse(buildProviderRequest({ ok: true, provider: "openrouter", apiKey: SECRET, model: "a/one:free,b/two:free" }, system, user).body);
+    expect(body.models).toEqual(["a/one:free", "b/two:free"]);
+    expect(body.model).toBeUndefined();
   });
 
   it("can fold the instructions into the user message for models that reject a system message", () => {
@@ -85,5 +99,24 @@ describe("reading replies", () => {
     for (const data of [null, undefined, "x", 5, {}, { choices: [] }, { choices: [{ message: { content: null } }] }, { choices: [{ message: { content: [] } }] }, { choices: [{}] }, { error: { message: "no credit" } }])
       expect(extractText("openrouter", data), JSON.stringify(data)).toBeUndefined();
     for (const data of [null, {}, { content: [] }, { content: [{ type: "text" }] }]) expect(extractText("anthropic", data)).toBeUndefined();
+  });
+});
+
+describe("upstream error messages", () => {
+  it("returns a short readable reason from the provider's error JSON", () => {
+    expect(extractUpstreamMessage({ error: { code: 401, message: "No auth credentials found" } })).toBe("No auth credentials found");
+    expect(extractUpstreamMessage({ error: "Rate limit exceeded: free-models-per-day" })).toBe("Rate limit exceeded: free-models-per-day");
+  });
+
+  it("removes control characters, redacts anything shaped like a key, and cuts the length", () => {
+    const text = extractUpstreamMessage({ error: { message: `bad key sk-or-v1-abcdef1234567890\nline two\u0000 ${"x".repeat(400)}` } })!;
+    expect(text).not.toContain("sk-or-v1-abcdef");
+    expect(text).toContain("[redacted]");
+    expect(text).not.toMatch(/[\u0000-\u001f]/);
+    expect(text.length).toBeLessThanOrEqual(200);
+  });
+
+  it("returns undefined when there is nothing usable", () => {
+    for (const data of [null, undefined, "x", {}, { error: {} }, { error: { message: 5 } }, { error: { message: "   " } }, { error: 7 }]) expect(extractUpstreamMessage(data), JSON.stringify(data)).toBeUndefined();
   });
 });
