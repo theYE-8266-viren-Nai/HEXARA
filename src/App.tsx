@@ -42,7 +42,8 @@ function HorizonApp() {
   const [seed, setSeed] = usePersistedState<number>("horizon:seed", 42);
   const [replayCount, setReplayCount] = usePersistedState<number>("horizon:replay-count", 0);
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
-  const [futureDevicePaired, setFutureDevicePaired] = usePersistedState<boolean>("horizon:device-paired", false);
+  // Pairing lasts for this visit only: the wearable never connects until the person presses "Pair".
+  const [devicePaired, setDevicePaired] = useState(false);
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendSnapshot, setBackendSnapshot] = useState<DashboardSnapshot | null>(null);
   const [dataSource, setDataSource] = useState<DashboardSource>("local");
@@ -56,8 +57,7 @@ function HorizonApp() {
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
-  const futurePaired = futureDevicePaired;
-  const device = useDeviceStream({ enabled: stage !== null && (stage !== "future" || futurePaired), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
+  const device = useDeviceStream({ enabled: stage !== null && devicePaired, personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
   // An optional Bluetooth heart-rate device replaces only the heart-rate and HRV cards; everything else stays simulated.
   const bluetooth = useBluetoothHeartRate(dashboard.metrics);
   const webhook = useWebhookSource(dashboard.metrics); // priority for the cards below: Bluetooth, then webhook, then the simulated wearable
@@ -79,9 +79,10 @@ function HorizonApp() {
   const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, explainRepository]);
   const deviceStatus = useMemo(() => ({
     ...device.status,
-    pair: () => { if (stage === "future") setFutureDevicePaired(true); device.status.pair(); },
-    disconnect: () => { if (stage === "future") setFutureDevicePaired(false); device.status.disconnect(); },
-  }), [device.status, stage, setFutureDevicePaired]);
+    hasPaired: devicePaired,
+    pair: () => { setDevicePaired(true); device.status.pair(); },
+    reconnect: () => { setDevicePaired(true); device.status.reconnect(); },
+  }), [device.status, devicePaired]);
   const bluetoothControls = useMemo(() => ({
     phase: bluetooth.phase, message: bluetooth.message, deviceName: bluetooth.deviceName, ready: bluetooth.ready,
     // Connecting a heart-rate device also pairs the simulated wearable that supplies the other signals.
@@ -103,11 +104,9 @@ function HorizonApp() {
       setUserId(auth.userId);
       setCloudWarning(auth.warning);
       if (auth.userId) {
+        // The saved stage is kept in the cloud, but every visit starts on the stage picker.
         const preference = await createPreparationRepository(supabase, auth.userId).getTravelerPreferences();
-        if (!cancelled && preference.data) {
-          setStage(preference.data.stage);
-          setProfileId(preference.data.profileId);
-        }
+        if (!cancelled && preference.data) setProfileId(preference.data.profileId);
         if (!cancelled) setCloudWarning(auth.warning ?? preference.warning);
       }
       setAuthLoading(false);

@@ -19,11 +19,13 @@ async function waitForSignals() {
   });
 }
 
-async function openWorkspace(stage: "active" | "future" | "retired" = "active") {
+/** Enters a workspace from the stage picker. The wearable never connects by itself, so pair it unless a test says not to. */
+async function openWorkspace(stage: "active" | "future" | "retired" = "active", { pair = stage !== "future" }: { pair?: boolean } = {}) {
   const view = render(<App />);
   const labels = { active: "Active astronaut", future: "Future traveler", retired: "Retired astronaut" };
   await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
   await screen.findByRole("combobox", { name: "Life stage" });
+  if (pair) await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" }));
   return view;
 }
 
@@ -454,7 +456,24 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     await user.click(screen.getByRole("button", { name: "Fill from my wearable" }));
     expect(Number((screen.getByLabelText("Resting heart rate") as HTMLInputElement).value)).toBeGreaterThan(30);
-    expect(window.localStorage.getItem("horizon:device-paired")).toBe("true");
+    expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
+  });
+
+  it("never connects the wearable until the person presses Pair, in any stage", async () => {
+    const user = userEvent.setup();
+    const first = await openWorkspace("active", { pair: false });
+    expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Pair simulated wearable" }));
+    expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
+    first.unmount();
+
+    // A new visit starts unpaired again and on the stage picker.
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
+    expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 
   it("lets the user disconnect and reconnect the wearable from Profile", async () => {

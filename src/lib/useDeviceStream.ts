@@ -21,6 +21,8 @@ export interface DeviceStatus {
   /** True while a connection attempt is in progress. */
   connecting: boolean;
   paired: boolean;
+  /** True once the person has paired during this visit (so an idle device reads as "disconnected", not "not paired"). */
+  hasPaired?: boolean;
   pair: () => void;
   reconnect: () => void;
   disconnect: () => void;

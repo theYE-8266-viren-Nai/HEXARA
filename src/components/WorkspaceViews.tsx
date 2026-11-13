@@ -457,7 +457,7 @@ function LoadingPanel() {
 function DeviceIdleGate({ stage, children }: { stage: LifeStage; children: ReactNode }) {
   const device = useDevice()?.status;
   if (device && device.phase === "idle") {
-    const first = stage === "future";
+    const first = !device.hasPaired;
     return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">{first ? "No device paired" : "Device disconnected"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{first ? "Pair the simulated wearable to see live heart rate, HRV, SpO₂, temperature and radiation context. You can also build a baseline by hand in Guidance." : "Live readings have stopped. Reconnect the simulated wearable to continue."}</p><button type="button" onClick={device.pair} className="btn-square mt-4 inline-flex items-center gap-2 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950"><Watch size={16} aria-hidden="true" />{first ? "Pair simulated wearable" : "Reconnect wearable"}</button></div></section>;
   }
   return <>{children}</>;
