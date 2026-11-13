@@ -139,13 +139,15 @@ describe("Horizon app shell", () => {
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
 
-  it("changes the active view from the navigation", async () => {
+  it.each(["future", "active", "retired"] as const)("opens %s Trends without the pattern summary", async (stage) => {
     const user = userEvent.setup();
-    await openWorkspace();
+    await openWorkspace(stage);
 
     await user.click(screen.getAllByRole("button", { name: /Trends/ })[0]);
 
-    expect(screen.getByRole("heading", { name: "Your signals over time" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: stage === "retired" ? "Your wearable trends over time" : "Your signals over time" })).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
   });
 
   it("explains a recovery concern in plain language", async () => {
@@ -641,7 +643,7 @@ describe("Horizon app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("shows the pattern card on Home and Trends and changes it for Recovery concern, leaving alerts alone", async () => {
+  it("shows the pattern card on Home and changes it for Recovery concern, leaving alerts alone", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await waitForSignals();
@@ -659,7 +661,8 @@ describe("Horizon app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("meter", { name: "Pattern score" })).not.toBeInTheDocument();
   });
 
   it("pauses the pattern view when the sensor is disconnected", async () => {
