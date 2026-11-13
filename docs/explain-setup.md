@@ -84,6 +84,6 @@ In DevTools, Network tab, the `explain-pattern` request body should contain only
   `NOT_ASSUMED` (`src/domain/deviceAssumptions.ts`). A test keeps both lists identical.
 - Text from the cloud must pass `isSafeExplanation` in the Edge Function **and** again in the browser; otherwise the
   built-in text is shown. This applies to every provider.
-- The function times out after 8 seconds, limits requests per user, rejects bodies over 4 KB, and never forwards a
+- The function times out after 15 seconds (free models can be slow), cuts any reply that stopped mid-sentence back to its last full sentence, limits requests per user, rejects bodies over 4 KB, and never forwards a
   provider's full error body, only its status code and a short, sanitized, 200-character message (keys are redacted).
 - Anyone who has the app's public key can call the function, so the spending limit on your key is the real safeguard.

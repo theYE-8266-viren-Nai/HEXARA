@@ -3,7 +3,7 @@
 // Deploy with: supabase functions deploy explain-pattern   (see docs/explain-setup.md)
 // Simulated data only. Not medical advice. Not diagnostic.
 import { buildSystemPrompt, buildUserPrompt, isSafeExplanation, validateExplainRequest } from "../_shared/validate.ts";
-import { buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage } from "../_shared/providers.ts";
+import { buildProviderRequest, chooseProvider, completeSentences, extractText, extractUpstreamMessage } from "../_shared/providers.ts";
 
 declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 
@@ -49,7 +49,7 @@ Deno.serve(async (request) => {
   if (!checked.ok) return json(400, { error: "invalid_request", detail: checked.error });
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8_000);
+  const timer = setTimeout(() => controller.abort(), 15_000);
   try {
     const send = (mergeSystem: boolean) => {
       const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value), { mergeSystem });
@@ -64,7 +64,7 @@ Deno.serve(async (request) => {
       const upstreamMessage = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
       return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status, ...(upstreamMessage ? { upstreamMessage } : {}) });
     }
-    const text = extractText(choice.provider, await response.json());
+    const text = completeSentences(extractText(choice.provider, await response.json()));
     // Never forward text that fails the same safety check the browser applies.
     if (!isSafeExplanation(text)) return json(502, { error: "unsafe_output" });
     return json(200, { text: text.trim() });
