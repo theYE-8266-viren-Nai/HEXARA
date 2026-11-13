@@ -51,8 +51,13 @@ Deno.serve(async (request) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value));
-    const response = await fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
+    const send = (mergeSystem: boolean) => {
+      const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value), { mergeSystem });
+      return fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
+    };
+    let response = await send(false);
+    // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
+    if (response.status === 400 && choice.provider === "openrouter") response = await send(true);
     // Only the status code is passed on (never the provider's body), so a wrong key, no credit or an unknown model can be told apart.
     if (!response.ok) return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status });
     const text = extractText(choice.provider, await response.json());

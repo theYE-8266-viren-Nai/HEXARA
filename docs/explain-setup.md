@@ -27,7 +27,7 @@ If `OPENROUTER_API_KEY` is set but `OPENROUTER_MODEL` is not, the function answe
 
 1. Create a key at openrouter.ai (Keys) and set a small spending limit on it. Keep it private. Never paste it into chat,
    code, or GitHub. If you ever do, delete that key on OpenRouter and make a new one.
-2. Choose a model at openrouter.ai/models. Copy its id exactly as shown (it looks like `vendor/model-name`). A free or very
+2. Choose a model at openrouter.ai/models. Copy its id exactly as shown (it looks like `vendor/model-name`). It must be a **chat/text model**: names containing "embed" are embedding models, which cannot write sentences and make OpenRouter answer 400. Avoid models labelled "reasoning" or "code" too; reasoning models can spend the short reply budget thinking and return no text. A free or very
    cheap model works for this short text, but a weaker model's wording is rejected by Horizon's safety check more often, so
    you would see the built-in text more often.
 3. Install the Supabase CLI once: `brew install supabase/tap/supabase`, then log in and link this project:
@@ -72,7 +72,7 @@ unavailable. To see the reason, send an empty request to the function and read t
 
 - `503 not_configured`: no key secret is set.
 - `503 model_missing` or `model_invalid`: `OPENROUTER_MODEL` is missing or has odd characters.
-- `502 upstream_error` with `upstreamStatus`: `401` wrong or revoked key, `402` no credit, `404` unknown model, `429` rate limited.
+- `502 upstream_error` with `upstreamStatus`: `400` the model id is not a chat model or does not exist (the function already retries once with the instructions inside the user message for models that reject a system message), `401` wrong or revoked key, `402` no credit, `404` unknown model, `429` rate limited.
 - `502 unsafe_output`: the model's text failed Horizon's wording check.
 - `400 invalid_request`: expected for an empty request when the secrets are fine.
 

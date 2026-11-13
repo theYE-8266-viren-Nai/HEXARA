@@ -35,12 +35,17 @@ export function chooseProvider(env: ProviderEnv): ProviderChoice {
 
 export interface ProviderRequest { url: string; headers: Record<string, string>; body: string }
 
-export function buildProviderRequest(choice: Extract<ProviderChoice, { ok: true }>, system: string, user: string): ProviderRequest {
+/**
+ * `mergeSystem` puts the instructions at the top of the user message instead of in a separate "system" message.
+ * Some models reject a system message, so the function retries once this way after a 400.
+ */
+export function buildProviderRequest(choice: Extract<ProviderChoice, { ok: true }>, system: string, user: string, options: { mergeSystem?: boolean } = {}): ProviderRequest {
   if (choice.provider === "openrouter") {
+    const messages = options.mergeSystem ? [{ role: "user", content: `${system}\n\n${user}` }] : [{ role: "system", content: system }, { role: "user", content: user }];
     return {
       url: "https://openrouter.ai/api/v1/chat/completions",
       headers: { "content-type": "application/json", authorization: `Bearer ${choice.apiKey}` },
-      body: JSON.stringify({ model: choice.model, max_tokens: 220, temperature: 0.2, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+      body: JSON.stringify({ model: choice.model, max_tokens: 220, temperature: 0.2, messages }),
     };
   }
   return {
