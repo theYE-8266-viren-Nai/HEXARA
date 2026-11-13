@@ -1,12 +1,12 @@
 // Supabase Edge Function (Deno). Turns a de-identified pattern summary into a short, calm explanation.
-// The Anthropic key lives ONLY in Supabase secrets (ANTHROPIC_API_KEY); the browser never sees it.
+// The AI key lives ONLY in Supabase secrets (OPENROUTER_API_KEY + OPENROUTER_MODEL, or ANTHROPIC_API_KEY); the browser never sees it.
 // Deploy with: supabase functions deploy explain-pattern   (see docs/explain-setup.md)
 // Simulated data only. Not medical advice. Not diagnostic.
 import { buildSystemPrompt, buildUserPrompt, isSafeExplanation, validateExplainRequest } from "../_shared/validate.ts";
+import { buildProviderRequest, chooseProvider, extractText } from "../_shared/providers.ts";
 
 declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 
-const MODEL = "claude-haiku-5-5";
 const MAX_BODY_BYTES = 4_096;
 const RATE_LIMIT = 8; // requests per user per minute (best effort, per instance)
 const hits = new Map<string, number[]>();
@@ -37,8 +37,8 @@ function rateLimited(key: string): boolean {
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) return json(503, { error: "not_configured" });
+  const choice = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") });
+  if (!choice.ok) return json(503, { error: choice.error });
   if (rateLimited(userKey(request))) return json(429, { error: "rate_limited" });
 
   const raw = await request.text();
@@ -51,15 +51,11 @@ Deno.serve(async (request) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 220, temperature: 0.2, system: buildSystemPrompt(), messages: [{ role: "user", content: buildUserPrompt(checked.value) }] }),
-      signal: controller.signal,
-    });
-    if (!response.ok) return json(502, { error: "upstream_error" });
-    const data = await response.json();
-    const text = data?.content?.find((block: { type: string }) => block.type === "text")?.text;
+    const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value));
+    const response = await fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
+    // Only the status code is passed on (never the provider's body), so a wrong key, no credit or an unknown model can be told apart.
+    if (!response.ok) return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status });
+    const text = extractText(choice.provider, await response.json());
     // Never forward text that fails the same safety check the browser applies.
     if (!isSafeExplanation(text)) return json(502, { error: "unsafe_output" });
     return json(200, { text: text.trim() });
