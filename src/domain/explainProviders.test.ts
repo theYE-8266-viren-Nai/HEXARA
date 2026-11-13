@@ -50,6 +50,17 @@ describe("provider requests", () => {
     expect(JSON.parse(request.body)).toMatchObject({ model: ANTHROPIC_MODEL, system, messages: [{ role: "user", content: user }] });
   });
 
+  it("can fold the instructions into the user message for models that reject a system message", () => {
+    const request = buildProviderRequest({ ok: true, provider: "openrouter", apiKey: SECRET, model: "vendor/model" }, system, user, { mergeSystem: true });
+    const body = JSON.parse(request.body);
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0].role).toBe("user");
+    expect(body.messages[0].content).toBe(`${system}\n\n${user}`);
+    expect(body.messages.some((message: { role: string }) => message.role === "system")).toBe(false);
+    expect(request.body).not.toContain(SECRET);
+    expect(JSON.parse(buildProviderRequest({ ok: true, provider: "openrouter", apiKey: SECRET, model: "vendor/model" }, system, user).body).messages).toHaveLength(2);
+  });
+
   it("sends only the de-identified summary text to either provider", () => {
     for (const provider of ["openrouter", "anthropic"] as const) {
       const request = buildProviderRequest({ ok: true, provider, apiKey: SECRET, model: "m" }, system, user);
