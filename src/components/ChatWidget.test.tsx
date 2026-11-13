@@ -35,15 +35,15 @@ describe("ORBIT floating companion", () => {
     expect(screen.getByRole("button", { name: "Open ORBIT companion" })).toHaveFocus();
   });
 
-  it("shows urgent steps without suggesting a call has been placed", async () => {
+  it("starts an urgent conversation directly without a condition picker", async () => {
     render(<ChatWidget {...props} />);
     const user = await open();
-    await user.click(screen.getByRole("button", { name: /Need urgent help/ }));
-    const steps = screen.getByRole("complementary", { name: "Emergency support steps" });
-    expect(within(steps).getByText(/Contact your crew medic and mission control now/)).toBeInTheDocument();
-    expect(within(steps).getByText(/No one has been contacted/)).toBeInTheDocument();
-    await user.click(within(steps).getByRole("button", { name: "Blood sugar concern" }));
-    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
+    expect(screen.getByText("Hey, I'm ORBIT.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Blood sugar concern" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "I need urgent help" }));
+    expect(screen.getByRole("log")).toHaveTextContent("Contact your crew medic and mission control now");
+    expect(screen.getByRole("log")).toHaveTextContent("No one has been contacted");
+    expect(screen.queryByRole("complementary", { name: "Emergency support steps" })).not.toBeInTheDocument();
     expect(mock.sendMessage).not.toHaveBeenCalled();
     expect(mock.createConversation).not.toHaveBeenCalled();
   });
@@ -75,6 +75,7 @@ describe("ORBIT floating companion", () => {
     mock.sendMessage.mockRejectedValue(new Error("network down"));
     render(<ChatWidget {...props} context={{ stage: "active", signals: [] }} />);
     const user = await open();
+    await user.click(screen.getByText("Chat privacy"));
     expect(screen.getByRole("checkbox")).not.toBeChecked();
     await user.type(screen.getByRole("textbox"), "How do I build a routine?");
     await user.click(screen.getByRole("button", { name: "Send question" }));
@@ -121,5 +122,54 @@ describe("ORBIT floating companion", () => {
     expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
     expect(mock.sendMessage).toHaveBeenCalledTimes(1);
     await act(async () => resolve({ data: reply }));
+    expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["I'm bleeding", "firm pressure"],
+    ["My chest hurts", "Stop exertion"],
+    ["My lips are swelling", "emergency allergy plan"],
+    ["My friend is having a seizure", "anything in the person's mouth"],
+    ["I swallowed a chemical cleaner", "Do not make the person vomit"],
+    ["The cabin pressure alarm went off", "onboard emergency checklist"],
+  ])("responds conversationally to %s", async (message, detail) => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.type(screen.getByRole("textbox"), message);
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(screen.getByRole("log")).toHaveTextContent(detail);
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-pet-state", "support");
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("listens to symptoms and keeps short follow-ups in the same local conversation", async () => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "I'm not feeling well" }));
+    expect(screen.getByRole("log")).toHaveTextContent("What are you feeling, and when did it start?");
+    await user.type(screen.getByRole("textbox"), "Now I can't breathe");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(screen.getByRole("log")).toHaveTextContent("speak, cough, or breathe");
+    await user.click(screen.getByRole("button", { name: "I'm alone" }));
+    expect(screen.getByRole("log")).toHaveTextContent("backup mission emergency channel");
+    await user.type(screen.getByRole("textbox"), "No");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    await user.click(screen.getByRole("button", { name: "What should I tell the medic?" }));
+    expect(screen.getByRole("log")).toHaveTextContent("do not use Horizon's simulated values");
+    expect(mock.createConversation).not.toHaveBeenCalled();
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("lets the user explicitly return to everyday cloud chat without uploading the symptom exchange", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "I need urgent help" }));
+    await user.click(screen.getByRole("button", { name: "Return to everyday chat" }));
+    await user.type(screen.getByRole("textbox"), "How do I build a routine?");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    await screen.findByText(reply.content);
+    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "How do I build a routine?", false, undefined);
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-pet-state", "listening");
   });
 });
