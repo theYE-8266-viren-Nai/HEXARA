@@ -107,6 +107,10 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Cloud persistence:** `chat_conversations` and `chat_messages` have typed repository access and owner-only RLS policies, with separate conversations per stage.
 - **AI boundary:** `supabase/functions/chat-assistant` uses the existing OpenRouter/Anthropic secret boundary, bounded input, timeout, retry, rate-safe error handling, and output wording guard. API keys never enter the browser.
 - **Honest fallback:** Missing Supabase or unavailable model responses produce an explicit demo response and never claim a remote save or diagnosis.
+- **ORBIT robot companion:** Replaced the generic launcher with the user's robot image, cut out onto genuine alpha transparency at `public/images/orbit-companion.png`, with gentle reduced-motion-aware floating, theme-aware chat, keyboard focus/Escape controls, stage-specific suggestions, and an optional `avatarSrc` override. The image appears in both the launcher and chat header.
+- **Robot cutout verification:** Confirmed transparent corner pixels (alpha 0), local image HTTP 200, production build, and `git diff --check`. Built-in image editing preserved the robot; the edit brief is recorded in `docs/orbit-companion.md`. Browser visual QA remains unavailable.
+- **ORBIT urgent-help boundary:** An always-available panel points to human mission medical support and explicitly says nobody has been contacted. Shared fixed guidance handles matched emergency, glucose, and medication prompts locally, even while history or AI is pending; these exchanges are not sent or saved remotely. The companion does not diagnose, measure glucose, or choose injections/doses. Current and historical AI responses receive an additional browser wording check. Matching is not comprehensive or clinical triage; sources and limits are in `docs/orbit-companion.md`.
+- **ORBIT verification:** 332 frontend tests, production build, `git diff --check`, and local HTTP 200 pass. Regenerated the unchanged assumptions document to fix a Windows CRLF mismatch in its exact-text test. Browser visual QA is blocked by `The browser access host is unavailable`. The updated `chat-assistant` function is local and has not been deployed.
 - **Verification:** Chat contract tests, the existing frontend suite, TypeScript build, and production build pass. The migration and Edge Function still need to be applied to the live Supabase project and configured with `OPENROUTER_API_KEY` plus a chat-capable `OPENROUTER_MODEL`.
 
 ### 🟡 Active Focus
@@ -114,6 +118,7 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
 - **Immediate task:** Try Movement with a real webcam (good and poor light, phone held upright) using the installed pose runtime. Decide whether the real-camera results justify further tuning.
+- **Companion follow-up:** Visually check ORBIT at 320/390/1440 px in both themes when browser access is restored, then deploy and live-test the updated chat function as part of the existing chat rollout.
 - **Required tables:** `sample_people`, `health_observations`, and `demo_events`.
 - **Required seed:** Four synthetic travelers with 180 days of observations.
 - **Security requirement:** Enable RLS on every exposed table and allow only the intended synthetic-data reads.

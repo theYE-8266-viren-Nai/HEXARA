@@ -1,0 +1,15 @@
+# ORBIT companion
+
+ORBIT is Horizon's floating robot AI companion, available in all three workspace stages. The user's robot image has been cut out onto a transparent PNG at `public/images/orbit-companion.png` using the built-in image-editing tool. It is served locally in the launcher and chat header, supports light/dark themes, and stops moving with reduced motion. `ChatWidget` retains an optional `avatarSrc` override.
+
+Image edit brief: remove the entire blue/white-noise and black background; preserve the original robot, pose, expression, coat, stethoscope, antenna ring, colors, and fine edges; use genuine alpha transparency, including gaps, and keep the full robot uncropped.
+
+The companion offers educational questions and an always-available urgent-help panel. It is not a doctor, medical device, emergency monitor, or clinically validated triage tool. It does not measure blood glucose, infer it from wearable signals, select treatment, or contact responders. The urgent panel directs users to the crew medic, mission emergency channel, or local emergency services on Earth and explicitly says nobody has been contacted.
+
+`supabase/functions/_shared/chatSafety.ts` provides the same fixed support messages to the browser, repository, and Edge Function. Matched emergency, glucose, and medication prompts bypass model generation; the browser retains these exchanges in session memory only. This deliberately broad keyword matching is not exhaustive and must never be presented as emergency detection. A visible urgent-help button works independently of matching, cloud configuration, history loading, and pending model replies.
+
+Regular questions retain the existing cloud chat and account persistence. Sharing a dashboard summary is off by default and resets when stage/account changes. Network failures get explicitly labelled built-in responses. Both current and historical assistant output are checked in the browser; the Edge Function also checks new generated output. These conservative text checks are additional safeguards, not proof that arbitrary model output is medically safe.
+
+Blood-sugar wording is based on [NIDDK low-blood-glucose guidance](https://www.niddk.nih.gov/health-information/diabetes/overview/preventing-problems/low-blood-glucose-hypoglycemia) and [CDC treatment guidance](https://www.cdc.gov/diabetes/treatment/treatment-low-blood-sugar-hypoglycemia.html), reviewed November 13, 2026. Insulin lowers blood glucose and is not a treatment for suspected low blood glucose. The companion directs users to their clinician-provided plan and crew medical support without selecting medication or doses.
+
+The frontend works locally with the existing Vite server. The updated `chat-assistant` Edge Function has not been deployed by this change; use the existing deployment instructions in `docs/explain-setup.md` when deploying. No database schema change is needed. Real emergency use requires qualified clinical and mission-protocol review beyond this synthetic research demo.

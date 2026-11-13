@@ -1,0 +1,125 @@
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ChatWidget } from "./ChatWidget";
+import type { ChatSendResult } from "../domain/chat";
+
+const mock = vi.hoisted(() => ({ listConversations: vi.fn(), createConversation: vi.fn(), listMessages: vi.fn(), sendMessage: vi.fn() }));
+vi.mock("../lib/chatRepository", () => ({ createChatRepository: () => mock }));
+const props = { stage: "active" as const, client: null, userId: null };
+const reply = { id: "reply", role: "assistant" as const, content: "Keep a regular routine.", createdAt: "2026-11-13", status: "complete" as const, source: "cloud" as const };
+
+async function open() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Open ORBIT companion" }));
+  await waitFor(() => expect(screen.queryByText("Loading saved conversation…")).not.toBeInTheDocument());
+  return user;
+}
+
+describe("ORBIT floating companion", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mock.listConversations.mockResolvedValue({ data: [], warning: "Cloud chat is unavailable." });
+    mock.createConversation.mockResolvedValue({ data: undefined, warning: "Not saved remotely." });
+    mock.listMessages.mockResolvedValue({ data: [] });
+    mock.sendMessage.mockResolvedValue({ data: reply });
+  });
+
+  it("opens accessibly, focuses the question, and closes with Escape", async () => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    expect(screen.getByRole("dialog", { name: "ORBIT AI" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Chat question" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open ORBIT companion" })).toHaveFocus();
+  });
+
+  it("shows urgent steps without suggesting a call has been placed", async () => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: /Need urgent help/ }));
+    const steps = screen.getByRole("complementary", { name: "Emergency support steps" });
+    expect(within(steps).getByText(/Contact your crew medic and mission control now/)).toBeInTheDocument();
+    expect(within(steps).getByText(/No one has been contacted/)).toBeInTheDocument();
+    await user.click(within(steps).getByRole("button", { name: "Blood sugar concern" }));
+    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+    expect(mock.createConversation).not.toHaveBeenCalled();
+  });
+
+  it("keeps a typed insulin emergency local and preserves it on reopening", async () => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.type(screen.getByRole("textbox"), "My blood sugar is low. Should I inject insulin?");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(screen.getByRole("log")).toHaveTextContent("ORBIT · Built-in guidance");
+    expect(screen.getByRole("log")).toHaveTextContent("does not measure blood glucose");
+    await user.click(screen.getByRole("button", { name: "Close chat" }));
+    await open();
+    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
+    expect(mock.listConversations).toHaveBeenCalledTimes(1);
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("offers an honest offline answer to everyday questions", async () => {
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
+    expect(await screen.findByText(/Cloud chat is unavailable right now, so this is a demo response/)).toBeInTheDocument();
+    expect(screen.getByText("Not saved remotely.")).toBeInTheDocument();
+  });
+
+  it("sends regular questions with dashboard sharing off by default and recovers from rejection", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockRejectedValue(new Error("network down"));
+    render(<ChatWidget {...props} context={{ stage: "active", signals: [] }} />);
+    const user = await open();
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    await user.type(screen.getByRole("textbox"), "How do I build a routine?");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    await screen.findByText(/This reply is built in and has not been saved remotely/);
+    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "How do I build a routine?", false, { stage: "active", signals: [] });
+    expect(screen.queryByText("ORBIT is thinking…")).not.toBeInTheDocument();
+  });
+
+  it("answers emergencies immediately while cloud history is loading", async () => {
+    let resolve!: (value: { data: [] }) => void;
+    mock.listConversations.mockReturnValue(new Promise((done) => { resolve = done; }));
+    render(<ChatWidget {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open ORBIT companion" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "I can't breathe" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
+    await act(async () => resolve({ data: [] }));
+    expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
+  });
+
+  it("discards late cloud responses when the stage changes", async () => {
+    let resolve!: (value: ChatSendResult) => void;
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
+    const view = render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
+    await waitFor(() => expect(mock.sendMessage).toHaveBeenCalled());
+    view.rerender(<ChatWidget {...props} stage="retired" />);
+    await act(async () => resolve({ data: reply }));
+    expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
+    expect(screen.getByText("Retired astronaut support")).toBeInTheDocument();
+  });
+  it("keeps urgent help available while waiting for cloud AI", async () => {
+    let resolve!: (value: ChatSendResult) => void;
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
+    render(<ChatWidget {...props} />);
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
+    await screen.findByText("ORBIT is thinking…");
+    await user.type(screen.getByRole("textbox"), "My blood sugar is dropping");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
+    expect(mock.sendMessage).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ data: reply }));
+  });
+});

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LifeStage } from "../types/horizon";
 import { offlineChatReply, type ChatContextSummary, type ChatConversation, type ChatMessage, type ChatSendResult } from "../domain/chat";
+import { chatSafetyReply, isAllowedChatOutput } from "../../supabase/functions/_shared/chatSafety";
 
 type Row = Record<string, unknown>;
 const mapMessage = (row: Row): ChatMessage => ({ id: String(row.id), role: row.role as ChatMessage["role"], content: String(row.content), createdAt: String(row.created_at), status: (row.status as ChatMessage["status"]) ?? "complete" });
@@ -22,14 +23,21 @@ export function createChatRepository(client: SupabaseClient | null, userId: stri
     async listMessages(conversationId: string) {
       if (!client || !userId) return { data: [] as ChatMessage[], warning: unavailable };
       const result = await client.from("chat_messages").select("id,role,content,created_at,status").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at", { ascending: true }).limit(60);
-      return { data: (result.data ?? []).map(mapMessage), warning: result.error?.message };
+      return { data: (result.data ?? []).map(mapMessage).map((message) => message.role === "assistant" && !isAllowedChatOutput(message.content)
+        ? { ...message, content: "This older AI response cannot be displayed. Please bring personal medical questions to your crew medic. Horizon cannot diagnose or recommend medication doses.", source: "built-in" as const }
+        : message), warning: result.error?.message };
     },
     async sendMessage(conversationId: string, stage: LifeStage, message: string, includeContext: boolean, context?: ChatContextSummary): Promise<ChatSendResult> {
-      if (!client || !userId) return { data: { id: crypto.randomUUID(), role: "assistant", content: offlineChatReply(stage, message), createdAt: new Date().toISOString(), status: "complete" }, warning: unavailable };
+      const builtIn = (content: string): ChatMessage => ({ id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString(), status: "complete", source: "built-in" });
+      const safety = chatSafetyReply(message);
+      if (safety) return { data: builtIn(safety), warning: "Built-in guidance. This exchange was not sent to cloud AI or saved remotely." };
+      if (!client || !userId) return { data: builtIn(offlineChatReply(stage, message)), warning: unavailable };
       const requestId = crypto.randomUUID();
       const result = await client.functions.invoke("chat-assistant", { body: { conversationId, stage, message, includeContext, context: includeContext ? context : undefined, requestId } });
       if (result.error || !result.data?.message) return { error: result.data?.error ?? result.error?.message ?? "Chat could not be saved." };
-      return { data: mapMessage(result.data.message) };
+      if (result.data.safety === true) return { data: builtIn(String(result.data.message.content)), warning: "Built-in guidance. This exchange was not saved remotely." };
+      if (!isAllowedChatOutput(result.data.message.content)) return { data: builtIn(offlineChatReply(stage, message)), warning: "The AI response could not be shown. Built-in guidance is shown instead." };
+      return { data: { ...mapMessage(result.data.message), source: "cloud" } };
     },
   };
 }

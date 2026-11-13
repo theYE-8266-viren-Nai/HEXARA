@@ -1,0 +1,34 @@
+import { describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createChatRepository } from "./chatRepository";
+
+describe("chat response boundary", () => {
+  it("never invokes cloud AI for a glucose or injection request", async () => {
+    const invoke = vi.fn();
+    const repository = createChatRepository({ functions: { invoke } } as unknown as SupabaseClient, "user");
+    const result = await repository.sendMessage("conversation", "active", "I'm losing blood sugar. Inject insulin?", true);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.data?.source).toBe("built-in");
+    expect(result.data?.content).toContain("do not use it to treat suspected low blood sugar");
+  });
+  it("rejects unsafe output even from an older deployed function", async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { message: { content: "Inject insulin now." } } });
+    const repository = createChatRepository({ functions: { invoke } } as unknown as SupabaseClient, "user");
+    const result = await repository.sendMessage("conversation", "active", "What should I do?", false);
+    expect(result.data?.source).toBe("built-in");
+    expect(result.data?.content).not.toContain("Inject insulin now.");
+    expect(result.warning).toContain("could not be shown");
+  });
+  it("also filters unsafe historical assistant messages while preserving user messages", async () => {
+    const result = { data: [
+      { id: "1", role: "user", content: "Insulin?", created_at: "2026-11-13" },
+      { id: "2", role: "assistant", content: "Inject insulin now.", created_at: "2026-11-13" },
+    ] };
+    const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue(result) };
+    const repository = createChatRepository({ from: vi.fn(() => query) } as unknown as SupabaseClient, "user");
+    const history = await repository.listMessages("conversation");
+    expect(history.data[0].content).toBe("Insulin?");
+    expect(history.data[1].source).toBe("built-in");
+    expect(history.data[1].content).not.toContain("Inject insulin now.");
+  });
+});
