@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, BedDouble, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, Eye, FileText, Heart, HeartPulse, LockKeyhole, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff, X } from "lucide-react";
+import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
@@ -10,53 +10,16 @@ import type { Alert, DataQualityState, LifeStage, MetricCardData, SimulationScen
 import { Brand, SafetyDisclaimer, type ViewName } from "./AppShell";
 import type { PreparationRepository } from "../lib/preparationRepository";
 import { useDevice } from "../lib/deviceContext";
-import { ImportDataPanel } from "./ImportDataPanel";
-import { AssumedDevicesPanel } from "./AssumedDevicesPanel";
+import { WellbeingCheckIn } from "./WellbeingCheckIn";
+import { astronautRecord, initials } from "../data/astronautProfiles";
 import { BaselineSummaryPanel } from "./BaselineSummaryPanel";
 import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { ThemeToggle } from "./ThemeToggle";
 
-type CheckIn = {
-  mood: string;
-  stress: string;
-  sleepQuality: string;
-  sleepFactors: string[];
-  note: string;
-  energy: string;
-  purpose: string;
-  socialConnection: string;
-  personalSpace: string;
-  crewAtmosphere: string;
-  transitionTags: string[];
-};
 type Privacy = { mood: boolean; notes: boolean; trends: boolean };
-type WellbeingUsability = { starts: number; completions: number; totalCompletionSeconds: number; lastCompletionSeconds: number };
 const panelClass = "tech-card p-5 sm:p-6";
-const wellbeingUsabilityKey = "horizon:wellbeing-usability";
-
-function readWellbeingUsability(): WellbeingUsability {
-  const empty = { starts: 0, completions: 0, totalCompletionSeconds: 0, lastCompletionSeconds: 0 };
-  try { return { ...empty, ...JSON.parse(window.localStorage.getItem(wellbeingUsabilityKey) ?? "{}") }; } catch { return empty; }
-}
-
-type WellbeingSuggestion = { title: string; body: string; learn: string };
-
-function wellbeingSuggestions(checkIn: CheckIn, retired: boolean): WellbeingSuggestion[] {
-  const suggestions: WellbeingSuggestion[] = [];
-  const lightAffectedSleep = !retired && Number(checkIn.sleepQuality) <= 2 && (checkIn.sleepFactors ?? []).includes("Light");
-  if (lightAffectedSleep) suggestions.push({ title: "Prepare the lighting for sleep", body: "Before your planned sleep period, switch to the approved pre-sleep lighting setting. Dim the lights and reduce blue-rich light, including bright screens, where operationally safe.", learn: "Why this suggestion: NASA uses adjustable lighting intensity and spectrum to support an Earth-like light-dark cycle, astronaut sleep, and alertness. Based on NASA sleep and circadian-light guidance; this is an app-authored summary, not a direct NASA quote." });
-  if (Number(checkIn.stress) >= 4) suggestions.push({ title: "Create a short reset", body: "Take two quiet minutes for slow breathing, then review whether one non-essential task can wait.", learn: "A brief pause can create space to reassess workload. It is a small self-management step, not a diagnosis or treatment." });
-  if (Number(checkIn.mood) <= 2) suggestions.push({ title: retired ? "Reach out to someone you trust" : "Make one small connection", body: retired ? "Consider a brief check-in with a trusted person or former crew peer today." : "Choose one trusted crewmate for a brief, private check-in today.", learn: "A short, low-pressure conversation can add social context and make it easier to decide whether more support would be useful." });
-  if (Number(checkIn.sleepQuality) <= 2 && !lightAffectedSleep) suggestions.push({ title: "Protect your next rest period", body: "Reduce avoidable light, noise, and interruptions before your next sleep period.", learn: "Sleep can be affected by several conditions, including schedule, noise, temperature, and light. Reviewing the environment may reveal one practical adjustment." });
-  if (Number(checkIn.energy) <= 2) suggestions.push({ title: "Conserve energy", body: "Review the next part of your day and postpone one non-essential demand if possible.", learn: "Matching workload to current energy can help preserve attention for higher-priority tasks." });
-  if (!retired && Number(checkIn.socialConnection) <= 2) suggestions.push({ title: "Reconnect with the crew", body: "Plan a short, low-pressure conversation or shared activity with one crewmate.", learn: "Regular, manageable contact can support connection during long periods of isolation and confinement." });
-  if (!retired && Number(checkIn.personalSpace) <= 2) suggestions.push({ title: "Protect a little personal space", body: "Reserve a short quiet period or private area before your next demanding task.", learn: "A predictable period with fewer interruptions can help balance shared crew time with the need for privacy." });
-  if (!retired && Number(checkIn.crewAtmosphere) <= 2) suggestions.push({ title: "Reset the crew atmosphere", body: "Use the next team check-in to name one friction point and one practical adjustment.", learn: "Naming a specific friction point and a small adjustment can make a team conversation more concrete and easier to act on." });
-  if (!suggestions.length) suggestions.push({ title: "Keep the steady pattern", body: "Continue the routine that is supporting you and check in again tomorrow.", learn: "Consistent check-ins can make changes in your own pattern easier to notice over time." });
-  return suggestions.slice(0, 2);
-}
 
 export function StageSelectionView({ loading, warning, onSelect }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void }) {
   const options = [
@@ -111,7 +74,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
     </header>
     <DataSourceStatus source={source} warning={warning} />
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
-    <DataTrustStrip onImport={() => onViewChange("profile")} />
+    <DataTrustStrip />
     <section data-tone={dataUnavailable ? "unavailable" : stale || alert ? "watch" : "normal"} className={`${panelClass} status-panel ${dataUnavailable ? "border-slate-500/70" : stale || alert ? "border-amber-300/40" : "border-emerald-300/30"}`} aria-labelledby="status-title"><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm font-medium text-slate-400">Today’s status</p><div className="mt-3 flex flex-wrap items-center gap-3"><StatusChip severity={status} /><h2 id="status-title" className="text-xl font-semibold text-white">{unreliable ? "Not enough reliable data" : dataUnavailable ? "Waiting for a data source" : stale ? "The data needs a review" : alert ? "A pattern is worth reviewing" : "Your signals look usual"}</h2></div><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{statusReason}</p></div><div className="rounded-2xl bg-slate-950/50 px-4 py-3 text-sm text-slate-400">Last update<br /><span className="font-semibold text-slate-200">{stale ? "Earlier today · simulated" : "Just now · simulated"}</span></div></div><div className="mt-6 flex flex-col gap-3 border-t border-slate-800 pt-5 sm:flex-row sm:items-center"><span className="sr-only">Suggested next step</span><button type="button" onClick={() => onViewChange(dataUnavailable || stale ? "profile" : "wellbeing")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-200"><span className="sr-only">{action}</span><span aria-hidden="true">{dataUnavailable ? "Reconnect data" : stale ? "Review data quality" : alert ? "Take the optional wellbeing check-in" : "Check in with yourself"}</span><ArrowRight size={16} /></button><button type="button" onClick={() => onViewChange("trends")} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800">Review trends</button></div></section>
     {stage === "retired" ? <RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /> : <section className="signals-section" aria-labelledby="signals-title"><div className="mb-3 flex items-end justify-between gap-3"><div><p className="eyebrow">PERSONAL SIGNALS</p><h2 id="signals-title" className="text-xl font-semibold text-white">Your health, at a glance</h2></div><button type="button" onClick={() => onViewChange("trends")} className="text-sm font-semibold text-cyan-200 hover:text-cyan-100">See all trends</button></div><div className="metric-grid">{metrics.slice(0, 6).map((metric) => <MetricTile key={metric.metric} metric={metric} />)}</div></section>}
     <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]"><section className={panelClass} aria-labelledby="action-title"><div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200"><Sparkles size={20} /></span><div><p className="text-sm text-slate-400">One small action</p><h2 id="action-title" className="text-xl font-semibold text-white">{dataUnavailable ? "Check the simulated source" : "Give your recovery a quick check"}</h2></div></div><p className="mt-4 leading-7 text-slate-300">{dataUnavailable ? "This demo scenario is showing a disconnected source so you can see how missing data is handled." : "A short check-in adds context to the signals. Skipping it does not count as feeling well."}</p><button type="button" onClick={() => onViewChange(dataUnavailable ? "profile" : "wellbeing")} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-cyan-200 hover:text-cyan-100">{dataUnavailable ? "Open simulation controls" : "Open wellbeing check-in"}<ArrowRight size={16} /></button></section><section className={panelClass} aria-labelledby="timeline-title"><div className="flex items-center justify-between"><div><p className="text-sm text-slate-400">Follow-up</p><h2 id="timeline-title" className="text-xl font-semibold text-white">Recent activity</h2></div><Check size={20} className="text-emerald-200" /></div><ol className="mt-5 space-y-4 border-l border-slate-700 pl-4 text-sm"><li><p className="font-semibold text-slate-200">Simulation started</p><p className="mt-1 text-slate-400">{scenarioLabel(scenario)} pattern selected</p></li><li><p className="font-semibold text-slate-200">Personal baseline loaded</p><p className="mt-1 text-slate-400">30-day rolling comparison</p></li></ol></section></div>
@@ -195,99 +158,60 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : metrics;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="grid gap-5 xl:grid-cols-2">{visibleMetrics.map((metric) => <article key={metric.metric} className={panelClass}><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold text-white">{metric.label}</h2><p className="mt-1 text-sm text-slate-400">{metric.plainLanguage}</p></div><p className="text-2xl font-semibold text-white">{metric.value}<span className="ml-1 text-sm font-medium text-slate-400">{metric.unit}</span></p></div><MetricMetadata metric={metric} /><div className="mt-4"><TrendChart metric={metric} /></div><div className="mt-3 flex items-center justify-between text-xs text-slate-400"><span>Dotted line: usual baseline ({metric.baseline} {metric.unit})</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{metric.value}<span>{metric.unit}</span></p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {metric.baseline} {metric.unit}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
 }
 
-export function WellbeingView({ stage, checkIn, onCheckInChange, privacy, onPrivacyChange }: { stage: LifeStage; checkIn: CheckIn; onCheckInChange: Dispatch<SetStateAction<CheckIn>>; privacy: Privacy; onPrivacyChange: Dispatch<SetStateAction<Privacy>> }) {
-  const [saved, setSaved] = useState(false);
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
-  const [supportOpen, setSupportOpen] = useState(false);
-  const [lifeOnboardOpen, setLifeOnboardOpen] = useState(false);
-  const [lifeAfterFlyingOpen, setLifeAfterFlyingOpen] = useState(false);
-  const [usability, setUsability] = useState<WellbeingUsability>(readWellbeingUsability);
-  const startedAt = useRef(Date.now());
-  const startRecorded = useRef(false);
-  const completionRecorded = useRef(false);
-  const update = (field: keyof CheckIn, value: string) => { setSaved(false); onCheckInChange((current) => ({ ...current, [field]: value })); };
-  const transitionTags = checkIn.transitionTags ?? [];
-  const sleepFactors = checkIn.sleepFactors ?? [];
-  const toggleSleepFactor = (factor: string) => {
-    setSaved(false);
-    onCheckInChange((current) => ({ ...current, sleepFactors: sleepFactors.includes(factor) ? sleepFactors.filter((item) => item !== factor) : [...sleepFactors, factor] }));
-  };
-  const toggleTransition = (tag: string) => {
-    setSaved(false);
-    onCheckInChange((current) => ({
-      ...current,
-      transitionTags: transitionTags.includes(tag) ? transitionTags.filter((item) => item !== tag) : [...transitionTags, tag],
-    }));
-  };
-  const retired = stage === "retired";
-  const suggestions = wellbeingSuggestions(checkIn, retired);
-  const visibleSuggestions = suggestions.filter((suggestion) => !dismissedSuggestions.includes(suggestion.title));
-  useEffect(() => {
-    if (startRecorded.current) return;
-    startRecorded.current = true;
-    const current = readWellbeingUsability();
-    const next = { ...current, starts: current.starts + 1 };
-    window.localStorage.setItem(wellbeingUsabilityKey, JSON.stringify(next));
-    setUsability(next);
-  }, []);
-  const saveCheckIn = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setDismissedSuggestions([]);
-    if (completionRecorded.current) { setSaved(true); return; }
-    completionRecorded.current = true;
-    const seconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
-    const current = readWellbeingUsability();
-    const next = { ...current, completions: current.completions + 1, totalCompletionSeconds: current.totalCompletionSeconds + seconds, lastCompletionSeconds: seconds };
-    window.localStorage.setItem(wellbeingUsabilityKey, JSON.stringify(next));
-    setUsability(next);
-    setSaved(true);
-  };
-  return <div className="space-y-7">
-    <header>
-      <p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Wellbeing{retired ? " · Retired astronaut" : ""}</p>
-      <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "A private moment to check in" : "A 30-second check-in"}</h1>
-      <p className="mt-2 max-w-2xl leading-7 text-slate-400">{retired ? "Notice how life after flying feels today. Skip anything you do not want to answer." : "Add context about how you feel. Skipping this check-in does not count as reporting no concerns."}</p>
-    </header>
-    <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-      <form className={`${panelClass} space-y-5`} onSubmit={saveCheckIn}>
-        {retired ? <div className="flex items-start gap-3"><Heart size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 className="font-semibold text-white">How are you feeling today?</h2><p className="mt-1 text-sm leading-6 text-slate-400">Use the sliders to describe how things feel right now.</p></div></div> : null}
-        <WellbeingSlider label="Mood" hint="1 = low, 5 = good" value={checkIn.mood} labels={["Very low", "Low", "Okay", "Good", "Very good"]} onChange={(value) => update("mood", value)} />
-        <WellbeingSlider label="Stress" hint="1 = low, 5 = high" value={checkIn.stress} labels={["Very low", "Low", "Moderate", "High", "Very high"]} onChange={(value) => update("stress", value)} />
-        <WellbeingSlider label="Sleep quality" hint="1 = poor, 5 = restful" value={checkIn.sleepQuality} labels={["Very poor", "Poor", "Mixed", "Good", "Restful"]} onChange={(value) => update("sleepQuality", value)} />
-        {!retired && Number(checkIn.sleepQuality) <= 2 ? <fieldset className="rounded-2xl border border-slate-800 bg-slate-950/20 p-4"><legend className="px-1 text-sm font-semibold text-slate-200">What affected your sleep?</legend><p className="mt-1 text-xs text-slate-500">Choose any that apply.</p><div className="mt-3 flex flex-wrap gap-2">{["Light", "Noise", "Schedule", "Temperature", "Not sure"].map((factor) => <button key={factor} type="button" aria-pressed={sleepFactors.includes(factor)} onClick={() => toggleSleepFactor(factor)} className={`rounded-full border px-3 py-2 text-sm ${sleepFactors.includes(factor) ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>{factor}</button>)}</div></fieldset> : null}
-        <WellbeingSlider label="Energy" hint="1 = drained, 5 = energized" value={checkIn.energy ?? "3"} labels={["Drained", "Low", "Enough", "Energized", "Very energized"]} onChange={(value) => update("energy", value)} />
-        {!retired ? <section className="border-t border-slate-800 pt-5" aria-labelledby="life-onboard-title"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><Orbit size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 id="life-onboard-title" className="font-semibold text-white">Life onboard <span className="font-normal text-slate-500">· optional</span></h2><p className="mt-1 text-sm leading-6 text-slate-400">Add context about connection, privacy, and crew life only if it feels useful.</p></div></div><button type="button" aria-expanded={lifeOnboardOpen} aria-controls="life-onboard-questions" onClick={() => setLifeOnboardOpen((open) => !open)} className="rounded-xl border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10">{lifeOnboardOpen ? "Hide optional questions" : "Add optional context"}</button></div>{lifeOnboardOpen ? <div id="life-onboard-questions" className="mt-5 space-y-5"><WellbeingSlider label="Social connection" hint="1 = isolated, 5 = connected" value={checkIn.socialConnection ?? "3"} labels={["Isolated", "Distant", "Some contact", "Connected", "Very connected"]} onChange={(value) => update("socialConnection", value)} /><WellbeingSlider label="Personal space" hint="1 = none, 5 = comfortable" value={checkIn.personalSpace ?? "3"} labels={["None", "Very limited", "Limited", "Enough", "Comfortable"]} onChange={(value) => update("personalSpace", value)} /><WellbeingSlider label="Crew atmosphere" hint="1 = strained, 5 = supportive" value={checkIn.crewAtmosphere ?? "3"} labels={["Strained", "Tense", "Mixed", "Supportive", "Very supportive"]} onChange={(value) => update("crewAtmosphere", value)} /></div> : null}</section> : null}
-        {retired ? <>
-          <section className="border-t border-slate-800 pt-5" aria-labelledby="life-after-flying-title">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><Compass size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 id="life-after-flying-title" className="font-semibold text-white">Life after flying <span className="font-normal text-slate-500">· optional</span></h2><p className="mt-1 text-sm leading-6 text-slate-400">Add post-mission context only if it feels useful today.</p></div></div><button type="button" aria-expanded={lifeAfterFlyingOpen} aria-controls="life-after-flying-questions" onClick={() => setLifeAfterFlyingOpen((open) => !open)} className="rounded-xl border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10">{lifeAfterFlyingOpen ? "Hide optional questions" : "Add optional context"}</button></div>
-            {lifeAfterFlyingOpen ? <div id="life-after-flying-questions"><div className="mt-5 space-y-5">
-              <WellbeingRatingSelect label="Sense of purpose" hint="Choose what fits best" value={checkIn.purpose ?? "3"} labels={["Disconnected", "Uncertain", "Finding direction", "Purposeful", "Very purposeful"]} onChange={(value) => update("purpose", value)} />
-              <WellbeingRatingSelect label="Social connection" hint="Choose what fits best" value={checkIn.socialConnection ?? "3"} labels={["Isolated", "Distant", "Some contact", "Connected", "Very connected"]} onChange={(value) => update("socialConnection", value)} />
-            </div>
-            <fieldset className="mt-5"><legend className="text-sm font-semibold text-slate-200">What is shaping today?</legend><div className="mt-3 flex flex-wrap gap-2">{["Sleep routine", "Family adjustment", "Returning to work", "Missing mission life", "Finding new purpose"].map((tag) => <button key={tag} type="button" aria-pressed={transitionTags.includes(tag)} onClick={() => toggleTransition(tag)} className={`rounded-full border px-3 py-2 text-sm ${transitionTags.includes(tag) ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>{tag}</button>)}</div></fieldset>
-            </div> : null}
-          </section>
-        </> : null}
-        <FieldLabel label={retired ? "Private reflection (optional)" : "Note (optional)"}><textarea value={checkIn.note} onChange={(event) => update("note", event.target.value)} className="field min-h-28 resize-y" placeholder={retired ? "What felt meaningful, difficult, or different today?" : "Anything you want to remember?"} aria-label={retired ? "Private reflection" : "Optional note"} /></FieldLabel>
-        <div className="flex flex-wrap items-center gap-3"><button type="submit" className="rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200">Save check-in locally</button>{saved ? <span className="inline-flex items-center gap-2 text-sm text-emerald-200"><Check size={16} /> Saved on this device</span> : null}</div>
-        {saved && visibleSuggestions.length ? <section className="grid gap-3" role="region" aria-label="Your suggested next step">{visibleSuggestions.map((suggestion, index) => <article key={suggestion.title} className={`relative rounded-2xl border p-4 pr-14 ${index === 0 ? "border-cyan-300/30 bg-cyan-300/5" : "border-slate-700 bg-slate-950/20"}`}><button type="button" onClick={() => setDismissedSuggestions((current) => [...current, suggestion.title])} aria-label={`Dismiss ${suggestion.title} suggestion`} className="absolute right-3 top-3 grid size-8 place-items-center rounded-full border border-slate-700 bg-slate-950/60 text-slate-300 hover:border-cyan-300/50 hover:text-cyan-100"><X size={16} /></button><p className={`text-xs font-semibold uppercase tracking-[0.18em] ${index === 0 ? "text-cyan-200" : "text-slate-400"}`}>{index === 0 ? "Try this next" : "Also consider"}</p><h2 className="mt-2 font-semibold text-white">{suggestion.title}</h2><p className="mt-1 text-sm leading-6 text-slate-300">{suggestion.body}</p><p className="mt-3 border-t border-slate-700/70 pt-3 text-xs leading-5 text-slate-400">{suggestion.learn}</p></article>)}</section> : null}
-        {saved ? <p className="text-xs text-slate-500" data-testid="wellbeing-usability-summary">Local usability measure: {usability.lastCompletionSeconds}s · {usability.completions}/{usability.starts} completed ({usability.starts ? Math.round((usability.completions / usability.starts) * 100) : 0}%). No identity is recorded.</p> : null}
-      </form>
-      <aside className={`${panelClass} space-y-5`} aria-labelledby="support-title">
-        <div className="flex items-start gap-3"><MessageCircleHeart className="mt-1 text-cyan-200" /><div><h2 id="support-title" className="text-lg font-semibold text-white">Talk to a person</h2><p className="mt-2 text-sm leading-6 text-slate-400">Choose the kind of support that feels right for you.</p></div></div>
-        <button type="button" aria-expanded={supportOpen} aria-controls="support-options" onClick={() => setSupportOpen((open) => !open)} className="w-full rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">{supportOpen ? "Hide support options" : "Open support options"}</button>
-        {supportOpen ? <div id="support-options" className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4" role="region" aria-label="Support options"><p className="text-sm leading-6 text-slate-300">This demo helps you review your choices but does not contact anyone.</p><ul className="mt-3 space-y-2 text-sm font-semibold text-cyan-100"><li>Former astronaut peer</li><li>Behavioral-health professional</li><li>Family or trusted person</li><li>Urgent support</li></ul></div> : null}
-        <div className="border-t border-slate-800 pt-5"><div className="flex items-center gap-2"><LockKeyhole size={16} className="text-slate-300" /><h2 className="font-semibold text-white">Privacy choices</h2></div><div className="mt-4 space-y-3"><PrivacyToggle label="Mood and stress" checked={privacy.mood} onChange={() => onPrivacyChange((current) => ({ ...current, mood: !current.mood }))} /><PrivacyToggle label="Free-text notes" checked={privacy.notes} onChange={() => onPrivacyChange((current) => ({ ...current, notes: !current.notes }))} /><PrivacyToggle label="Trend summaries" checked={privacy.trends} onChange={() => onPrivacyChange((current) => ({ ...current, trends: !current.trends }))} /></div></div>
-      </aside>
-    </div>
-  </div>;
+export function WellbeingView({ stage, privacy, onPrivacyChange }: { stage: LifeStage; privacy: Privacy; onPrivacyChange: Dispatch<SetStateAction<Privacy>> }) {
+  return <WellbeingCheckIn key={stage} stage={stage} privacy={privacy} onPrivacyChange={onPrivacyChange} />;
 }
 
 export function ProfileView({ profile, profiles, stage, scenario, seed, replayCount, loading, onProfileChange, onScenarioChange, onSeedChange, onReplay, onStageChange }: { profile: TravelerProfile; profiles: TravelerProfile[]; stage: LifeStage; scenario: SimulationScenario; seed: number; replayCount: number; loading: boolean; onProfileChange: (id: string) => void; onScenarioChange: (scenario: SimulationScenario) => void; onSeedChange: (seed: number) => void; onReplay: () => void; onStageChange: (stage: LifeStage) => void }) {
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Profile and simulation</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Shape the demo context</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">All records here are synthetic. Change the scenario to demonstrate normal, review, and data-quality states.</p></header>{loading ? <LoadingPanel /> : null}<div className="grid gap-5 lg:grid-cols-2"><section className={`${panelClass} space-y-5`} aria-labelledby="profile-settings"><h2 id="profile-settings" className="text-xl font-semibold text-white">Traveler settings</h2><FieldLabel label="Sample traveler"><select value={profile.id} onChange={(event) => onProfileChange(event.target.value)} className="field" aria-label="Sample traveler">{profiles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.role}</option>)}</select></FieldLabel><FieldLabel label="Mission stage"><select value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)} className="field" aria-label="Mission stage"><option value="future">Future / Trainee</option><option value="active">Active astronaut</option><option value="retired">Retired / Post-mission</option></select></FieldLabel><div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-4"><p className="text-sm text-slate-400">Selected profile</p><p className="mt-1 text-lg font-semibold text-white">{profile.name}</p><p className="mt-1 text-sm text-slate-400">{profile.role} · {missionLabel(profile, stage)}</p></div><DeviceCard onResetScenario={() => onScenarioChange("usual")} /><BluetoothCard /><WebhookCard /></section><section className={`${panelClass} space-y-5`} aria-labelledby="simulation-settings"><div className="flex items-center justify-between gap-3"><h2 id="simulation-settings" className="text-xl font-semibold text-white">Simulation controls</h2><button type="button" onClick={() => onScenarioChange("usual")} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 hover:text-cyan-100"><RotateCcw size={15} /> Reset</button></div><FieldLabel label="Demo scenario"><select value={scenario} onChange={(event) => onScenarioChange(event.target.value as SimulationScenario)} className="field" aria-label="Demo scenario"><option value="usual">Usual day</option><option value="recovery_concern">Recovery concern</option><option value="sensor_disconnected">Sensor disconnected</option><option value="stale">Stale data</option><option value="offline">Offline mode</option></select></FieldLabel><FieldLabel label="Simulation seed" hint="Saved on this device"><input type="number" min="0" value={seed} onChange={(event) => onSeedChange(Number(event.target.value))} className="field" aria-label="Simulation seed" /></FieldLabel><div className="flex flex-wrap items-center gap-3"><button type="button" onClick={onReplay} className="rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10"><RotateCcw size={15} className="mr-2 inline" /> Replay events</button><span className="text-xs text-slate-500">Replay {replayCount} · mock run</span></div><div className="space-y-3"><ScenarioRow icon={<ShieldCheck size={18} />} title="Usual day" body="Readings stay close to the illustrative personal pattern." /><ScenarioRow icon={<AlertTriangle size={18} />} title="Recovery concern" body="Sleep falls while resting heart rate rises and HRV falls." /><ScenarioRow icon={<WifiOff size={18} />} title="Sensor disconnected" body="Shows what happens when new readings stop arriving." /></div></section></div><AssumedDevicesPanel /><ImportDataPanel personKey={`${stage}:${profile.id}`} /><section className={`${panelClass} flex items-start gap-3`}><CircleHelp className="mt-1 shrink-0 text-cyan-200" /><p className="text-sm leading-6 text-slate-400"><span className="font-semibold text-slate-200">Limits:</span> This demo uses synthetic records and illustrative baselines. It does not diagnose, clear, or treat a health condition.</p></section></div>;
+  const record = astronautRecord(stage);
+  const metrics = useDevice()?.metrics ?? [];
+  const baselines = metrics.filter((metric) => ["resting_hr", "hrv", "sleep_hours", "spo2"].includes(metric.metric));
+  return <div className="page">
+    <header className="tech-card profile-hero">
+      <span className="profile-avatar" aria-hidden="true">{initials(profile)}</span>
+      <div className="profile-hero-text">
+        <p className="page-kicker">{stageLabel(stage)} · {missionLabel(profile, stage)}</p>
+        <h1>{profile.name}</h1>
+        <p className="page-lede">{record.summary}</p>
+      </div>
+      <dl className="profile-tags"><div><dt>Call sign</dt><dd>{record.callsign}</dd></div><div><dt>Agency</dt><dd>{record.agency}</dd></div></dl>
+    </header>
+    <div className="profile-grid">
+      <ProfileFacts title="Personal details" facts={record.personal} />
+      <ProfileFacts title={record.journey.title} facts={record.journey.facts} />
+      <section className="tech-card panel" aria-labelledby="baselines-title">
+        <div className="panel-head"><h2 id="baselines-title">Personal baselines</h2></div>
+        <p className="panel-note">Your usual values over the last 30 days. Alerts compare you only with these.</p>
+        {baselines.length ? <dl className="fact-list">{baselines.map((metric) => <div key={metric.metric}><dt>{metric.label}</dt><dd>{Number(metric.baseline).toFixed(metric.metric === "sleep_hours" || metric.metric === "spo2" ? 1 : 0)} {metric.unit}</dd></div>)}</dl> : <p className="panel-note">Baselines appear once a wearable has synced.</p>}
+      </section>
+      <ProfileFacts title="Care team and contacts" facts={record.careTeam} />
+    </div>
+    <section className="tech-card panel" aria-labelledby="wearable-title">
+      <div className="panel-head"><h2 id="wearable-title">Wearable</h2></div>
+      <div className="mt-3"><DeviceCard onResetScenario={() => onScenarioChange("usual")} /></div>
+    </section>
+    <details className="tech-card panel demo-controls">
+      <summary><span>Demo controls</span><span className="demo-controls-hint">Switch traveler, scenario and data sources for the presentation</span></summary>
+      {loading ? <LoadingPanel /> : null}
+      <div className="demo-controls-grid">
+        <div className="space-y-4">
+          <FieldLabel label="Sample traveler"><select value={profile.id} onChange={(event) => onProfileChange(event.target.value)} className="field" aria-label="Sample traveler">{profiles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.role}</option>)}</select></FieldLabel>
+          <FieldLabel label="Mission stage"><select value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)} className="field" aria-label="Mission stage"><option value="future">Future / Trainee</option><option value="active">Active astronaut</option><option value="retired">Retired / Post-mission</option></select></FieldLabel>
+          <FieldLabel label="Demo scenario"><select value={scenario} onChange={(event) => onScenarioChange(event.target.value as SimulationScenario)} className="field" aria-label="Demo scenario"><option value="usual">Usual day</option><option value="recovery_concern">Recovery concern</option><option value="sensor_disconnected">Sensor disconnected</option><option value="stale">Stale data</option><option value="offline">Offline mode</option></select></FieldLabel>
+          <FieldLabel label="Simulation seed" hint="Saved on this device"><input type="number" min="0" value={seed} onChange={(event) => onSeedChange(Number(event.target.value))} className="field" aria-label="Simulation seed" /></FieldLabel>
+          <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={onReplay} className="btn-secondary"><RotateCcw size={15} aria-hidden="true" /> Replay events</button><span className="text-xs text-slate-500">Replay {replayCount} · mock run</span></div>
+        </div>
+        <div className="space-y-4"><BluetoothCard /><WebhookCard /></div>
+      </div>
+    </details>
+  </div>;
+}
+
+function ProfileFacts({ title, facts }: { title: string; facts: Array<{ label: string; value: string }> }) {
+  return <section className="tech-card panel"><div className="panel-head"><h2>{title}</h2></div><dl className="fact-list">{facts.map((fact) => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl></section>;
 }
 
 function FuturePreparationView({ preparationRepository }: { preparationRepository?: PreparationRepository }) {
@@ -461,19 +385,7 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: 
 }
 
 function FieldLabel({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) { return <label className="block"><span className="flex items-baseline justify-between gap-3 text-sm font-semibold text-slate-200"><span>{label}</span>{hint ? <span className="text-xs font-normal text-slate-500">{hint}</span> : null}</span><span className="mt-2 block">{children}</span></label>; }
-function WellbeingSlider({ label, value, labels, onChange }: { label: string; hint?: string; value: string; labels: [string, string, string, string, string]; onChange: (value: string) => void }) {
-  const legacyIndex = labels.findIndex((item) => item.toLowerCase() === value.toLowerCase());
-  const parsed = Number(value);
-  const selected = Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? String(parsed) : legacyIndex >= 0 ? String(legacyIndex + 1) : "3";
-  return <FieldLabel label={label}><select value={selected} onChange={(event) => onChange(event.target.value)} className="field" aria-label={label}>{labels.map((option, index) => <option key={option} value={index + 1}>{option}</option>)}</select></FieldLabel>;
-}
-function WellbeingRatingSelect({ label, hint, value, labels, onChange }: { label: string; hint: string; value: string; labels: [string, string, string, string, string]; onChange: (value: string) => void }) {
-  const parsed = Number(value);
-  const selected = Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? String(parsed) : "3";
-  return <FieldLabel label={label} hint={hint}><select value={selected} onChange={(event) => onChange(event.target.value)} className="field" aria-label={label}>{labels.map((option, index) => <option key={option} value={index + 1}>{option}</option>)}</select></FieldLabel>;
-}
 function PrivacyToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) { return <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-950/30 px-3 py-3 text-sm text-slate-300"><span>{label}</span><input type="checkbox" checked={checked} onChange={onChange} className="size-4 accent-cyan-300" /></label>; }
-function ScenarioRow({ icon, title, body }: { icon: ReactNode; title: string; body: string }) { return <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/30 p-3"><span className="text-cyan-200">{icon}</span><div><p className="text-sm font-semibold text-slate-200">{title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{body}</p></div></div>; }
 function DataNotice({ title, body }: { title: string; body: string }) { return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} role="status"><WifiOff className="mt-1 shrink-0 text-slate-300" /><div><h2 className="font-semibold text-white">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></section>; }
 function DataSourceStatus({ source, warning }: { source?: DashboardSource; warning?: string }) {
   if (!source) return null;
@@ -520,7 +432,7 @@ function DataTrustStrip({ onImport }: { onImport?: () => void }) {
     <span className="text-slate-400">{ingest.accepted} readings checked{ingest.rejected ? ` · ${ingest.rejected} set aside` : ""}{ingest.flagged ? ` · ${ingest.flagged} flagged` : ""}</span>
     {ingest.quality === "poor" ? <span className="font-semibold text-amber-100">Not enough reliable data to assess</span> : null}
     <span className="text-slate-400">Alerts from: {ctx.bluetooth?.ready ? "completed days only. Bluetooth readings are display-only until a full day is collected." : ctx.webhook?.ready ? (ctx.alertBasis === "webhook" ? "completed days of webhook readings, plus the simulated wearable for other signals" : "completed days only. Webhook readings are display-only until a full day is collected.") : ctx.alertBasis === "device" ? "completed days of device readings" : "demo scenario"}</span>
-    <span className="basis-full text-xs text-slate-500">Signals assume a crew wearable and a personal dosimeter. Nothing here is measured by Horizon. See Profile for details.</span>
+    <span className="basis-full text-xs text-slate-500">Signals assume a crew wearable and a personal dosimeter. Nothing here is measured by Horizon.</span>
     {onImport ? <button type="button" onClick={onImport} className="ml-auto text-sm font-semibold text-cyan-200 hover:text-cyan-100">Import a file instead</button> : null}
   </section>;
 }

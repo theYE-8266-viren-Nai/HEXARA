@@ -3,13 +3,13 @@ import type { MetricCardData } from "../types/horizon";
 
 type TrendMetric = Pick<MetricCardData, "label" | "baseline" | "points">;
 
-export function TrendChart({ metric }: { metric: TrendMetric }) {
+export function TrendChart({ metric, compact = false }: { metric: TrendMetric; compact?: boolean }) {
   return (
-    <div className="h-48" role="img" aria-label={`${metric.label} trend chart`}>
+    <div className={compact ? "h-36" : "h-48"} role="img" aria-label={`${metric.label} trend chart`}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={metric.points} margin={{ top: 12, right: 8, left: -20, bottom: 0 }}>
-          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "var(--chart-axis)", fontSize: 10 }} />
-          <YAxis domain={["auto", "auto"]} axisLine={false} tickLine={false} tick={{ fill: "var(--chart-axis)", fontSize: 10 }} />
+          <XAxis dataKey="day" axisLine={false} tickLine={false} minTickGap={24} tick={{ fill: "var(--chart-axis)", fontSize: 10 }} />
+          <YAxis domain={["auto", "auto"]} tickCount={4} axisLine={false} tickLine={false} tick={{ fill: "var(--chart-axis)", fontSize: 10 }} />
           <Tooltip contentStyle={{ background: "var(--tooltip-bg)", border: "1px solid var(--tooltip-border)", borderRadius: 10, fontSize: 12 }} labelStyle={{ color: "var(--text-secondary)" }} itemStyle={{ color: "var(--text-primary)" }} />
           <ReferenceLine y={metric.baseline} stroke="var(--chart-baseline)" strokeDasharray="4 5" />
           <Line
