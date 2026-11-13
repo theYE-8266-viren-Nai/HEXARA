@@ -3,7 +3,7 @@
 // Deploy with: supabase functions deploy explain-pattern   (see docs/explain-setup.md)
 // Simulated data only. Not medical advice. Not diagnostic.
 import { buildSystemPrompt, buildUserPrompt, isSafeExplanation, validateExplainRequest } from "../_shared/validate.ts";
-import { buildProviderRequest, chooseProvider, extractText } from "../_shared/providers.ts";
+import { buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage } from "../_shared/providers.ts";
 
 declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 
@@ -58,8 +58,12 @@ Deno.serve(async (request) => {
     let response = await send(false);
     // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
     if (response.status === 400 && choice.provider === "openrouter") response = await send(true);
-    // Only the status code is passed on (never the provider's body), so a wrong key, no credit or an unknown model can be told apart.
-    if (!response.ok) return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status });
+    // Only the status code and a short, sanitized error message are passed on (never the key or the full body),
+    // so a wrong key, no credit, a rate limit or an unknown model can be told apart.
+    if (!response.ok) {
+      const upstreamMessage = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
+      return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status, ...(upstreamMessage ? { upstreamMessage } : {}) });
+    }
     const text = extractText(choice.provider, await response.json());
     // Never forward text that fails the same safety check the browser applies.
     if (!isSafeExplanation(text)) return json(502, { error: "unsafe_output" });

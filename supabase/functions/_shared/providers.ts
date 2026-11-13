@@ -16,6 +16,9 @@ export type ProviderChoice =
 export interface ProviderEnv { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; ANTHROPIC_API_KEY?: string }
 
 export const ANTHROPIC_MODEL = "claude-haiku-5-5";
+const MAX_MODELS = 3;
+/** Free models can spend part of the budget "thinking", so OpenRouter gets more room than the final text needs. */
+export const OPENROUTER_MAX_TOKENS = 800;
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:+\-/]{0,99}$/;
 
 const clean = (value: string | undefined) => (value ?? "").trim();
@@ -23,10 +26,11 @@ const clean = (value: string | undefined) => (value ?? "").trim();
 export function chooseProvider(env: ProviderEnv): ProviderChoice {
   const openrouterKey = clean(env.OPENROUTER_API_KEY);
   if (openrouterKey) {
-    const model = clean(env.OPENROUTER_MODEL);
-    if (!model) return { ok: false, error: "model_missing" };
-    if (!MODEL_ID.test(model)) return { ok: false, error: "model_invalid" };
-    return { ok: true, provider: "openrouter", apiKey: openrouterKey, model };
+    // One model id, or up to three separated by commas: OpenRouter tries the next one if the first fails or is rate limited.
+    const models = clean(env.OPENROUTER_MODEL).split(",").map((item) => item.trim());
+    if (models.length === 1 && !models[0]) return { ok: false, error: "model_missing" };
+    if (models.length > MAX_MODELS || models.some((item) => !MODEL_ID.test(item))) return { ok: false, error: "model_invalid" };
+    return { ok: true, provider: "openrouter", apiKey: openrouterKey, model: models.join(",") };
   }
   const anthropicKey = clean(env.ANTHROPIC_API_KEY);
   if (anthropicKey) return { ok: true, provider: "anthropic", apiKey: anthropicKey, model: ANTHROPIC_MODEL };
@@ -41,11 +45,12 @@ export interface ProviderRequest { url: string; headers: Record<string, string>;
  */
 export function buildProviderRequest(choice: Extract<ProviderChoice, { ok: true }>, system: string, user: string, options: { mergeSystem?: boolean } = {}): ProviderRequest {
   if (choice.provider === "openrouter") {
+    const models = choice.model.split(",");
     const messages = options.mergeSystem ? [{ role: "user", content: `${system}\n\n${user}` }] : [{ role: "system", content: system }, { role: "user", content: user }];
     return {
       url: "https://openrouter.ai/api/v1/chat/completions",
       headers: { "content-type": "application/json", authorization: `Bearer ${choice.apiKey}` },
-      body: JSON.stringify({ model: choice.model, max_tokens: 220, temperature: 0.2, messages }),
+      body: JSON.stringify({ ...(models.length > 1 ? { models } : { model: models[0] }), max_tokens: OPENROUTER_MAX_TOKENS, temperature: 0.2, messages }),
     };
   }
   return {
@@ -74,4 +79,19 @@ export function extractText(provider: ProviderName, data: unknown): string | und
     return parts.length ? parts.join("") : undefined;
   }
   return undefined;
+}
+
+/**
+ * A short, safe reason from a provider's error JSON (for example "No auth credentials found"), so a wrong key,
+ * a rate limit or an unknown model can be told apart. Control characters are removed, anything shaped like an API key
+ * is redacted, and the text is cut to 200 characters. Returns undefined when there is nothing usable.
+ */
+export function extractUpstreamMessage(data: unknown): string | undefined {
+  if (!isRecord(data)) return undefined;
+  const error = data.error;
+  const raw = isRecord(error) ? error.message : typeof error === "string" ? error : undefined;
+  if (typeof raw !== "string") return undefined;
+  // eslint-disable-next-line no-control-regex
+  const text = raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\b(sk|pk|rk)-[A-Za-z0-9_-]{8,}/gi, "[redacted]").replace(/\s+/g, " ").trim().slice(0, 200);
+  return text || undefined;
 }
