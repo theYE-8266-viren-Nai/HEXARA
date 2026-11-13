@@ -6,7 +6,7 @@ import { getEmergencySupport } from "../../supabase/functions/_shared/emergencyS
 
 type Row = Record<string, unknown>;
 const mapMessage = (row: Row): ChatMessage => ({ id: String(row.id), role: row.role as ChatMessage["role"], content: String(row.content), createdAt: String(row.created_at), status: (row.status as ChatMessage["status"]) ?? "complete" });
-const mapConversation = (row: Row): ChatConversation => ({ id: String(row.id), stage: row.stage as LifeStage, title: String(row.title ?? "Horizon chat"), updatedAt: String(row.updated_at) });
+const mapConversation = (row: Row): ChatConversation => ({ id: String(row.id), stage: row.stage as LifeStage, title: String(row.title ?? "OrbitWell chat"), updatedAt: String(row.updated_at) });
 
 export function createChatRepository(client: SupabaseClient | null, userId: string | null) {
   const unavailable = "Cloud chat is unavailable; this conversation is not saved remotely.";
@@ -25,7 +25,7 @@ export function createChatRepository(client: SupabaseClient | null, userId: stri
       if (!client || !userId) return { data: [] as ChatMessage[], warning: unavailable };
       const result = await client.from("chat_messages").select("id,role,content,created_at,status").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at", { ascending: true }).limit(60);
       return { data: (result.data ?? []).map(mapMessage).map((message) => message.role === "assistant" && !isAllowedChatOutput(message.content)
-        ? { ...message, content: "This older AI response cannot be displayed. Please bring personal medical questions to your crew medic. Horizon cannot diagnose or recommend medication doses.", source: "built-in" as const }
+        ? { ...message, content: "This older AI response cannot be displayed. Please bring personal medical questions to your crew medic. OrbitWell cannot diagnose or recommend medication doses.", source: "built-in" as const }
         : message), warning: result.error?.message };
     },
     async sendMessage(conversationId: string, stage: LifeStage, message: string, includeContext: boolean, context?: ChatContextSummary): Promise<ChatSendResult> {

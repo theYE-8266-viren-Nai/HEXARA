@@ -16,7 +16,7 @@ export function WebhookCard() {
   return <div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-4" aria-labelledby="webhook-card-title">
     <div className="flex items-center gap-2"><Webhook size={16} className="text-cyan-200" aria-hidden="true" /><p id="webhook-card-title" className="text-sm text-slate-400">Webhook source (local demo)</p></div>
     <p className="mt-1 text-lg font-semibold text-white">{title}</p>
-    <p className="mt-2 text-sm leading-6 text-slate-400">{webhook.message ?? "Let a connected service or app post readings to Horizon. Horizon cleans them like any other source and replaces only the signals it receives; the rest stay simulated."}</p>
+    <p className="mt-2 text-sm leading-6 text-slate-400">{webhook.message ?? "Let a connected service or app post readings to OrbitWell. OrbitWell cleans them like any other source and replaces only the signals it receives; the rest stay simulated."}</p>
     {phase === "receiving" ? <p className="mt-2 text-sm text-slate-300" role="status">{webhook.received} readings received</p> : null}
     {showDetails && phase !== "off" ? <>
       <p className="mt-3 text-xs text-slate-500">Send readings to <code>{origin}/api/ingest</code> with this local demo token. Rows are kept in memory on your dev server for up to {webhook.retentionHours} hours, are cleaned in the app, and are never saved or sent to the cloud.</p>

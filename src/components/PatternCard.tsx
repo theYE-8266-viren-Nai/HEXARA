@@ -63,7 +63,7 @@ const FALLBACK_NOTE: Record<NonNullable<ExplainResult["reason"]>, string> = {
   not_configured: "Cloud explanations are not set up, so this is the built-in text.",
   error: "The cloud explanation was unavailable, so this is the built-in text.",
   timeout: "The cloud explanation took too long, so this is the built-in text.",
-  unsafe: "The cloud text did not pass Horizon's wording check, so this is the built-in text.",
+  unsafe: "The cloud text did not pass OrbitWell's wording check, so this is the built-in text.",
   invalid_request: "The summary could not be sent, so this is the built-in text.",
 };
 
@@ -79,7 +79,7 @@ function ExplainSection({ request, run }: { request: ExplainRequest; run: Explai
     <p className="mt-2 text-xs leading-5 text-slate-500">Pressing this may send a de-identified summary (level, score, top signals, data quality, source) to a cloud AI service. Raw readings never leave your device. If the cloud is unavailable, a built-in explanation is shown.</p>
     {state.phase === "loading" ? <p className="mt-3 text-sm text-slate-400" role="status">Writing a short explanation…</p> : null}
     {state.phase === "done" && state.result ? <div className="mt-3 rounded-xl border border-slate-700/60 bg-slate-950/30 p-4" role="status">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">{state.result.source === "ai" ? "Explanation by Horizon (AI-assisted)" : "Built-in explanation"}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-200">{state.result.source === "ai" ? "Explanation by OrbitWell (AI-assisted)" : "Built-in explanation"}</p>
       <p className="mt-2 text-sm leading-6 text-slate-200">{state.result.text}</p>
       {state.result.source === "template" && state.result.reason ? <p className="mt-2 text-xs text-slate-500">{FALLBACK_NOTE[state.result.reason]}</p> : null}
     </div> : null}

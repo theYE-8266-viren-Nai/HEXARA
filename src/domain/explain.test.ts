@@ -98,7 +98,7 @@ describe("safety language guard", () => {
     expect(isSafeExplanation("")).toBe(false); expect(isSafeExplanation("   ")).toBe(false); expect(isSafeExplanation(42)).toBe(false); expect(isSafeExplanation(null)).toBe(false); expect(isSafeExplanation("a".repeat(701))).toBe(false);
     expect(isSafeExplanation("Sleep was lower than your usual range. Tell the crew medic if it continues.")).toBe(true);
   });
-  it("covers every topic Horizon says it never assumes, and the lists stay identical to deviceAssumptions", () => {
+  it("covers every topic OrbitWell says it never assumes, and the lists stay identical to deviceAssumptions", () => {
     expect(NOT_ASSUMED_LINES).toEqual(NOT_ASSUMED);
     for (const line of NOT_ASSUMED) expect(isSafeExplanation(line), line).toBe(false);
   });

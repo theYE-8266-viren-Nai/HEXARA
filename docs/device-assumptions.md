@@ -4,7 +4,7 @@
 
 Simulated data only. Not medical advice. Not diagnostic.
 
-Horizon analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.
+OrbitWell analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.
 
 ## Assumed signals
 

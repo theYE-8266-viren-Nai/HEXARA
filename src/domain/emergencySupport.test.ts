@@ -51,7 +51,7 @@ describe("conversational support across emergency concerns", () => {
     expect(getEmergencySupport("I'm alone", "bleeding")?.content).toContain("backup mission emergency channel");
     expect(getEmergencySupport("No", "burn")?.topic).toBe("burn");
     expect(getEmergencySupport("It started ten minutes ago", "chest")?.content).toContain("share that update with your crew medic");
-    expect(getEmergencySupport("What should I tell the medic?", "seizure")?.content).toContain("do not use Horizon's simulated values");
+    expect(getEmergencySupport("What should I tell the medic?", "seizure")?.content).toContain("do not use OrbitWell's simulated values");
   });
   it("prioritises a new red flag over the previous symptom conversation", () => {
     expect(getEmergencySupport("Now I can't breathe", "check_in")?.topic).toBe("breathing");

@@ -2,7 +2,7 @@
 
 Simulated data only. Not medical advice. Not diagnostic.
 
-Movement works without anything below: it uses a motion-based check. Adding the tracker lets Horizon measure joint
+Movement works without anything below: it uses a motion-based check. Adding the tracker lets OrbitWell measure joint
 angles, count repetitions more reliably, and report left/right range of movement. All of it runs in your browser.
 Video frames are turned into numbers on your device and discarded. Nothing is recorded, uploaded or saved.
 

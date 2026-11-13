@@ -1,5 +1,5 @@
 /**
- * Horizon Visual Check — non-diagnostic movement practice contract.
+ * OrbitWell Visual Check — non-diagnostic movement practice contract.
  *
  * This module is the single home for visual-check rules:
  *  - typed results produced by camera processing or the synthetic demo mode;
@@ -255,8 +255,8 @@ export function describeObservations(features: ObservedFeatures, task: VisualChe
  * crew medic and the video is not interpreted.
  */
 export function supportRecommendationFor(context: UserReportedContext, comparison: ComparisonSummary): string {
-  if (context.discomfort === "severe_or_worsening") return "You reported severe or worsening symptoms. Stop the practice and contact the crew medic now. Horizon does not interpret the video for symptoms.";
-  if (context.discomfort === "pain") return "You reported pain. Stop this movement and tell the crew medic. Horizon does not interpret the video for pain.";
+  if (context.discomfort === "severe_or_worsening") return "You reported severe or worsening symptoms. Stop the practice and contact the crew medic now. OrbitWell does not interpret the video for symptoms.";
+  if (context.discomfort === "pain") return "You reported pain. Stop this movement and tell the crew medic. OrbitWell does not interpret the video for pain.";
   if (comparison.trend === "different") return "Tell the crew medic if this change is persistent, worsening, or concerning.";
   return "Keep practising under similar conditions so your personal comparison stays meaningful.";
 }
@@ -291,7 +291,7 @@ export interface CrewSummaryFields { task: boolean; symptoms: boolean; compariso
 
 export function composeCrewSummary(check: VisualCheck, fields: CrewSummaryFields): string {
   const task = taskFor(check.checkType);
-  const lines = [`Horizon practice summary — ${new Date(check.startedAt).toLocaleDateString()}`];
+  const lines = [`OrbitWell practice summary — ${new Date(check.startedAt).toLocaleDateString()}`];
   if (fields.task) lines.push(`Task: ${task.label} (${check.completionStatus.replace("_", " ")}).`);
   if (fields.symptoms) lines.push(`Reported discomfort: ${check.userReportedSymptoms.discomfort.replace(/_/g, " ")}.${check.userReportedSymptoms.symptoms ? ` Notes: ${check.userReportedSymptoms.symptoms}` : ""}`);
   if (fields.comparison) lines.push(`Compared with my previous practice: ${check.comparisonSummary.statements.join(" ")}`);

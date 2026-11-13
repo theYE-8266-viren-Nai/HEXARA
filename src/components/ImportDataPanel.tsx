@@ -35,7 +35,7 @@ export function ImportDataPanel({ personKey }: { personKey: string }) {
   return <section className={`${panelClass} space-y-4`} aria-labelledby="import-title">
     <div className="flex items-start gap-3"><FileUp className="mt-1 shrink-0 text-cyan-200" aria-hidden="true" /><div>
       <h2 id="import-title" className="text-xl font-semibold text-white">Import device data</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">Horizon does not measure anything itself. Bring a CSV or JSON export from another device or app and Horizon will clean it and explain what it sees. Columns: <code>timestamp, metric, value, unit, deviceId</code> (optional <code>context</code>).</p>
+      <p className="mt-2 text-sm leading-6 text-slate-400">OrbitWell does not measure anything itself. Bring a CSV or JSON export from another device or app and OrbitWell will clean it and explain what it sees. Columns: <code>timestamp, metric, value, unit, deviceId</code> (optional <code>context</code>).</p>
     </div></div>
     <p className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck size={14} className="mt-0.5 shrink-0" aria-hidden="true" />The file is read on this device only. It is not uploaded or saved.</p>
     <div className="flex flex-wrap gap-3">
@@ -59,7 +59,7 @@ export function ImportDataPanel({ personKey }: { personKey: string }) {
       </ul>
       {notes.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-slate-400">{notes.map((note) => <li key={note}>{note}</li>)}</ul> : null}
       <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4" role="status">
-        <p className="text-sm font-semibold text-white">What Horizon sees</p>
+        <p className="text-sm font-semibold text-white">What OrbitWell sees</p>
         <p className="mt-1 text-sm leading-6 text-slate-300">{outcome.analysis.message}</p>
         {outcome.analysis.alerts.length ? <ul className="mt-2 space-y-1 text-sm text-amber-100">{outcome.analysis.alerts.map((alert) => <li key={alert.id}>{alert.explanation}</li>)}</ul> : null}
         <p className="mt-2 text-xs text-slate-500">Context only. Simulated data. Not medical advice. Not diagnostic.</p>

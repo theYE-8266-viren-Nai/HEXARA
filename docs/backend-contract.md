@@ -1,4 +1,4 @@
-# Horizon backend foundation
+# OrbitWell backend foundation
 
 Synthetic data only. Simulated data. Not medical advice. Not diagnostic.
 

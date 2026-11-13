@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, Camera, ChartNoAxesCombined, Compass, HeartHandshake, Menu, Orbit, ShieldCheck, UserRound, X } from "lucide-react";
+import { Activity, Camera, ChartNoAxesCombined, Compass, HeartHandshake, Menu, Orbit, ShieldCheck, UserRound, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { LifeStage } from "../types/horizon";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,7 +17,7 @@ const navigation: Array<{ id: ViewName; label: string; icon: typeof Activity }> 
 ];
 
 export function Brand() {
-  return <div className="brand"><span className="brand-symbol"><Orbit size={25} strokeWidth={1.5} aria-hidden="true" /></span><div><p className="brand-name">horizon<span>.</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
+  return <div className="brand"><span className="brand-symbol"><Orbit size={25} strokeWidth={1.5} aria-hidden="true" /></span><div><p className="brand-name">Orbit<span>Well</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
 }
 
 export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
@@ -34,15 +34,14 @@ export function AppShell({ activeView, onViewChange, stage, onStageChange, child
       <Brand />
       <p className="nav-caption">YOUR WORKSPACE</p>
       <Nav activeView={activeView} onChoose={chooseView} />
-      <div className="sidebar-bottom"><div className="mission-note"><Orbit size={23} strokeWidth={1} aria-hidden="true" /><p>A little perspective.<br /><span>A clearer next step.</span></p><button type="button" onClick={() => chooseView("guidance")}>Explore guidance <ArrowUpRight size={14} /></button></div><p className="demo-label"><span /> SYNTHETIC RESEARCH DEMO</p></div>
+      <div className="sidebar-bottom"><p className="demo-label"><span /> SYNTHETIC RESEARCH DEMO</p></div>
     </aside>
     <div className="app-body">
       <header className="app-topbar">
         <button type="button" className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-menu" onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={19} /> : <Menu size={19} />}</button>
-        <div className="workspace-breadcrumb"><span>Mission control</span><span aria-hidden="true">/</span><p>{workspaceLabel}</p></div>
+        <div className="workspace-breadcrumb"><p>{workspaceLabel}</p></div>
         <label className="stage-control">Stage<select aria-label="Life stage" value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)}><option value="future">Future</option><option value="active">Active</option><option value="retired">Retired</option></select></label>
         <ThemeToggle />
-        <span className="workspace-avatar" aria-hidden="true"><Orbit size={19} /></span>
       </header>
       {mobileOpen ? <div id="mobile-menu" className="mobile-drawer"><Nav activeView={activeView} onChoose={chooseView} /></div> : null}
       <main id="workspace" className="workspace-content" tabIndex={-1}>{children}</main>

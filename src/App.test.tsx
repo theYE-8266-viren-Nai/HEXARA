@@ -27,7 +27,7 @@ async function openWorkspace(stage: "active" | "future" | "retired" = "active") 
   return view;
 }
 
-describe("Horizon app shell", () => {
+describe("OrbitWell app shell", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
@@ -375,7 +375,7 @@ describe("Horizon app shell", () => {
     await user.click(screen.getByRole("button", { name: "Import sample DXA report" }));
 
     expect(screen.getByText("Synthetic sample · not a real medical record")).toBeInTheDocument();
-    expect(screen.getByText("Horizon displays the supplied note; it does not calculate a diagnosis.")).toBeInTheDocument();
+    expect(screen.getByText("OrbitWell displays the supplied note; it does not calculate a diagnosis.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Bone health follow-up due · May 12, 2027/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Create sample appointment" }));

@@ -73,7 +73,7 @@ describe("PatternCard explain button", () => {
     expect(screen.getByText(/de-identified summary.*Raw readings never leave your device/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
     expect(run).toHaveBeenCalledWith(request);
-    expect(await screen.findByText("Explanation by Horizon (AI-assisted)")).toBeInTheDocument();
+    expect(await screen.findByText("Explanation by OrbitWell (AI-assisted)")).toBeInTheDocument();
     expect(screen.getByText(/Sleep was lower than your usual range/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Explain again" })).toBeInTheDocument();
   });
@@ -107,7 +107,7 @@ describe("PatternCard explain button", () => {
       const { container, unmount } = render(<PatternCard view={ok("notably_different")} explain={{ request, run: async () => ({ text: "Sleep was lower, compared with your own usual range.", source: "template", reason }) }} />);
       await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
       await waitFor(() => expect(screen.getByText("Built-in explanation")).toBeInTheDocument());
-      expect(isNonDiagnostic((container.textContent ?? "").replace("Not a diagnosis.", "").replace(/did not pass Horizon's wording check/, ""))).toBe(true);
+      expect(isNonDiagnostic((container.textContent ?? "").replace("Not a diagnosis.", "").replace(/did not pass OrbitWell's wording check/, ""))).toBe(true);
       unmount();
     }
   });

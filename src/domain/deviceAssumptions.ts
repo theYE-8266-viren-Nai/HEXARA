@@ -1,7 +1,7 @@
 /**
  * The assumed device and health-signal contract.
  *
- * Horizon analyzes readings; it does not measure anything. Because real hardware cannot be
+ * OrbitWell analyzes readings; it does not measure anything. Because real hardware cannot be
  * tested in this research demo, every signal is ASSUMED to arrive from an imagined crew
  * wearable plus a personal dosimeter. This file is the single source of truth for that
  * assumption. The docs page and the in-app panel are both generated from it, and a test
@@ -36,7 +36,7 @@ export const ASSUMED_SIGNALS: SignalAssumption[] = [
   signal("radiation_dose", "Radiation dose", "Personal dosimeter", "Periodic", "Consumer wearables do not measure radiation, so a separate dosimeter is assumed."),
 ];
 
-/** Things Horizon never assumes and never reports. */
+/** Things OrbitWell never assumes and never reports. */
 export const NOT_ASSUMED = [
   "Blood pressure, glucose, or ECG.",
   "Bone density, vision, or blood-clot detection.",
@@ -72,7 +72,7 @@ export function renderAssumptionsMarkdown(): string {
     "",
     "Simulated data only. Not medical advice. Not diagnostic.",
     "",
-    "Horizon analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.",
+    "OrbitWell analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.",
     "",
     "## Assumed signals",
     "",

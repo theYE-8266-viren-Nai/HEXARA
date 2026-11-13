@@ -23,7 +23,7 @@ export function BaselineSummaryPanel({ repository, refreshKey }: { repository?: 
   return <section className="tech-card p-5 sm:p-6" aria-labelledby="baseline-summary-title">
     <div className="flex items-start gap-3"><TrendingUp className="mt-1 shrink-0 text-cyan-200" aria-hidden="true" /><div>
       <h2 id="baseline-summary-title" className="text-xl font-semibold text-white">Your baseline so far</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">Horizon compares you only with your own pattern. It needs {summary.needed} check-ins on different days before it calls anything "usual". This is not a norm, a target, or flight clearance.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-400">OrbitWell compares you only with your own pattern. It needs {summary.needed} check-ins on different days before it calls anything "usual". This is not a norm, a target, or flight clearance.</p>
     </div></div>
     {!loaded ? <p className="mt-4 text-sm text-slate-400" role="status">Loading your check-ins…</p> : <>
       <p className="mt-4 text-sm font-semibold text-white" role="status">{summary.checkIns} of {summary.needed} check-ins{summary.ready ? " · baseline ready" : ""}</p>

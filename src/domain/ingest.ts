@@ -1,7 +1,7 @@
 /**
- * Horizon ingestion pipeline: untrusted device data -> sanitized readings -> daily observations -> alerts.
+ * OrbitWell ingestion pipeline: untrusted device data -> sanitized readings -> daily observations -> alerts.
  *
- * Horizon does not measure anything. External devices, files, or services send rows;
+ * OrbitWell does not measure anything. External devices, files, or services send rows;
  * this module validates and cleans them, scores their quality, and hands only
  * trustworthy data to the existing alert engine. Nothing here sets alert thresholds.
  *

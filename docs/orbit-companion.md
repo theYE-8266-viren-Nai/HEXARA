@@ -1,6 +1,6 @@
 # ORBIT companion
 
-ORBIT is Horizon's floating robot AI companion, available in all three workspace stages. The user's robot image has been cut out onto a transparent PNG at `public/images/orbit-companion.png` using the built-in image-editing tool. It is served locally in the launcher and chat header, supports light/dark themes, and stops moving with reduced motion. `ChatWidget` retains an optional `avatarSrc` override.
+ORBIT is OrbitWell's floating robot AI companion, available in all three workspace stages. The user's robot image has been cut out onto a transparent PNG at `public/images/orbit-companion.png` using the built-in image-editing tool. It is served locally in the launcher and chat header, supports light/dark themes, and stops moving with reduced motion. `ChatWidget` retains an optional `avatarSrc` override.
 
 Image edit brief: remove the entire blue/white-noise and black background; preserve the original robot, pose, expression, coat, stethoscope, antenna ring, colors, and fine edges; use genuine alpha transparency, including gaps, and keep the full robot uncropped.
 

@@ -194,7 +194,7 @@ function HorizonApp() {
         return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
       case "home":
       default:
-        return <><HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /><PatternCard view={pattern} explain={explain} /></>;
+        return <><HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
     }
   })();
 

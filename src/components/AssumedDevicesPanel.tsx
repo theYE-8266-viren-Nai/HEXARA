@@ -3,12 +3,12 @@ import { ASSUMED_SIGNALS, NOT_ASSUMED, SOURCE_SUPPORT, USER_ENTERED, displayUnit
 
 const panelClass = "tech-card p-5 sm:p-6";
 
-/** Plain-language statement of which devices and signals Horizon assumes. Generated from the same contract as the docs. */
+/** Plain-language statement of which devices and signals OrbitWell assumes. Generated from the same contract as the docs. */
 export function AssumedDevicesPanel() {
   return <section className={`${panelClass} space-y-4`} aria-labelledby="assumed-title">
     <div className="flex items-start gap-3"><Watch className="mt-1 shrink-0 text-cyan-200" aria-hidden="true" /><div>
       <h2 id="assumed-title" className="text-xl font-semibold text-white">Assumed data sources</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">Horizon analyzes readings; it does not measure anything. Real hardware is not connected in this demo, so every signal is assumed to arrive from an imagined crew wearable plus a personal dosimeter. Simulated data. Not a medical device.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-400">OrbitWell analyzes readings; it does not measure anything. Real hardware is not connected in this demo, so every signal is assumed to arrive from an imagined crew wearable plus a personal dosimeter. Simulated data. Not a medical device.</p>
     </div></div>
     <ul aria-label="Assumed signals">
       {ASSUMED_SIGNALS.map((signal) => <li key={signal.metric} className="stream-row">

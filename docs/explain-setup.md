@@ -3,7 +3,7 @@
 Simulated data only. Not medical advice. Not diagnostic.
 
 The button works **without any setup**: it shows a built-in explanation. The steps below add an optional
-cloud AI wording. Horizon never puts an API key in the browser. Keys live only in Supabase secrets.
+cloud AI wording. OrbitWell never puts an API key in the browser. Keys live only in Supabase secrets.
 
 ## What is sent, and when
 
@@ -28,7 +28,7 @@ If `OPENROUTER_API_KEY` is set but `OPENROUTER_MODEL` is not, the function answe
 1. Create a key at openrouter.ai (Keys) and set a small spending limit on it. Keep it private. Never paste it into chat,
    code, or GitHub. If you ever do, delete that key on OpenRouter and make a new one.
 2. Choose a model. **To spend nothing, use `openrouter/free`**: a router that picks an available free model for each request, so one busy model does not break it. You can also list up to three model ids separated by commas, for example `google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free`; OpenRouter tries the next one if the first fails or is rate limited. Otherwise choose one at openrouter.ai/models. Copy a single id exactly as shown (it looks like `vendor/model-name`). It must be a **chat/text model**: names containing "embed" are embedding models, which cannot write sentences and make OpenRouter answer 400. Avoid models labelled "reasoning" or "code" too; reasoning models can spend the short reply budget thinking and return no text. Free models can be slow or rate limited (`429`), and the router may pick different models, so wording quality varies. A free or very
-   cheap model works for this short text, but a weaker model's wording is rejected by Horizon's safety check more often, so
+   cheap model works for this short text, but a weaker model's wording is rejected by OrbitWell's safety check more often, so
    you would see the built-in text more often.
 3. Install the Supabase CLI once: `brew install supabase/tap/supabase`, then log in and link this project:
 
@@ -67,13 +67,13 @@ supabase secrets set ANTHROPIC_API_KEY=your-key-here
 ## Check that it works
 
 Open Home or Trends, choose the Recovery concern demo scenario, and press **Explain this pattern**. The label should read
-**Explanation by Horizon (AI-assisted)**. If it reads **Built-in explanation**, the small note under it says it was
+**Explanation by OrbitWell (AI-assisted)**. If it reads **Built-in explanation**, the small note under it says it was
 unavailable. To see the reason, send an empty request to the function and read the status:
 
 - `503 not_configured`: no key secret is set.
 - `503 model_missing` or `model_invalid`: `OPENROUTER_MODEL` is missing or has odd characters.
 - `502 upstream_error` with `upstreamStatus` and a short `upstreamMessage` from OpenRouter (for example "No auth credentials found" or a rate-limit reason): `400` the model id is not a chat model or does not exist (the function already retries once with the instructions inside the user message for models that reject a system message), `401` wrong or revoked key, `402` no credit, `404` unknown model, `429` rate limited.
-- `502 unsafe_output`: the model's text failed Horizon's wording check twice (the function already asked once more).
+- `502 unsafe_output`: the model's text failed OrbitWell's wording check twice (the function already asked once more).
 - `400 invalid_request`: expected for an empty request when the secrets are fine.
 
 In DevTools, Network tab, the `explain-pattern` request body should contain only the fields listed above.

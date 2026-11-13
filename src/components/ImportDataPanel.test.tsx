@@ -6,7 +6,7 @@ import { ImportDataPanel } from "./ImportDataPanel";
 const file = (name: string, text: string, type = "text/csv") => new File([text], name, { type });
 
 describe("ImportDataPanel", () => {
-  it("states that Horizon does not measure and that files stay on the device", () => {
+  it("states that OrbitWell does not measure and that files stay on the device", () => {
     render(<ImportDataPanel personKey="active:maya" />);
     expect(screen.getByText(/does not measure anything itself/)).toBeInTheDocument();
     expect(screen.getByText(/not uploaded or saved/)).toBeInTheDocument();

@@ -155,7 +155,7 @@ describe("ORBIT floating companion", () => {
     await user.type(screen.getByRole("textbox"), "No");
     await user.click(screen.getByRole("button", { name: "Send question" }));
     await user.click(screen.getByRole("button", { name: "What should I tell the medic?" }));
-    expect(screen.getByRole("log")).toHaveTextContent("do not use Horizon's simulated values");
+    expect(screen.getByRole("log")).toHaveTextContent("do not use OrbitWell's simulated values");
     expect(mock.createConversation).not.toHaveBeenCalled();
     expect(mock.sendMessage).not.toHaveBeenCalled();
   });

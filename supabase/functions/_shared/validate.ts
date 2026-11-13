@@ -81,7 +81,7 @@ export function buildSystemPrompt(): string {
     "Use ONLY the facts given. Say which signals were higher or lower than the person's own usual range, and by roughly how much.",
     "Call them readings; never say they were measured. Do not guess a cause.",
     "Never diagnose, never name a condition or disease, never give a probability, never mention treatment or medication, and never say anyone is cleared, fit, or unfit to fly.",
-    `Horizon does not assume and never reports: ${NOT_ASSUMED_LINES.join(" ")}`,
+    `OrbitWell does not assume and never reports: ${NOT_ASSUMED_LINES.join(" ")}`,
     "End by suggesting the optional wellbeing check-in, and telling the crew medic if the change continues, gets worse, or is concerning.",
     "Output plain text only: no lists, no markdown, no headings.",
   ].join(" ");

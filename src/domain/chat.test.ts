@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { offlineChatReply, stageName } from "./chat";
 
-describe("Horizon chat contract", () => {
+describe("OrbitWell chat contract", () => {
   it("names each stage in plain language", () => {
     expect(stageName("future")).toBe("Future traveler");
     expect(stageName("active")).toBe("Active astronaut");
