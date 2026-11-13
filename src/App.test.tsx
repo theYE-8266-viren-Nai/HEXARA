@@ -7,6 +7,7 @@ import { bluetoothTiming } from "./lib/useBluetoothHeartRate";
 import { bluetoothAccess } from "./lib/adapters/webBluetoothHeartRate";
 import { createFakeBluetooth, hrBytes } from "./test/fakeBluetooth";
 import { webhookTiming } from "./lib/useWebhookSource";
+import { demoVoiceTiming } from "./lib/voice/mockVoiceEngine";
 import { createFakeReceiver } from "./test/fakeReceiverFetch";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
@@ -719,5 +720,26 @@ describe("Horizon app shell", () => {
       expect(screen.queryByText(/Resting heart rate .* outside your usual range/)).not.toBeInTheDocument();
       expect(screen.getByText("Your signals look usual")).toBeInTheDocument();
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
+  });
+
+  it("fills the Active Wellbeing sliders from the demo voice check-in, and only saves when Save is pressed", async () => {
+    const user = userEvent.setup();
+    const savedStep = demoVoiceTiming.stepMs; demoVoiceTiming.stepMs = 5;
+    try {
+      await openWorkspace();
+      await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+      expect(await screen.findByRole("heading", { name: "Check in by voice" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Try the demo voice" }));
+      const review = await screen.findByRole("group", { name: "Review your answers" }, { timeout: 3000 });
+      expect(window.localStorage.getItem("horizon:wellbeing")).not.toContain('"mood":"4"'); // nothing applied yet
+      await user.click(within(review).getByRole("button", { name: "Fill in the form" }));
+      expect(screen.getByLabelText("Mood")).toHaveValue("4");
+      expect(screen.getByLabelText("Stress")).toHaveValue("2");
+      expect(screen.getByLabelText("Sleep quality")).toHaveValue("3");
+      expect(screen.queryByLabelText("Energy")).not.toBeInTheDocument(); // not on this page, so voice never asks about it
+      expect(screen.queryByText("Saved on this device")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
+      expect(screen.getByText("Saved on this device")).toBeInTheDocument();
+    } finally { demoVoiceTiming.stepMs = savedStep; }
   });
 });

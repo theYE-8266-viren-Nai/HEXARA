@@ -13,6 +13,7 @@ import { useDevice } from "../lib/deviceContext";
 import { ImportDataPanel } from "./ImportDataPanel";
 import { AssumedDevicesPanel } from "./AssumedDevicesPanel";
 import { BaselineSummaryPanel } from "./BaselineSummaryPanel";
+import { VoiceCheckIn } from "./VoiceCheckIn";
 import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
@@ -182,6 +183,8 @@ export function WellbeingView({ stage, checkIn, onCheckInChange, privacy, onPriv
       <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "A private moment to check in" : "A 30-second check-in"}</h1>
       <p className="mt-2 max-w-2xl leading-7 text-slate-400">{retired ? "Notice how life after flying feels today. Skip anything you do not want to answer." : "Add context about how you feel. Skipping this check-in does not count as reporting no concerns."}</p>
     </header>
+    {/* Optional voice check-in: fills this form for review; nothing is saved until Save is pressed. */}
+    <VoiceCheckIn fields={retired ? undefined : ["mood", "stress", "sleepQuality"]} onApply={(values, note) => { setSaved(false); onCheckInChange((current) => ({ ...current, ...values, ...(note ? { note } : {}) })); }} onUrgent={() => setSupportOpen(true)} />
     <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
       <form className={`${panelClass} space-y-5`} onSubmit={(event) => { event.preventDefault(); setSaved(true); }}>
         {retired ? <div className="flex items-start gap-3"><Heart size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 className="font-semibold text-white">How are you feeling today?</h2><p className="mt-1 text-sm leading-6 text-slate-400">Use the sliders to describe how things feel right now.</p></div></div> : null}
