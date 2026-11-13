@@ -208,20 +208,28 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .signals-section > div:first-child { margin-bottom: 15px; }
 .signals-section > div:first-child > button { font-size: 11px; }
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.retired-wearable-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.retired-wearable-card { min-width: 0; min-height: 178px; padding: 20px 20px 17px; }
-.retired-wearable-card > div { display: flex; align-items: center; gap: 11px; color: var(--text-secondary); }
-.retired-wearable-card > div > p { min-width: 0; font-size: 12px; }
-.retired-wearable-icon { display: grid; flex: 0 0 auto; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: var(--accent-text); background: rgba(58, 205, 211, .1); }
-.retired-wearable-icon > svg { width: 20px; height: 20px; }
+.retired-wearable-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.retired-wearable-card { min-width: 0; min-height: 0; padding: 18px 19px 13px; }
+.retired-wearable-card > div { display: flex; align-items: center; color: var(--text-secondary); }
+.retired-wearable-card > div > p { display: flex; align-items: center; min-width: 0; font-size: 11px; }
+.retired-wearable-card > div > p::after { content: ""; width: 8px; height: 8px; margin-left: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, .12); }
+.retired-wearable-icon { display: grid; flex: 0 0 auto; width: 24px; height: 24px; margin-left: auto; place-items: center; color: var(--text-subtle); }
+.retired-wearable-icon > svg { width: 17px; height: 17px; }
 
 /* Expanded follow-up cards need their own row; otherwise CSS Grid leaves a
    large empty area beside the taller card. */
 @media (min-width: 768px) {
   .health-areas-grid:has(> details[open]) { grid-template-columns: minmax(0, 1fr); }
 }
-.retired-wearable-card > strong { display: block; margin-top: 17px; overflow-wrap: anywhere; color: var(--text-primary); font-size: 27px; font-weight: 500; line-height: 1.1; letter-spacing: -.035em; }
-.retired-wearable-card > span { display: block; margin-top: 15px; padding-top: 11px; border-top: 1px solid rgba(196, 218, 236, .065); color: var(--muted); font-size: 9px; line-height: 1.5; }
+.retired-value-row { justify-content: space-between; gap: 18px; margin-top: 15px; }
+.retired-value-row > strong { overflow-wrap: anywhere; color: var(--text-primary); font-size: 29px; font-weight: 400; line-height: 1.1; letter-spacing: -.045em; }
+.retired-value-row > svg { width: 84px; height: 28px; flex: 0 0 auto; color: var(--chart-line); opacity: .8; }
+.retired-wearable-card > span { display: flex; align-items: center; gap: 6px; margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: 9px; line-height: 1.5; }
+.retired-wearable-card > span > svg { flex: 0 0 auto; margin-left: auto; color: var(--text-subtle); }
+.connected-measurements-grid { margin-top: 12px; }
+.connected-measurements-title { margin-top: 22px; padding: 0 2px; }
+.connected-measurements-title > svg { color: var(--accent-text); }
+.connected-measurement-card > span { min-height: 13px; }
 .connected-measurements { display: grid; grid-template-columns: minmax(210px, 1.25fr) repeat(4, minmax(120px, 1fr)); align-items: stretch; margin-top: 14px; padding: 17px 20px; }
 .connected-measurements-title, .connected-measurement { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .connected-measurements-title { color: var(--accent-text); padding-right: 16px; }

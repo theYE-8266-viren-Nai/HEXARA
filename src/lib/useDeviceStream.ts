@@ -109,8 +109,12 @@ export function useDeviceStream({ enabled, personKey, scenario, seed, baseMetric
       const trusted = result.accepted.filter((reading) => reading.metric === backend && reading.context === "rest" && !reading.flag);
       if (!trusted.length) return metric;
       const alertFlag = liveAlert !== undefined ? liveAlert?.metric === metric.metric : Boolean(metric.points.at(-1)?.alert);
-      const points: MetricPoint[] = trusted.map((reading) => ({ day: clock(new Date(reading.observedAt).getTime()), value: reading.value, baseline: metric.baseline, alert: alertFlag || undefined }));
-      const value = points.at(-1)!.value;
+      const latestValue = trusted.at(-1)!.value;
+      const dailyTrend = metric.metric === "sleep_hours" || metric.metric === "resting_hr";
+      const points: MetricPoint[] = dailyTrend
+        ? metric.points.map((point, index) => ({ ...point, ...(index === metric.points.length - 1 ? { value: latestValue, alert: alertFlag || undefined } : {}) }))
+        : trusted.map((reading) => ({ day: clock(new Date(reading.observedAt).getTime()), value: reading.value, baseline: metric.baseline, alert: alertFlag || undefined }));
+      const value = latestValue;
       const tolerance = Math.max(Math.abs(metric.baseline) * 0.01, 0.05);
       const delta = value - metric.baseline;
       return { ...metric, value, trend: delta > tolerance ? "up" as const : delta < -tolerance ? "down" as const : "steady" as const, points };

@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, BedDouble, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, Eye, FileText, Heart, HeartPulse, LockKeyhole, MessageCircleHeart, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
+import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, BedDouble, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, Eye, FileText, Heart, HeartPulse, LockKeyhole, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricTile } from "./MetricTile";
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
@@ -104,21 +104,22 @@ function RetiredWearableSignals({ metrics, dataUnavailable, onViewTrends }: { me
   const sleepMinutes = sleepTotalMinutes % 60;
   const unavailable = "Unavailable";
   const cards = [
-    { label: "Sleep duration", value: dataUnavailable || !sleep ? unavailable : `${sleepHours} h ${sleepMinutes} min`, source: "Synthetic Apple Health · 6 nights", Icon: Moon },
-    { label: "Mobility", value: dataUnavailable ? unavailable : "Stable", source: "Walking steadiness · Updated today", Icon: Activity },
-    { label: "Estimated stress level", value: dataUnavailable ? unavailable : "Moderate", source: "HRV and resting heart rate · Wellness only", Icon: HeartPulse },
-    { label: "Exercise minutes", value: dataUnavailable ? unavailable : "28 min", source: "Synthetic Apple Health · Today", Icon: Timer },
+    { label: "Sleep duration", value: dataUnavailable || !sleep ? unavailable : `${sleepHours} h ${sleepMinutes} min`, source: "Synthetic Apple Health · 6 nights", Icon: Moon, spark: "2,19 18,19 34,19 50,19 66,19 82,19" },
+    { label: "Mobility", value: dataUnavailable ? unavailable : "Stable", source: "Walking steadiness · Updated today", Icon: Activity, spark: "2,20 17,12 31,16 44,8 57,13 70,6 82,12" },
+    { label: "Estimated stress level", value: dataUnavailable ? unavailable : "Moderate", source: "HRV and resting heart rate · Wellness only", Icon: HeartPulse, spark: "2,18 16,8 30,14 43,16 57,23 70,13 82,10" },
+    { label: "Exercise minutes", value: dataUnavailable ? unavailable : "28 min", source: "Synthetic Apple Health · Today", Icon: Timer, spark: "2,22 16,12 30,12 44,13 57,8 70,15 82,11" },
   ];
   const measurements = [
-    { label: "Resting heart rate", value: dataUnavailable || !restingHeartRate ? unavailable : `${Math.round(restingHeartRate.value)} bpm`, Icon: Heart },
-    { label: "HRV", value: dataUnavailable || !hrv ? unavailable : `${Math.round(hrv.value)} ms`, Icon: Activity },
-    { label: "SpO₂", value: dataUnavailable || !spo2 ? unavailable : `${Math.round(spo2.value)}%`, Icon: Droplets },
+    { label: "Resting heart rate", value: dataUnavailable || !restingHeartRate ? unavailable : `${Math.round(restingHeartRate.value)} bpm`, usual: restingHeartRate ? `${restingHeartRate.baseline} ${restingHeartRate.unit}` : unavailable, Icon: Heart, spark: "2,12 16,19 30,19 44,24 57,13 70,8 82,19" },
+    { label: "HRV", value: dataUnavailable || !hrv ? unavailable : `${Math.round(hrv.value)} ms`, usual: hrv ? `${hrv.baseline} ${hrv.unit}` : unavailable, Icon: Activity, spark: "2,20 16,11 30,7 44,14 57,21 70,10 82,18" },
+    { label: "SpO₂", value: dataUnavailable || !spo2 ? unavailable : `${Math.round(spo2.value)}%`, usual: spo2 ? `${spo2.baseline}%` : unavailable, Icon: Droplets, spark: "2,18 16,16 30,8 44,8 57,12 70,6 82,13" },
   ];
 
   return <section className="signals-section retired-wearable-signals" aria-labelledby="retired-signals-title">
     <div className="mb-3 flex items-end justify-between gap-3"><div><p className="eyebrow">SIMULATED APPLE HEALTH</p><h2 id="retired-signals-title" className="text-xl font-semibold text-white">Wearable activity, at a glance</h2></div><button type="button" onClick={onViewTrends} className="text-sm font-semibold text-cyan-200 hover:text-cyan-100">See all trends</button></div>
-    <div className="retired-wearable-grid">{cards.map(({ label, value, source, Icon }) => <article key={label} className="tech-card retired-wearable-card"><div><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span><p>{label}</p></div><strong>{value}</strong><span>{source}</span></article>)}</div>
-    <div className="tech-card connected-measurements"><div className="connected-measurements-title"><Activity size={20} aria-hidden="true" /><div><h3>Connected measurements</h3><p>Synthetic Apple Health · Wellness context only</p></div></div>{measurements.map(({ label, value, Icon }) => <div key={label} className="connected-measurement"><Icon size={18} strokeWidth={1.6} aria-hidden="true" /><span><small>{label}</small><strong>{value}</strong></span></div>)}</div>
+    <div className="retired-wearable-grid">{cards.map(({ label, value, source, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>{source}<Minus size={12} aria-hidden="true" /></span></article>)}</div>
+    <div className="connected-measurements-title"><Activity size={20} aria-hidden="true" /><div><h3>Connected measurements</h3><p>Synthetic Apple Health · Wellness context only</p></div></div>
+    <div className="retired-wearable-grid connected-measurements-grid">{measurements.map(({ label, value, usual, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card connected-measurement-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>Usual: {usual}<Minus size={12} aria-hidden="true" /></span></article>)}</div>
   </section>;
 }
 
@@ -129,6 +130,7 @@ function RadiationPanel({ metric, solarEvents }: { metric?: MetricCardData; sola
   return <section className={`${panelClass} ${tone}`} aria-labelledby="radiation-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-slate-400">Radiation context</p><h2 id="radiation-title" className="mt-1 text-xl font-semibold text-white">{level}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Today’s synthetic dose is {metric.value} {metric.unit}; the illustrative personal baseline is {metric.baseline} {metric.unit}. This is context only, not a safety clearance.</p></div><span className="rounded-full border border-current px-3 py-1 text-sm font-semibold">{level}</span></div><p className="mt-4 text-xs text-slate-400">{solarEvents?.source === "nasa" ? `NASA DONKI events loaded: ${solarEvents.events.length}.` : solarEvents?.warning ?? "Loading optional NASA solar-event context…"}</p></section>;
 }
 
+const retiredTrendDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const retiredActivityTrends = [
   {
     metric: "mobility",
@@ -138,7 +140,7 @@ const retiredActivityTrends = [
     baseline: 90,
     trend: "up" as const,
     plainLanguage: "Walking steadiness is slightly above your recent pattern.",
-    points: [88, 89, 90, 91, 90, 92, 92].map((value, index) => ({ day: `Day ${index + 1}`, value, baseline: 90, alert: false })),
+    points: [88, 89, 90, 91, 90, 92, 92].map((value, index) => ({ day: retiredTrendDays[index], value, baseline: 90, alert: false })),
   },
   {
     metric: "exercise_minutes",
@@ -148,7 +150,7 @@ const retiredActivityTrends = [
     baseline: 25,
     trend: "up" as const,
     plainLanguage: "Today’s movement is a little above your recent daily pattern.",
-    points: [18, 22, 24, 30, 20, 26, 28].map((value, index) => ({ day: `Day ${index + 1}`, value, baseline: 25, alert: false })),
+    points: [18, 22, 24, 30, 20, 26, 28].map((value, index) => ({ day: retiredTrendDays[index], value, baseline: 25, alert: false })),
   },
 ];
 

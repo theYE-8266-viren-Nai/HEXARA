@@ -106,6 +106,12 @@ describe("Horizon app shell", () => {
     expect(screen.getByText("HRV and resting heart rate · Wellness only")).toBeInTheDocument();
     expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
     expect(screen.getByText("Connected measurements")).toBeInTheDocument();
+    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
+    expect(screen.getByText("Usual: 62 bpm")).toBeInTheDocument();
+    expect(screen.getByText("Usual: 45 ms")).toBeInTheDocument();
+    expect(screen.getByText("Usual: 97.5%")).toBeInTheDocument();
+    expect(screen.queryByText("Skin temperature")).not.toBeInTheDocument();
+    expect(screen.queryByText("Radiation dose")).not.toBeInTheDocument();
     expect(screen.queryByText("Wrist-temperature trend")).not.toBeInTheDocument();
     expect(screen.queryByText("Radiation context")).not.toBeInTheDocument();
 
