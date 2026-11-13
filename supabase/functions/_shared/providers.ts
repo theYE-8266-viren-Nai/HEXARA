@@ -95,3 +95,18 @@ export function extractUpstreamMessage(data: unknown): string | undefined {
   const text = raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\b(sk|pk|rk)-[A-Za-z0-9_-]{8,}/gi, "[redacted]").replace(/\s+/g, " ").trim().slice(0, 200);
   return text || undefined;
 }
+
+/**
+ * Keeps only complete sentences. A model that runs out of reply space stops mid-sentence ("... let"), which must never be
+ * shown. Cuts back to the last sentence end; returns undefined if less than a short, meaningful sentence is left.
+ */
+export function completeSentences(text: string | undefined): string | undefined {
+  if (typeof text !== "string") return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  if (/[.!?]["')\]]*$/.test(trimmed)) return trimmed;
+  const cut = Math.max(...[".", "!", "?"].map((mark) => trimmed.lastIndexOf(`${mark} `)), -1);
+  if (cut < 0) return undefined;
+  const kept = trimmed.slice(0, cut + 1).trim();
+  return kept.length >= 40 ? kept : undefined;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage } from "../../supabase/functions/_shared/providers";
+import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage, completeSentences } from "../../supabase/functions/_shared/providers";
 import { buildSystemPrompt, buildUserPrompt, type ExplainRequest } from "../../supabase/functions/_shared/validate";
 
 const summary: ExplainRequest = { stage: "active", level: "different", patternScore: 60, dataQuality: "good", source: "api", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
@@ -118,5 +118,22 @@ describe("upstream error messages", () => {
 
   it("returns undefined when there is nothing usable", () => {
     for (const data of [null, undefined, "x", {}, { error: {} }, { error: { message: 5 } }, { error: { message: "   " } }, { error: 7 }]) expect(extractUpstreamMessage(data), JSON.stringify(data)).toBeUndefined();
+  });
+});
+
+describe("complete sentences only", () => {
+  it("keeps a finished reply as it is", () => {
+    const text = "Sleep was lower than your usual range. Tell the crew medic if it continues.";
+    expect(completeSentences(`  ${text}\n`)).toBe(text);
+    expect(completeSentences("Sleep was lower (about 15%).")).toBe("Sleep was lower (about 15%).");
+  });
+
+  it("cuts a reply that stopped mid-sentence back to the last full sentence", () => {
+    expect(completeSentences("Your readings were different from your usual pattern. Please consider the optional check-in. If this change continues, gets worse, or seems concerning, let"))
+      .toBe("Your readings were different from your usual pattern. Please consider the optional check-in.");
+  });
+
+  it("returns undefined when too little is left to be meaningful", () => {
+    for (const text of ["", "   ", "Sleep was lo", "Short. And then a cut off thing without end", undefined]) expect(completeSentences(text), String(text)).toBeUndefined();
   });
 });
