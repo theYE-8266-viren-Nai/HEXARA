@@ -110,3 +110,27 @@ export function completeSentences(text: string | undefined): string | undefined 
   const kept = trimmed.slice(0, cut + 1).trim();
   return kept.length >= 40 ? kept : undefined;
 }
+
+/** What one call to the AI service produced. */
+export type AttemptOutcome =
+  | { kind: "text"; text: string }
+  | { kind: "unsafe" }
+  | { kind: "error"; status: number; message?: string };
+
+/**
+ * Runs `attempt`, and runs it once more only when the reply was unusable (it failed the wording check or was cut off).
+ * Errors such as a wrong key, no credit or a rate limit are returned at once, because asking again would not help.
+ * The retry only starts while `elapsedMs()` is under `retryBeforeMs`, so it still has time to finish before the deadline.
+ */
+export async function retryWhenUnsafe(
+  attempt: () => Promise<AttemptOutcome>,
+  options: { elapsedMs: () => number; retryBeforeMs: number; maxAttempts?: number },
+): Promise<AttemptOutcome & { attempts: number }> {
+  const maxAttempts = options.maxAttempts ?? 2;
+  let attempts = 0;
+  for (;;) {
+    attempts += 1;
+    const outcome = await attempt();
+    if (outcome.kind !== "unsafe" || attempts >= maxAttempts || options.elapsedMs() >= options.retryBeforeMs) return { ...outcome, attempts };
+  }
+}

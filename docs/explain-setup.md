@@ -73,7 +73,7 @@ unavailable. To see the reason, send an empty request to the function and read t
 - `503 not_configured`: no key secret is set.
 - `503 model_missing` or `model_invalid`: `OPENROUTER_MODEL` is missing or has odd characters.
 - `502 upstream_error` with `upstreamStatus` and a short `upstreamMessage` from OpenRouter (for example "No auth credentials found" or a rate-limit reason): `400` the model id is not a chat model or does not exist (the function already retries once with the instructions inside the user message for models that reject a system message), `401` wrong or revoked key, `402` no credit, `404` unknown model, `429` rate limited.
-- `502 unsafe_output`: the model's text failed Horizon's wording check.
+- `502 unsafe_output`: the model's text failed Horizon's wording check twice (the function already asked once more).
 - `400 invalid_request`: expected for an empty request when the secrets are fine.
 
 In DevTools, Network tab, the `explain-pattern` request body should contain only the fields listed above.
@@ -84,6 +84,6 @@ In DevTools, Network tab, the `explain-pattern` request body should contain only
   `NOT_ASSUMED` (`src/domain/deviceAssumptions.ts`). A test keeps both lists identical.
 - Text from the cloud must pass `isSafeExplanation` in the Edge Function **and** again in the browser; otherwise the
   built-in text is shown. This applies to every provider.
-- The function times out after 15 seconds (free models can be slow), cuts any reply that stopped mid-sentence back to its last full sentence, limits requests per user, rejects bodies over 4 KB, and never forwards a
+- The function times out after 15 seconds (free models can be slow), cuts any reply that stopped mid-sentence back to its last full sentence, asks the model once more when a reply fails the wording check (only if under 8 seconds have passed; errors such as a wrong key or a rate limit are never retried), limits requests per user, rejects bodies over 4 KB, and never forwards a
   provider's full error body, only its status code and a short, sanitized, 200-character message (keys are redacted).
 - Anyone who has the app's public key can call the function, so the spending limit on your key is the real safeguard.

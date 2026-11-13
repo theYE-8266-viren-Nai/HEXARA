@@ -3,7 +3,7 @@
 // Deploy with: supabase functions deploy explain-pattern   (see docs/explain-setup.md)
 // Simulated data only. Not medical advice. Not diagnostic.
 import { buildSystemPrompt, buildUserPrompt, isSafeExplanation, validateExplainRequest } from "../_shared/validate.ts";
-import { buildProviderRequest, chooseProvider, completeSentences, extractText, extractUpstreamMessage } from "../_shared/providers.ts";
+import { buildProviderRequest, chooseProvider, completeSentences, extractText, extractUpstreamMessage, retryWhenUnsafe, type AttemptOutcome } from "../_shared/providers.ts";
 
 declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 
@@ -49,25 +49,31 @@ Deno.serve(async (request) => {
   if (!checked.ok) return json(400, { error: "invalid_request", detail: checked.error });
 
   const controller = new AbortController();
+  const started = Date.now();
   const timer = setTimeout(() => controller.abort(), 15_000);
   try {
     const send = (mergeSystem: boolean) => {
       const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value), { mergeSystem });
       return fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
     };
-    let response = await send(false);
-    // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
-    if (response.status === 400 && choice.provider === "openrouter") response = await send(true);
-    // Only the status code and a short, sanitized error message are passed on (never the key or the full body),
-    // so a wrong key, no credit, a rate limit or an unknown model can be told apart.
-    if (!response.ok) {
-      const upstreamMessage = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
-      return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: response.status, ...(upstreamMessage ? { upstreamMessage } : {}) });
-    }
-    const text = completeSentences(extractText(choice.provider, await response.json()));
-    // Never forward text that fails the same safety check the browser applies.
-    if (!isSafeExplanation(text)) return json(502, { error: "unsafe_output" });
-    return json(200, { text: text.trim() });
+    const attempt = async (): Promise<AttemptOutcome> => {
+      let response = await send(false);
+      // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
+      if (response.status === 400 && choice.provider === "openrouter") response = await send(true);
+      if (!response.ok) {
+        // Only the status code and a short, sanitized error message are passed on (never the key or the full body).
+        const message = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
+        return { kind: "error", status: response.status, message };
+      }
+      const text = completeSentences(extractText(choice.provider, await response.json()));
+      // Never forward text that fails the same safety check the browser applies.
+      return isSafeExplanation(text) ? { kind: "text", text: text.trim() } : { kind: "unsafe" };
+    };
+    // A rejected or cut-off reply is asked for once more, if there is still time; errors are not retried.
+    const outcome = await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 8_000 });
+    if (outcome.kind === "text") return json(200, { text: outcome.text });
+    if (outcome.kind === "unsafe") return json(502, { error: "unsafe_output", attempts: outcome.attempts });
+    return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: outcome.status, ...(outcome.message ? { upstreamMessage: outcome.message } : {}) });
   } catch {
     return json(502, { error: "upstream_unavailable" });
   } finally {
