@@ -309,18 +309,6 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Question 2 of 7")).toBeInTheDocument();
   });
 
-  it("persists wellbeing privacy choices locally", async () => {
-    const user = userEvent.setup();
-    await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    const notesToggle = screen.getByRole("checkbox", { name: "Free-text notes" });
-    expect(notesToggle).not.toBeChecked();
-    await user.click(notesToggle);
-
-    expect(JSON.parse(window.localStorage.getItem("horizon:privacy") ?? "{}")).toMatchObject({ notes: true });
-  });
-
   it("opens future preparation practices and the adaptation timeline without certifying readiness", async () => {
     const user = userEvent.setup();
     await openWorkspace("future");

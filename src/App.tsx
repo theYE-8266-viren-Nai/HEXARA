@@ -42,7 +42,6 @@ function HorizonApp() {
   const [seed, setSeed] = usePersistedState<number>("horizon:seed", 42);
   const [replayCount, setReplayCount] = usePersistedState<number>("horizon:replay-count", 0);
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
-  const [privacy, setPrivacy] = usePersistedState("horizon:privacy", { mood: true, notes: false, trends: true });
   const [futureDevicePaired, setFutureDevicePaired] = usePersistedState<boolean>("horizon:device-paired", false);
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendSnapshot, setBackendSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -187,7 +186,7 @@ function HorizonApp() {
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
-        return <WellbeingView stage={stage} privacy={privacy} onPrivacyChange={setPrivacy} />;
+        return <WellbeingView stage={stage} />;
       case "guidance":
         return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
       case "profile":

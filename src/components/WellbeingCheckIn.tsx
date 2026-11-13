@@ -1,10 +1,9 @@
-import { ArrowLeft, ArrowRight, Check, LockKeyhole, RotateCcw, UserRound } from "lucide-react";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { ArrowLeft, ArrowRight, Check, RotateCcw, UserRound } from "lucide-react";
+import { useState } from "react";
 import { summarizeCheckIn, visibleQuestions, type CheckInAnswers } from "../domain/wellbeingCheckIn";
 import { usePersistedState } from "../lib/usePersistedState";
 import type { LifeStage } from "../types/horizon";
 
-type Privacy = { mood: boolean; notes: boolean; trends: boolean };
 type SavedCheckIn = { answers: CheckInAnswers; note: string; completedAt: string } | null;
 
 const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> = {
@@ -13,7 +12,7 @@ const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> =
   retired: { kicker: "Wellbeing · After flight", title: "Weekly check-in", lede: "A few quick questions about how life after flying feels this week. Skip anything you'd rather not answer." },
 };
 
-export function WellbeingCheckIn({ stage, privacy, onPrivacyChange }: { stage: LifeStage; privacy: Privacy; onPrivacyChange: Dispatch<SetStateAction<Privacy>> }) {
+export function WellbeingCheckIn({ stage }: { stage: LifeStage }) {
   const [saved, setSaved] = usePersistedState<SavedCheckIn>(`horizon:checkin:${stage}`, null);
   const [answers, setAnswers] = useState<CheckInAnswers>({});
   const [note, setNote] = useState("");
@@ -68,15 +67,6 @@ export function WellbeingCheckIn({ stage, privacy, onPrivacyChange }: { stage: L
         </div>
       </div>}
     </section>}
-    <section className="tech-card panel" aria-labelledby="privacy-title">
-      <div className="panel-head"><h2 id="privacy-title"><LockKeyhole size={15} aria-hidden="true" /> Privacy choices</h2></div>
-      <p className="panel-note">Choose what may appear in summaries you decide to share. Nothing is shared automatically.</p>
-      <div className="privacy-grid">
-        <PrivacyToggle label="Mood and stress" checked={privacy.mood} onChange={() => onPrivacyChange((current) => ({ ...current, mood: !current.mood }))} />
-        <PrivacyToggle label="Free-text notes" checked={privacy.notes} onChange={() => onPrivacyChange((current) => ({ ...current, notes: !current.notes }))} />
-        <PrivacyToggle label="Trend summaries" checked={privacy.trends} onChange={() => onPrivacyChange((current) => ({ ...current, trends: !current.trends }))} />
-      </div>
-    </section>
   </div>;
 }
 
@@ -94,8 +84,4 @@ function CheckInSummaryView({ stage, saved, onRestart }: { stage: LifeStage; sav
     <div><h3 className="checkin-subhead">What might help</h3><div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div></div>
     <p className="panel-footnote">This summary comes from your own answers. It is not a medical assessment or diagnosis.</p>
   </section>;
-}
-
-function PrivacyToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return <label className="privacy-toggle"><span>{label}</span><input type="checkbox" checked={checked} onChange={onChange} className="size-4" /></label>;
 }

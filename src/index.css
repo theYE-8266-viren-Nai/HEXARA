@@ -716,8 +716,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .checkin-suggestions article { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .checkin-suggestions h4 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .checkin-suggestions p { margin-top: 4px; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
-.privacy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 12px; }
-.privacy-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
 
 /* Profile: a personal record */
 .profile-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 20px 24px; padding: 24px 26px; }
