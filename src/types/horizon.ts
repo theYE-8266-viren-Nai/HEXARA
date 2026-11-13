@@ -6,7 +6,7 @@ export type AlertSeverity = "normal" | "watch" | "talk_to_crew_medic";
 export interface SimulationControls { seed: number; replayCount: number; }
 
 export interface MetricPoint { day: string; value: number; baseline: number; alert?: boolean; }
-export interface MetricCardData { metric: MetricName; label: string; unit: string; value: number; baseline: number; trend: "up" | "down" | "steady"; plainLanguage: string; points: MetricPoint[]; }
+export interface MetricCardData { metric: MetricName; label: string; unit: string; value: number; baseline: number; trend: "up" | "down" | "steady"; plainLanguage: string; source: string; quality: string; aggregationPeriod: string; points: MetricPoint[]; }
 export interface Alert { id: string; severity: AlertSeverity; metric: MetricName; reason: string; nextAction: string; }
 export interface TravelerProfile { id: string; name: string; role: string; missionDay: number; stage: LifeStage; }
 

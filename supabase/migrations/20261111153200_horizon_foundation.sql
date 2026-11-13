@@ -23,7 +23,7 @@ create table public.health_observations (
  (metric='sleep_hours' and unit='h' and value between 0 and 24) or
  (metric='skin_temperature' and unit='degC' and value between 20 and 45) or
  (metric='spo2' and unit='%' and value between 0 and 100) or
- (metric='radiation_dose' and unit='mSv/day' and value between 0 and 100)
+ (metric='radiation_dose' and unit='mSv' and value between 0 and 100)
  )
 );
 create table public.demo_events (

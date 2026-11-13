@@ -83,7 +83,7 @@ export function useBluetoothHeartRate(baseMetrics: MetricCardData[]): BluetoothH
       const value = points.at(-1)!.value;
       const tolerance = Math.max(Math.abs(base.baseline) * 0.01, 0.05);
       const delta = value - base.baseline;
-      cards[uiMetric] = { ...base, value, trend: delta > tolerance ? "up" : delta < -tolerance ? "down" : "steady", plainLanguage: "Live from your Bluetooth heart-rate device.", points };
+      cards[uiMetric] = { ...base, value, trend: delta > tolerance ? "up" : delta < -tolerance ? "down" : "steady", plainLanguage: "Live from your Bluetooth heart-rate device.", source: "Bluetooth heart-rate device", quality: result.quality === "good" ? "Good" : result.quality === "limited" ? "Limited" : "Poor", aggregationPeriod: "Latest 30-second average", points };
     }
     const summary = summarizeIngest(result, "Bluetooth heart-rate device");
     setSnapshot({ cards, ingest: ready ? { ...summary, sourceLabel: "Bluetooth heart-rate device (heart rate, HRV) · other signals simulated" } : null, ready });

@@ -14,5 +14,10 @@ export function MetricTile({ metric }: { metric: MetricCardData }) {
     <div className="metric-header"><p>{metric.label}{live ? <span className="live-dot" title="Live simulated reading" aria-label="Live" /> : null}</p><MetricIcon size={16} strokeWidth={1.5} aria-hidden="true" /></div>
     <div className="metric-value-row"><p className="metric-value">{metric.value}<span>{metric.unit}</span></p><svg className="metric-sparkline" viewBox="0 0 82 28" fill="none" aria-hidden="true"><polyline points={points} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" /></svg></div>
     <p className="metric-baseline">Usual: {metric.baseline} {metric.unit}<TrendIcon size={12} aria-hidden="true" /></p>
+    <MetricMetadata metric={metric} />
   </article>;
+}
+
+export function MetricMetadata({ metric }: { metric: Pick<MetricCardData, "source" | "quality" | "aggregationPeriod"> }) {
+  return <p className="metric-metadata" aria-label={`Source: ${metric.source}. Quality: ${metric.quality}. Period: ${metric.aggregationPeriod}.`}>{metric.source} · {metric.quality} · {metric.aggregationPeriod}</p>;
 }

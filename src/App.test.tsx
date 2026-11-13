@@ -100,10 +100,10 @@ describe("Horizon app shell", () => {
     expect(await screen.findByRole("heading", { name: "Wearable activity, at a glance" })).toBeInTheDocument();
     expect(screen.getByText("Sleep duration")).toBeInTheDocument();
     expect(screen.getByText("Mobility")).toBeInTheDocument();
-    expect(screen.getByText("Walking steadiness · Updated today")).toBeInTheDocument();
+    expect(screen.getByText("Walking steadiness · Simulated · Updated today")).toBeInTheDocument();
     expect(screen.getByText("Estimated stress level")).toBeInTheDocument();
     expect(screen.getByText("Moderate")).toBeInTheDocument();
-    expect(screen.getByText("HRV and resting heart rate · Wellness only")).toBeInTheDocument();
+    expect(screen.getByText("HRV + resting heart rate · Estimated · Latest daily estimate")).toBeInTheDocument();
     expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
     expect(screen.getByText("Connected measurements")).toBeInTheDocument();
     expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
@@ -233,13 +233,21 @@ describe("Horizon app shell", () => {
     await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "4" } });
-    fireEvent.change(screen.getByRole("slider", { name: "Stress" }), { target: { value: "2" } });
+    expect(screen.getByRole("combobox", { name: "Energy" })).toHaveValue("3");
+    expect(screen.queryByRole("combobox", { name: "Social connection" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add optional context" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Mood" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Stress" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Social connection" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Personal space" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Crew atmosphere" }), { target: { value: "5" } });
     await user.type(screen.getByRole("textbox", { name: "Optional note" }), "Felt steady after exercise.");
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
 
     expect(screen.getByText("Saved on this device")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Your suggested next step" })).toHaveTextContent("Protect a little personal space");
     expect(window.localStorage.getItem("horizon:wellbeing")).toContain("Felt steady after exercise.");
+    expect(JSON.parse(window.localStorage.getItem("horizon:wellbeing-usability") ?? "{}")).toMatchObject({ starts: 1, completions: 1 });
   });
 
   it("verifies the active astronaut flow from alert to local check-in", async () => {
@@ -258,11 +266,41 @@ describe("Horizon app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "4" } });
-    fireEvent.change(screen.getByRole("slider", { name: "Stress" }), { target: { value: "2" } });
-    fireEvent.change(screen.getByRole("slider", { name: "Sleep quality" }), { target: { value: "3" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Mood" }), { target: { value: "4" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Stress" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Sleep quality" }), { target: { value: "3" } });
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
     expect(screen.getByText("Saved on this device")).toBeInTheDocument();
+  });
+
+  it("offers a lighting action when poor sleep is linked to light", async () => {
+    const user = userEvent.setup();
+    await openWorkspace();
+
+    await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+    expect(screen.queryByRole("group", { name: "What affected your sleep?" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Sleep quality" }), { target: { value: "2" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Mood" }), { target: { value: "1" } });
+    const factors = screen.getByRole("group", { name: "What affected your sleep?" });
+    await user.click(within(factors).getByRole("button", { name: "Light" }));
+    await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
+
+    const suggestions = screen.getByRole("region", { name: "Your suggested next step" });
+    expect(within(suggestions).getAllByRole("heading")[0]).toHaveTextContent("Prepare the lighting for sleep");
+    expect(suggestions).toHaveTextContent("Make one small connection");
+    expect(suggestions).toHaveTextContent("Dim the lights and reduce blue-rich light");
+    expect(suggestions).toHaveTextContent("NASA uses adjustable lighting intensity and spectrum");
+    expect(suggestions).toHaveTextContent("not a direct NASA quote");
+    expect(suggestions).toHaveTextContent("A short, low-pressure conversation can add social context");
+    expect(JSON.parse(window.localStorage.getItem("horizon:wellbeing") ?? "{}")).toMatchObject({ sleepQuality: "2", sleepFactors: ["Light"] });
+
+    await user.click(within(suggestions).getByRole("button", { name: "Dismiss Prepare the lighting for sleep suggestion" }));
+    expect(screen.queryByRole("heading", { name: "Prepare the lighting for sleep" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Make one small connection" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dismiss Make one small connection suggestion" }));
+    expect(screen.queryByRole("region", { name: "Your suggested next step" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
+    expect(screen.getByRole("region", { name: "Your suggested next step" })).toBeInTheDocument();
   });
 
   it("opens local support options without sending a message", async () => {
@@ -298,10 +336,14 @@ describe("Horizon app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByRole("heading", { name: "A private moment to check in" })).toBeInTheDocument();
-    expect(screen.getByRole("slider", { name: "Mood" })).toHaveValue("3");
-    expect(screen.getByRole("slider", { name: "Stress" })).toHaveValue("3");
-    expect(screen.getByRole("slider", { name: "Sleep quality" })).toHaveValue("3");
-    expect(screen.getByRole("slider", { name: "Energy" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Mood" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Stress" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Sleep quality" })).toHaveValue("3");
+    expect(screen.getByRole("combobox", { name: "Energy" })).toHaveValue("3");
+    fireEvent.change(screen.getByRole("combobox", { name: "Sleep quality" }), { target: { value: "2" } });
+    expect(screen.queryByRole("group", { name: "What affected your sleep?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Sense of purpose" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add optional context" }));
     expect(screen.getByRole("combobox", { name: "Sense of purpose" })).toHaveValue("3");
     expect(screen.getByRole("combobox", { name: "Social connection" })).toHaveValue("3");
 
@@ -409,14 +451,14 @@ describe("Horizon app shell", () => {
     const first = await openWorkspace();
     await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    fireEvent.change(screen.getByRole("slider", { name: "Mood" }), { target: { value: "5" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Mood" }), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save check-in locally" }));
     first.unmount();
 
     await openWorkspace("retired");
     expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    expect(screen.getByRole("slider", { name: "Mood" })).toHaveValue("5");
+    expect(screen.getByRole("combobox", { name: "Mood" })).toHaveValue("5");
   });
 
   it("opens the Movement check with its camera disclaimer and privacy limits", async () => {

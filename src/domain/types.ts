@@ -1,7 +1,7 @@
 export type LifeStage = 'future' | 'active' | 'retired';
 export const metricUnits = {
   heart_rate: 'bpm', hrv: 'ms', sleep_hours: 'h',
-  skin_temperature: 'degC', spo2: '%', radiation_dose: 'mSv/day',
+  skin_temperature: 'degC', spo2: '%', radiation_dose: 'mSv',
 } as const;
 export type MetricName = keyof typeof metricUnits;
 export interface Traveler {

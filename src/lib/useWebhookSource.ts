@@ -62,7 +62,7 @@ export function buildWebhookCards(result: SanitizeResult, baseMetrics: MetricCar
     const value = points.at(-1)!.value;
     const tolerance = Math.max(Math.abs(base.baseline) * 0.01, 0.05);
     const delta = value - base.baseline;
-    cards[ui] = { ...base, value, trend: delta > tolerance ? "up" : delta < -tolerance ? "down" : "steady", plainLanguage: "From a connected service (webhook).", points };
+    cards[ui] = { ...base, value, trend: delta > tolerance ? "up" : delta < -tolerance ? "down" : "steady", plainLanguage: "From a connected service (webhook).", source: "Connected service (webhook)", quality: result.quality === "good" ? "Good" : result.quality === "limited" ? "Limited" : "Poor", points };
     present.push(backend);
   }
   return { cards, metrics: present };
