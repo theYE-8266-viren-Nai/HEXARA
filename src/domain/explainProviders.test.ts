@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage, completeSentences } from "../../supabase/functions/_shared/providers";
+import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage, completeSentences, retryWhenUnsafe, type AttemptOutcome } from "../../supabase/functions/_shared/providers";
 import { buildSystemPrompt, buildUserPrompt, type ExplainRequest } from "../../supabase/functions/_shared/validate";
 
 const summary: ExplainRequest = { stage: "active", level: "different", patternScore: 60, dataQuality: "good", source: "api", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
@@ -135,5 +135,42 @@ describe("complete sentences only", () => {
 
   it("returns undefined when too little is left to be meaningful", () => {
     for (const text of ["", "   ", "Sleep was lo", "Short. And then a cut off thing without end", undefined]) expect(completeSentences(text), String(text)).toBeUndefined();
+  });
+});
+
+describe("retry when a reply is unusable", () => {
+  const sequence = (...outcomes: AttemptOutcome[]) => { let i = 0; const calls = { count: 0 }; return { calls, attempt: async () => { calls.count += 1; return outcomes[Math.min(i++, outcomes.length - 1)]; } }; };
+  const early = { elapsedMs: () => 1_000, retryBeforeMs: 8_000 };
+
+  it("returns a good first reply without asking again", async () => {
+    const { calls, attempt } = sequence({ kind: "text", text: "Sleep was lower." });
+    expect(await retryWhenUnsafe(attempt, early)).toEqual({ kind: "text", text: "Sleep was lower.", attempts: 1 });
+    expect(calls.count).toBe(1);
+  });
+
+  it("asks once more after a rejected reply and returns the good second one", async () => {
+    const { calls, attempt } = sequence({ kind: "unsafe" }, { kind: "text", text: "Sleep was lower." });
+    expect(await retryWhenUnsafe(attempt, early)).toEqual({ kind: "text", text: "Sleep was lower.", attempts: 2 });
+    expect(calls.count).toBe(2);
+  });
+
+  it("stops after two rejected replies", async () => {
+    const { calls, attempt } = sequence({ kind: "unsafe" }, { kind: "unsafe" }, { kind: "text", text: "never reached" });
+    expect(await retryWhenUnsafe(attempt, early)).toEqual({ kind: "unsafe", attempts: 2 });
+    expect(calls.count).toBe(2);
+  });
+
+  it("never retries errors such as a wrong key, no credit or a rate limit", async () => {
+    for (const status of [401, 402, 429, 500]) {
+      const { calls, attempt } = sequence({ kind: "error", status, message: "x" }, { kind: "text", text: "never reached" });
+      expect(await retryWhenUnsafe(attempt, early)).toEqual({ kind: "error", status, message: "x", attempts: 1 });
+      expect(calls.count).toBe(1);
+    }
+  });
+
+  it("does not start a retry when too little time is left", async () => {
+    const { calls, attempt } = sequence({ kind: "unsafe" }, { kind: "text", text: "never reached" });
+    expect(await retryWhenUnsafe(attempt, { elapsedMs: () => 9_000, retryBeforeMs: 8_000 })).toEqual({ kind: "unsafe", attempts: 1 });
+    expect(calls.count).toBe(1);
   });
 });
