@@ -42,7 +42,7 @@ function HorizonApp() {
   const [seed, setSeed] = usePersistedState<number>("horizon:seed", 42);
   const [replayCount, setReplayCount] = usePersistedState<number>("horizon:replay-count", 0);
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
-  const [checkIn, setCheckIn] = usePersistedState("horizon:wellbeing", { mood: "3", stress: "3", sleepQuality: "3", energy: "3", purpose: "3", socialConnection: "3", transitionTags: [] as string[], note: "" });
+  const [checkIn, setCheckIn] = usePersistedState("horizon:wellbeing", { mood: "3", stress: "3", sleepQuality: "3", sleepFactors: [] as string[], energy: "3", purpose: "3", socialConnection: "3", personalSpace: "3", crewAtmosphere: "3", transitionTags: [] as string[], note: "" });
   const [privacy, setPrivacy] = usePersistedState("horizon:privacy", { mood: true, notes: false, trends: true });
   const [futureDevicePaired, setFutureDevicePaired] = usePersistedState<boolean>("horizon:device-paired", false);
   const [backendLoading, setBackendLoading] = useState(true);

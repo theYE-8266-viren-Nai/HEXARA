@@ -110,14 +110,14 @@ export function useDeviceStream({ enabled, personKey, scenario, seed, baseMetric
       if (!trusted.length) return metric;
       const alertFlag = liveAlert !== undefined ? liveAlert?.metric === metric.metric : Boolean(metric.points.at(-1)?.alert);
       const latestValue = trusted.at(-1)!.value;
-      const dailyTrend = metric.metric === "sleep_hours" || metric.metric === "resting_hr";
+      const dailyTrend = metric.metric === "sleep_hours" || metric.metric === "resting_hr" || metric.metric === "core_temperature" || metric.metric === "radiation_dose";
       const points: MetricPoint[] = dailyTrend
         ? metric.points.map((point, index) => ({ ...point, ...(index === metric.points.length - 1 ? { value: latestValue, alert: alertFlag || undefined } : {}) }))
         : trusted.map((reading) => ({ day: clock(new Date(reading.observedAt).getTime()), value: reading.value, baseline: metric.baseline, alert: alertFlag || undefined }));
       const value = latestValue;
       const tolerance = Math.max(Math.abs(metric.baseline) * 0.01, 0.05);
       const delta = value - metric.baseline;
-      return { ...metric, value, trend: delta > tolerance ? "up" as const : delta < -tolerance ? "down" as const : "steady" as const, points };
+      return { ...metric, value, trend: delta > tolerance ? "up" as const : delta < -tolerance ? "down" as const : "steady" as const, quality: `Simulated · ${result.quality === "good" ? "Good" : result.quality === "limited" ? "Limited" : "Poor"}`, points };
     });
     return { metrics: cards, ingest: summarizeIngest(result, "Simulated wearable"), alert: result.quality === "poor" ? null : liveAlert };
   }, [baseMetrics, dayAlert, phase, readingTime, seed, personKey]);

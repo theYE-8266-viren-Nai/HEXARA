@@ -23,6 +23,7 @@ describe("backend dashboard adapter", () => {
     expect(snapshot.quality).toBe("stale");
     expect(snapshot.data.metrics).toHaveLength(6);
     expect(snapshot.data.metrics.find((metric) => metric.metric === "resting_hr")).toMatchObject({ value: 64, baseline: 64 });
+    expect(snapshot.data.metrics.find((metric) => metric.metric === "radiation_dose")).toMatchObject({ value: 0.45, unit: "mSv", source: "Synthetic personal dosimeter", quality: "Simulated", aggregationPeriod: "Total today", plainLanguage: expect.stringContaining("Total today") });
   });
 });
 
@@ -32,5 +33,5 @@ const observations: Observation[] = [
   { id: "sleep", person_id: "traveler-01", observed_on: "2026-06-29", metric: "sleep_hours", value: 7.5, unit: "h", context: "rest", seed: 42, is_synthetic: true },
   { id: "temperature", person_id: "traveler-01", observed_on: "2026-06-29", metric: "skin_temperature", value: 33.2, unit: "degC", context: "rest", seed: 42, is_synthetic: true },
   { id: "spo2", person_id: "traveler-01", observed_on: "2026-06-29", metric: "spo2", value: 98, unit: "%", context: "rest", seed: 42, is_synthetic: true },
-  { id: "radiation", person_id: "traveler-01", observed_on: "2026-06-29", metric: "radiation_dose", value: 0.45, unit: "mSv/day", context: "rest", seed: 42, is_synthetic: true },
+  { id: "radiation", person_id: "traveler-01", observed_on: "2026-06-29", metric: "radiation_dose", value: 0.45, unit: "mSv", context: "rest", seed: 42, is_synthetic: true },
 ];

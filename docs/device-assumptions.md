@@ -15,7 +15,7 @@ Horizon analyzes readings; it does not measure anything. Real hardware cannot be
 | Blood oxygen (SpO₂) | % | 70–100 | Wearable pulse oximeter | Periodic | Brief dips are common sensor noise and are not treated as findings. |
 | Skin temperature | °C | 30–42 | Wearable skin sensor | Periodic | Skin temperature, not core body temperature. It normally sits several degrees below core. |
 | Sleep | h | 0–24 | Wearable sleep tracking | Once per day (last night's total) | A daily total, so it only changes when a new night is synced. |
-| Radiation dose | mSv/day | 0–50 | Personal dosimeter | Periodic | Consumer wearables do not measure radiation, so a separate dosimeter is assumed. |
+| Radiation dose | mSv | 0–50 | Personal dosimeter | Periodic | Consumer wearables do not measure radiation, so a separate dosimeter is assumed. |
 
 Values outside the accepted range are treated as sensor errors and rejected with a reason.
 

@@ -1,6 +1,6 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, BedDouble, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, Eye, FileText, Heart, HeartPulse, LockKeyhole, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
-import { MetricTile } from "./MetricTile";
+import { useEffect, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, BedDouble, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, Eye, FileText, Heart, HeartPulse, LockKeyhole, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff, X } from "lucide-react";
+import { MetricMetadata, MetricTile } from "./MetricTile";
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
 import type { DashboardSource } from "../lib/backendDashboardRepository";
@@ -22,14 +22,41 @@ type CheckIn = {
   mood: string;
   stress: string;
   sleepQuality: string;
+  sleepFactors: string[];
   note: string;
   energy: string;
   purpose: string;
   socialConnection: string;
+  personalSpace: string;
+  crewAtmosphere: string;
   transitionTags: string[];
 };
 type Privacy = { mood: boolean; notes: boolean; trends: boolean };
+type WellbeingUsability = { starts: number; completions: number; totalCompletionSeconds: number; lastCompletionSeconds: number };
 const panelClass = "tech-card p-5 sm:p-6";
+const wellbeingUsabilityKey = "horizon:wellbeing-usability";
+
+function readWellbeingUsability(): WellbeingUsability {
+  const empty = { starts: 0, completions: 0, totalCompletionSeconds: 0, lastCompletionSeconds: 0 };
+  try { return { ...empty, ...JSON.parse(window.localStorage.getItem(wellbeingUsabilityKey) ?? "{}") }; } catch { return empty; }
+}
+
+type WellbeingSuggestion = { title: string; body: string; learn: string };
+
+function wellbeingSuggestions(checkIn: CheckIn, retired: boolean): WellbeingSuggestion[] {
+  const suggestions: WellbeingSuggestion[] = [];
+  const lightAffectedSleep = !retired && Number(checkIn.sleepQuality) <= 2 && (checkIn.sleepFactors ?? []).includes("Light");
+  if (lightAffectedSleep) suggestions.push({ title: "Prepare the lighting for sleep", body: "Before your planned sleep period, switch to the approved pre-sleep lighting setting. Dim the lights and reduce blue-rich light, including bright screens, where operationally safe.", learn: "Why this suggestion: NASA uses adjustable lighting intensity and spectrum to support an Earth-like light-dark cycle, astronaut sleep, and alertness. Based on NASA sleep and circadian-light guidance; this is an app-authored summary, not a direct NASA quote." });
+  if (Number(checkIn.stress) >= 4) suggestions.push({ title: "Create a short reset", body: "Take two quiet minutes for slow breathing, then review whether one non-essential task can wait.", learn: "A brief pause can create space to reassess workload. It is a small self-management step, not a diagnosis or treatment." });
+  if (Number(checkIn.mood) <= 2) suggestions.push({ title: retired ? "Reach out to someone you trust" : "Make one small connection", body: retired ? "Consider a brief check-in with a trusted person or former crew peer today." : "Choose one trusted crewmate for a brief, private check-in today.", learn: "A short, low-pressure conversation can add social context and make it easier to decide whether more support would be useful." });
+  if (Number(checkIn.sleepQuality) <= 2 && !lightAffectedSleep) suggestions.push({ title: "Protect your next rest period", body: "Reduce avoidable light, noise, and interruptions before your next sleep period.", learn: "Sleep can be affected by several conditions, including schedule, noise, temperature, and light. Reviewing the environment may reveal one practical adjustment." });
+  if (Number(checkIn.energy) <= 2) suggestions.push({ title: "Conserve energy", body: "Review the next part of your day and postpone one non-essential demand if possible.", learn: "Matching workload to current energy can help preserve attention for higher-priority tasks." });
+  if (!retired && Number(checkIn.socialConnection) <= 2) suggestions.push({ title: "Reconnect with the crew", body: "Plan a short, low-pressure conversation or shared activity with one crewmate.", learn: "Regular, manageable contact can support connection during long periods of isolation and confinement." });
+  if (!retired && Number(checkIn.personalSpace) <= 2) suggestions.push({ title: "Protect a little personal space", body: "Reserve a short quiet period or private area before your next demanding task.", learn: "A predictable period with fewer interruptions can help balance shared crew time with the need for privacy." });
+  if (!retired && Number(checkIn.crewAtmosphere) <= 2) suggestions.push({ title: "Reset the crew atmosphere", body: "Use the next team check-in to name one friction point and one practical adjustment.", learn: "Naming a specific friction point and a small adjustment can make a team conversation more concrete and easier to act on." });
+  if (!suggestions.length) suggestions.push({ title: "Keep the steady pattern", body: "Continue the routine that is supporting you and check in again tomorrow.", learn: "Consistent check-ins can make changes in your own pattern easier to notice over time." });
+  return suggestions.slice(0, 2);
+}
 
 export function StageSelectionView({ loading, warning, onSelect }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void }) {
   const options = [
@@ -104,22 +131,22 @@ function RetiredWearableSignals({ metrics, dataUnavailable, onViewTrends }: { me
   const sleepMinutes = sleepTotalMinutes % 60;
   const unavailable = "Unavailable";
   const cards = [
-    { label: "Sleep duration", value: dataUnavailable || !sleep ? unavailable : `${sleepHours} h ${sleepMinutes} min`, source: "Synthetic Apple Health · 6 nights", Icon: Moon, spark: "2,19 18,19 34,19 50,19 66,19 82,19" },
-    { label: "Mobility", value: dataUnavailable ? unavailable : "Stable", source: "Walking steadiness · Updated today", Icon: Activity, spark: "2,20 17,12 31,16 44,8 57,13 70,6 82,12" },
-    { label: "Estimated stress level", value: dataUnavailable ? unavailable : "Moderate", source: "HRV and resting heart rate · Wellness only", Icon: HeartPulse, spark: "2,18 16,8 30,14 43,16 57,23 70,13 82,10" },
-    { label: "Exercise minutes", value: dataUnavailable ? unavailable : "28 min", source: "Synthetic Apple Health · Today", Icon: Timer, spark: "2,22 16,12 30,12 44,13 57,8 70,15 82,11" },
+    { label: "Sleep duration", value: dataUnavailable || !sleep ? unavailable : `${sleepHours} h ${sleepMinutes} min`, metadata: "Synthetic Apple Health · Simulated · Last night", Icon: Moon, spark: "2,19 18,19 34,19 50,19 66,19 82,19" },
+    { label: "Mobility", value: dataUnavailable ? unavailable : "Stable", metadata: "Walking steadiness · Simulated · Updated today", Icon: Activity, spark: "2,20 17,12 31,16 44,8 57,13 70,6 82,12" },
+    { label: "Estimated stress level", value: dataUnavailable ? unavailable : "Moderate", metadata: "HRV + resting heart rate · Estimated · Latest daily estimate", Icon: HeartPulse, spark: "2,18 16,8 30,14 43,16 57,23 70,13 82,10" },
+    { label: "Exercise minutes", value: dataUnavailable ? unavailable : "28 min", metadata: "Synthetic Apple Health · Simulated · Total today", Icon: Timer, spark: "2,22 16,12 30,12 44,13 57,8 70,15 82,11" },
   ];
   const measurements = [
-    { label: "Resting heart rate", value: dataUnavailable || !restingHeartRate ? unavailable : `${Math.round(restingHeartRate.value)} bpm`, usual: restingHeartRate ? `${restingHeartRate.baseline} ${restingHeartRate.unit}` : unavailable, Icon: Heart, spark: "2,12 16,19 30,19 44,24 57,13 70,8 82,19" },
-    { label: "HRV", value: dataUnavailable || !hrv ? unavailable : `${Math.round(hrv.value)} ms`, usual: hrv ? `${hrv.baseline} ${hrv.unit}` : unavailable, Icon: Activity, spark: "2,20 16,11 30,7 44,14 57,21 70,10 82,18" },
-    { label: "SpO₂", value: dataUnavailable || !spo2 ? unavailable : `${Math.round(spo2.value)}%`, usual: spo2 ? `${spo2.baseline}%` : unavailable, Icon: Droplets, spark: "2,18 16,16 30,8 44,8 57,12 70,6 82,13" },
+    { label: "Resting heart rate", value: dataUnavailable || !restingHeartRate ? unavailable : `${Math.round(restingHeartRate.value)} bpm`, usual: restingHeartRate ? `${restingHeartRate.baseline} ${restingHeartRate.unit}` : unavailable, metadata: "Synthetic Apple Health · Simulated · Daily resting summary", Icon: Heart, spark: "2,12 16,19 30,19 44,24 57,13 70,8 82,19" },
+    { label: "HRV", value: dataUnavailable || !hrv ? unavailable : `${Math.round(hrv.value)} ms`, usual: hrv ? `${hrv.baseline} ${hrv.unit}` : unavailable, metadata: "Synthetic Apple Health · Simulated · Latest reading", Icon: Activity, spark: "2,20 16,11 30,7 44,14 57,21 70,10 82,18" },
+    { label: "SpO₂", value: dataUnavailable || !spo2 ? unavailable : `${Math.round(spo2.value)}%`, usual: spo2 ? `${spo2.baseline}%` : unavailable, metadata: "Synthetic Apple Health · Simulated · Latest reading", Icon: Droplets, spark: "2,18 16,16 30,8 44,8 57,12 70,6 82,13" },
   ];
 
   return <section className="signals-section retired-wearable-signals" aria-labelledby="retired-signals-title">
     <div className="mb-3 flex items-end justify-between gap-3"><div><p className="eyebrow">SIMULATED APPLE HEALTH</p><h2 id="retired-signals-title" className="text-xl font-semibold text-white">Wearable activity, at a glance</h2></div><button type="button" onClick={onViewTrends} className="text-sm font-semibold text-cyan-200 hover:text-cyan-100">See all trends</button></div>
-    <div className="retired-wearable-grid">{cards.map(({ label, value, source, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>{source}<Minus size={12} aria-hidden="true" /></span></article>)}</div>
+    <div className="retired-wearable-grid">{cards.map(({ label, value, metadata, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>{metadata}<Minus size={12} aria-hidden="true" /></span></article>)}</div>
     <div className="connected-measurements-title"><Activity size={20} aria-hidden="true" /><div><h3>Connected measurements</h3><p>Synthetic Apple Health · Wellness context only</p></div></div>
-    <div className="retired-wearable-grid connected-measurements-grid">{measurements.map(({ label, value, usual, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card connected-measurement-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>Usual: {usual}<Minus size={12} aria-hidden="true" /></span></article>)}</div>
+    <div className="retired-wearable-grid connected-measurements-grid">{measurements.map(({ label, value, usual, metadata, Icon, spark }) => <article key={label} className="tech-card retired-wearable-card connected-measurement-card"><div><p>{label}</p><span className="retired-wearable-icon"><Icon size={17} strokeWidth={1.6} aria-hidden="true" /></span></div><div className="retired-value-row"><strong>{value}</strong><svg viewBox="0 0 84 28" fill="none" aria-hidden="true"><polyline points={spark} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div><span>Usual: {usual}<Minus size={12} aria-hidden="true" /></span><p className="retired-card-metadata">{metadata}</p></article>)}</div>
   </section>;
 }
 
@@ -130,7 +157,7 @@ function RadiationPanel({ metric, solarEvents }: { metric?: MetricCardData; sola
   return <section className={`${panelClass} ${tone}`} aria-labelledby="radiation-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-slate-400">Radiation context</p><h2 id="radiation-title" className="mt-1 text-xl font-semibold text-white">{level}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Today’s synthetic dose is {metric.value} {metric.unit}; the illustrative personal baseline is {metric.baseline} {metric.unit}. This is context only, not a safety clearance.</p></div><span className="rounded-full border border-current px-3 py-1 text-sm font-semibold">{level}</span></div><p className="mt-4 text-xs text-slate-400">{solarEvents?.source === "nasa" ? `NASA DONKI events loaded: ${solarEvents.events.length}.` : solarEvents?.warning ?? "Loading optional NASA solar-event context…"}</p></section>;
 }
 
-const retiredTrendDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const retiredTrendDays = ["06-23", "06-24", "06-25", "06-26", "06-27", "06-28", "06-29"];
 const retiredActivityTrends = [
   {
     metric: "mobility",
@@ -140,6 +167,9 @@ const retiredActivityTrends = [
     baseline: 90,
     trend: "up" as const,
     plainLanguage: "Walking steadiness is slightly above your recent pattern.",
+    source: "Synthetic Apple Health",
+    quality: "Simulated",
+    aggregationPeriod: "Daily walking summary",
     points: [88, 89, 90, 91, 90, 92, 92].map((value, index) => ({ day: retiredTrendDays[index], value, baseline: 90, alert: false })),
   },
   {
@@ -150,6 +180,9 @@ const retiredActivityTrends = [
     baseline: 25,
     trend: "up" as const,
     plainLanguage: "Today’s movement is a little above your recent daily pattern.",
+    source: "Synthetic Apple Health",
+    quality: "Simulated",
+    aggregationPeriod: "Total today",
     points: [18, 22, 24, 30, 20, 26, 28].map((value, index) => ({ day: retiredTrendDays[index], value, baseline: 25, alert: false })),
   },
 ];
@@ -162,14 +195,26 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : metrics;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="grid gap-5 xl:grid-cols-2">{visibleMetrics.map((metric) => <article key={metric.metric} className={panelClass}><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold text-white">{metric.label}</h2><p className="mt-1 text-sm text-slate-400">{metric.plainLanguage}</p></div><p className="text-2xl font-semibold text-white">{metric.value}<span className="ml-1 text-sm font-medium text-slate-400">{metric.unit}</span></p></div><div className="mt-4"><TrendChart metric={metric} /></div><div className="mt-3 flex items-center justify-between text-xs text-slate-400"><span>Dotted line: usual baseline ({metric.baseline} {metric.unit})</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="grid gap-5 xl:grid-cols-2">{visibleMetrics.map((metric) => <article key={metric.metric} className={panelClass}><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-semibold text-white">{metric.label}</h2><p className="mt-1 text-sm text-slate-400">{metric.plainLanguage}</p></div><p className="text-2xl font-semibold text-white">{metric.value}<span className="ml-1 text-sm font-medium text-slate-400">{metric.unit}</span></p></div><MetricMetadata metric={metric} /><div className="mt-4"><TrendChart metric={metric} /></div><div className="mt-3 flex items-center justify-between text-xs text-slate-400"><span>Dotted line: usual baseline ({metric.baseline} {metric.unit})</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
 }
 
 export function WellbeingView({ stage, checkIn, onCheckInChange, privacy, onPrivacyChange }: { stage: LifeStage; checkIn: CheckIn; onCheckInChange: Dispatch<SetStateAction<CheckIn>>; privacy: Privacy; onPrivacyChange: Dispatch<SetStateAction<Privacy>> }) {
   const [saved, setSaved] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [lifeOnboardOpen, setLifeOnboardOpen] = useState(false);
+  const [lifeAfterFlyingOpen, setLifeAfterFlyingOpen] = useState(false);
+  const [usability, setUsability] = useState<WellbeingUsability>(readWellbeingUsability);
+  const startedAt = useRef(Date.now());
+  const startRecorded = useRef(false);
+  const completionRecorded = useRef(false);
   const update = (field: keyof CheckIn, value: string) => { setSaved(false); onCheckInChange((current) => ({ ...current, [field]: value })); };
   const transitionTags = checkIn.transitionTags ?? [];
+  const sleepFactors = checkIn.sleepFactors ?? [];
+  const toggleSleepFactor = (factor: string) => {
+    setSaved(false);
+    onCheckInChange((current) => ({ ...current, sleepFactors: sleepFactors.includes(factor) ? sleepFactors.filter((item) => item !== factor) : [...sleepFactors, factor] }));
+  };
   const toggleTransition = (tag: string) => {
     setSaved(false);
     onCheckInChange((current) => ({
@@ -178,6 +223,28 @@ export function WellbeingView({ stage, checkIn, onCheckInChange, privacy, onPriv
     }));
   };
   const retired = stage === "retired";
+  const suggestions = wellbeingSuggestions(checkIn, retired);
+  const visibleSuggestions = suggestions.filter((suggestion) => !dismissedSuggestions.includes(suggestion.title));
+  useEffect(() => {
+    if (startRecorded.current) return;
+    startRecorded.current = true;
+    const current = readWellbeingUsability();
+    const next = { ...current, starts: current.starts + 1 };
+    window.localStorage.setItem(wellbeingUsabilityKey, JSON.stringify(next));
+    setUsability(next);
+  }, []);
+  const saveCheckIn = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setDismissedSuggestions([]);
+    if (completionRecorded.current) { setSaved(true); return; }
+    completionRecorded.current = true;
+    const seconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+    const current = readWellbeingUsability();
+    const next = { ...current, completions: current.completions + 1, totalCompletionSeconds: current.totalCompletionSeconds + seconds, lastCompletionSeconds: seconds };
+    window.localStorage.setItem(wellbeingUsabilityKey, JSON.stringify(next));
+    setUsability(next);
+    setSaved(true);
+  };
   return <div className="space-y-7">
     <header>
       <p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Wellbeing{retired ? " · Retired astronaut" : ""}</p>
@@ -185,24 +252,29 @@ export function WellbeingView({ stage, checkIn, onCheckInChange, privacy, onPriv
       <p className="mt-2 max-w-2xl leading-7 text-slate-400">{retired ? "Notice how life after flying feels today. Skip anything you do not want to answer." : "Add context about how you feel. Skipping this check-in does not count as reporting no concerns."}</p>
     </header>
     <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-      <form className={`${panelClass} space-y-5`} onSubmit={(event) => { event.preventDefault(); setSaved(true); }}>
+      <form className={`${panelClass} space-y-5`} onSubmit={saveCheckIn}>
         {retired ? <div className="flex items-start gap-3"><Heart size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 className="font-semibold text-white">How are you feeling today?</h2><p className="mt-1 text-sm leading-6 text-slate-400">Use the sliders to describe how things feel right now.</p></div></div> : null}
         <WellbeingSlider label="Mood" hint="1 = low, 5 = good" value={checkIn.mood} labels={["Very low", "Low", "Okay", "Good", "Very good"]} onChange={(value) => update("mood", value)} />
         <WellbeingSlider label="Stress" hint="1 = low, 5 = high" value={checkIn.stress} labels={["Very low", "Low", "Moderate", "High", "Very high"]} onChange={(value) => update("stress", value)} />
         <WellbeingSlider label="Sleep quality" hint="1 = poor, 5 = restful" value={checkIn.sleepQuality} labels={["Very poor", "Poor", "Mixed", "Good", "Restful"]} onChange={(value) => update("sleepQuality", value)} />
+        {!retired && Number(checkIn.sleepQuality) <= 2 ? <fieldset className="rounded-2xl border border-slate-800 bg-slate-950/20 p-4"><legend className="px-1 text-sm font-semibold text-slate-200">What affected your sleep?</legend><p className="mt-1 text-xs text-slate-500">Choose any that apply.</p><div className="mt-3 flex flex-wrap gap-2">{["Light", "Noise", "Schedule", "Temperature", "Not sure"].map((factor) => <button key={factor} type="button" aria-pressed={sleepFactors.includes(factor)} onClick={() => toggleSleepFactor(factor)} className={`rounded-full border px-3 py-2 text-sm ${sleepFactors.includes(factor) ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>{factor}</button>)}</div></fieldset> : null}
+        <WellbeingSlider label="Energy" hint="1 = drained, 5 = energized" value={checkIn.energy ?? "3"} labels={["Drained", "Low", "Enough", "Energized", "Very energized"]} onChange={(value) => update("energy", value)} />
+        {!retired ? <section className="border-t border-slate-800 pt-5" aria-labelledby="life-onboard-title"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><Orbit size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 id="life-onboard-title" className="font-semibold text-white">Life onboard <span className="font-normal text-slate-500">· optional</span></h2><p className="mt-1 text-sm leading-6 text-slate-400">Add context about connection, privacy, and crew life only if it feels useful.</p></div></div><button type="button" aria-expanded={lifeOnboardOpen} aria-controls="life-onboard-questions" onClick={() => setLifeOnboardOpen((open) => !open)} className="rounded-xl border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10">{lifeOnboardOpen ? "Hide optional questions" : "Add optional context"}</button></div>{lifeOnboardOpen ? <div id="life-onboard-questions" className="mt-5 space-y-5"><WellbeingSlider label="Social connection" hint="1 = isolated, 5 = connected" value={checkIn.socialConnection ?? "3"} labels={["Isolated", "Distant", "Some contact", "Connected", "Very connected"]} onChange={(value) => update("socialConnection", value)} /><WellbeingSlider label="Personal space" hint="1 = none, 5 = comfortable" value={checkIn.personalSpace ?? "3"} labels={["None", "Very limited", "Limited", "Enough", "Comfortable"]} onChange={(value) => update("personalSpace", value)} /><WellbeingSlider label="Crew atmosphere" hint="1 = strained, 5 = supportive" value={checkIn.crewAtmosphere ?? "3"} labels={["Strained", "Tense", "Mixed", "Supportive", "Very supportive"]} onChange={(value) => update("crewAtmosphere", value)} /></div> : null}</section> : null}
         {retired ? <>
-          <WellbeingSlider label="Energy" hint="1 = drained, 5 = energized" value={checkIn.energy ?? "3"} labels={["Drained", "Low", "Enough", "Energized", "Very energized"]} onChange={(value) => update("energy", value)} />
-          <div className="border-t border-slate-800 pt-5">
-            <div className="flex items-start gap-3"><Compass size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 className="font-semibold text-white">Life after flying</h2><p className="mt-1 text-sm leading-6 text-slate-400">Optional context can make your personal patterns easier to understand.</p></div></div>
-            <div className="mt-5 space-y-5">
+          <section className="border-t border-slate-800 pt-5" aria-labelledby="life-after-flying-title">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-start gap-3"><Compass size={18} className="mt-1 shrink-0 text-cyan-200" /><div><h2 id="life-after-flying-title" className="font-semibold text-white">Life after flying <span className="font-normal text-slate-500">· optional</span></h2><p className="mt-1 text-sm leading-6 text-slate-400">Add post-mission context only if it feels useful today.</p></div></div><button type="button" aria-expanded={lifeAfterFlyingOpen} aria-controls="life-after-flying-questions" onClick={() => setLifeAfterFlyingOpen((open) => !open)} className="rounded-xl border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10">{lifeAfterFlyingOpen ? "Hide optional questions" : "Add optional context"}</button></div>
+            {lifeAfterFlyingOpen ? <div id="life-after-flying-questions"><div className="mt-5 space-y-5">
               <WellbeingRatingSelect label="Sense of purpose" hint="Choose what fits best" value={checkIn.purpose ?? "3"} labels={["Disconnected", "Uncertain", "Finding direction", "Purposeful", "Very purposeful"]} onChange={(value) => update("purpose", value)} />
               <WellbeingRatingSelect label="Social connection" hint="Choose what fits best" value={checkIn.socialConnection ?? "3"} labels={["Isolated", "Distant", "Some contact", "Connected", "Very connected"]} onChange={(value) => update("socialConnection", value)} />
             </div>
             <fieldset className="mt-5"><legend className="text-sm font-semibold text-slate-200">What is shaping today?</legend><div className="mt-3 flex flex-wrap gap-2">{["Sleep routine", "Family adjustment", "Returning to work", "Missing mission life", "Finding new purpose"].map((tag) => <button key={tag} type="button" aria-pressed={transitionTags.includes(tag)} onClick={() => toggleTransition(tag)} className={`rounded-full border px-3 py-2 text-sm ${transitionTags.includes(tag) ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>{tag}</button>)}</div></fieldset>
-          </div>
+            </div> : null}
+          </section>
         </> : null}
         <FieldLabel label={retired ? "Private reflection (optional)" : "Note (optional)"}><textarea value={checkIn.note} onChange={(event) => update("note", event.target.value)} className="field min-h-28 resize-y" placeholder={retired ? "What felt meaningful, difficult, or different today?" : "Anything you want to remember?"} aria-label={retired ? "Private reflection" : "Optional note"} /></FieldLabel>
         <div className="flex flex-wrap items-center gap-3"><button type="submit" className="rounded-xl bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-200">Save check-in locally</button>{saved ? <span className="inline-flex items-center gap-2 text-sm text-emerald-200"><Check size={16} /> Saved on this device</span> : null}</div>
+        {saved && visibleSuggestions.length ? <section className="grid gap-3" role="region" aria-label="Your suggested next step">{visibleSuggestions.map((suggestion, index) => <article key={suggestion.title} className={`relative rounded-2xl border p-4 pr-14 ${index === 0 ? "border-cyan-300/30 bg-cyan-300/5" : "border-slate-700 bg-slate-950/20"}`}><button type="button" onClick={() => setDismissedSuggestions((current) => [...current, suggestion.title])} aria-label={`Dismiss ${suggestion.title} suggestion`} className="absolute right-3 top-3 grid size-8 place-items-center rounded-full border border-slate-700 bg-slate-950/60 text-slate-300 hover:border-cyan-300/50 hover:text-cyan-100"><X size={16} /></button><p className={`text-xs font-semibold uppercase tracking-[0.18em] ${index === 0 ? "text-cyan-200" : "text-slate-400"}`}>{index === 0 ? "Try this next" : "Also consider"}</p><h2 className="mt-2 font-semibold text-white">{suggestion.title}</h2><p className="mt-1 text-sm leading-6 text-slate-300">{suggestion.body}</p><p className="mt-3 border-t border-slate-700/70 pt-3 text-xs leading-5 text-slate-400">{suggestion.learn}</p></article>)}</section> : null}
+        {saved ? <p className="text-xs text-slate-500" data-testid="wellbeing-usability-summary">Local usability measure: {usability.lastCompletionSeconds}s · {usability.completions}/{usability.starts} completed ({usability.starts ? Math.round((usability.completions / usability.starts) * 100) : 0}%). No identity is recorded.</p> : null}
       </form>
       <aside className={`${panelClass} space-y-5`} aria-labelledby="support-title">
         <div className="flex items-start gap-3"><MessageCircleHeart className="mt-1 text-cyan-200" /><div><h2 id="support-title" className="text-lg font-semibold text-white">Talk to a person</h2><p className="mt-2 text-sm leading-6 text-slate-400">Choose the kind of support that feels right for you.</p></div></div>
@@ -349,7 +421,7 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: 
     </section>
 
     <section aria-labelledby="retired-education-title">
-      <div><p className="text-sm text-slate-400">Education for long-term health</p><h2 id="retired-education-title" className="mt-1 text-2xl font-semibold text-white">Maintain physical and mental wellbeing</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Use these topics as conversation starters and general education. Personal exercise, nutrition, sleep, and mental-health plans should be agreed with qualified professionals who know your history.</p></div>
+      <div><p className="text-sm text-slate-400">Education for long-term health</p><h2 id="retired-education-title" className="mt-1 text-2xl font-semibold text-white">Maintain physical and mental wellbeing</h2></div>
       <div className="mt-4 grid items-start gap-4 md:grid-cols-2">
         <details className="tech-card group p-6 sm:p-7">
           <summary className="min-h-20 cursor-pointer list-none"><span className="flex items-start gap-4"><span className="grid size-12 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200"><Activity size={23} /></span><span className="min-w-0 flex-1"><span className="block text-lg font-semibold text-white">Physical health</span><span className="mt-2 block text-sm leading-6 text-slate-400">Movement, bone, heart, sleep, nutrition, and preventive care</span><span className="mt-4 inline-flex min-w-24 items-center justify-center rounded-xl border border-cyan-300/50 px-4 py-2 text-sm font-bold text-cyan-100 group-open:hidden">Learn</span><span className="mt-4 hidden min-w-24 items-center justify-center rounded-xl border border-cyan-300/50 px-4 py-2 text-sm font-bold text-cyan-100 group-open:inline-flex">Close</span></span></span></summary>
@@ -389,13 +461,11 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: 
 }
 
 function FieldLabel({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) { return <label className="block"><span className="flex items-baseline justify-between gap-3 text-sm font-semibold text-slate-200"><span>{label}</span>{hint ? <span className="text-xs font-normal text-slate-500">{hint}</span> : null}</span><span className="mt-2 block">{children}</span></label>; }
-function WellbeingSlider({ label, hint, value, labels, onChange }: { label: string; hint: string; value: string; labels: [string, string, string, string, string]; onChange: (value: string) => void }) {
+function WellbeingSlider({ label, value, labels, onChange }: { label: string; hint?: string; value: string; labels: [string, string, string, string, string]; onChange: (value: string) => void }) {
   const legacyIndex = labels.findIndex((item) => item.toLowerCase() === value.toLowerCase());
   const parsed = Number(value);
-  const sliderValue = Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : legacyIndex >= 0 ? legacyIndex + 1 : 3;
-  const id = `wellbeing-${label.toLowerCase().replaceAll(" ", "-")}`;
-  const progress = (sliderValue - 1) * 25;
-  return <div className="wellbeing-slider"><div className="wellbeing-slider-heading"><label htmlFor={id}>{label}</label><span>{hint}</span></div><output htmlFor={id}>{sliderValue} · {labels[sliderValue - 1]}</output><input id={id} type="range" min="1" max="5" step="1" value={sliderValue} onChange={(event) => onChange(event.target.value)} aria-label={label} aria-valuetext={`${sliderValue} out of 5, ${labels[sliderValue - 1]}`} style={{ background: `linear-gradient(to right, var(--accent) 0% ${progress}%, var(--surface-inset) ${progress}% 100%)` }} /><div className="wellbeing-slider-scale" aria-hidden="true"><span>{labels[0]}</span><span>{labels[4]}</span></div></div>;
+  const selected = Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? String(parsed) : legacyIndex >= 0 ? String(legacyIndex + 1) : "3";
+  return <FieldLabel label={label}><select value={selected} onChange={(event) => onChange(event.target.value)} className="field" aria-label={label}>{labels.map((option, index) => <option key={option} value={index + 1}>{option}</option>)}</select></FieldLabel>;
 }
 function WellbeingRatingSelect({ label, hint, value, labels, onChange }: { label: string; hint: string; value: string; labels: [string, string, string, string, string]; onChange: (value: string) => void }) {
   const parsed = Number(value);

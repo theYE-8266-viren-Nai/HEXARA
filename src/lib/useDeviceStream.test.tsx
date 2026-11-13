@@ -50,9 +50,9 @@ describe("useDeviceStream", () => {
   it("keeps sleep and resting heart rate on daily trend labels", () => {
     const { result } = setup();
     act(() => { vi.advanceTimersByTime(1100); });
-    for (const name of ["sleep_hours", "resting_hr"] as const) {
+    for (const name of ["sleep_hours", "resting_hr", "core_temperature", "radiation_dose"] as const) {
       const metric = result.current.metrics.find((item) => item.metric === name)!;
-      expect(metric.points.map((point) => point.day)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+      expect(metric.points.map((point) => point.day)).toEqual(["06-23", "06-24", "06-25", "06-26", "06-27", "06-28", "06-29"]);
       expect(metric.points.every((point) => !point.day.includes(":"))).toBe(true);
       expect(metric.points.at(-1)!.value).toBe(metric.value);
     }

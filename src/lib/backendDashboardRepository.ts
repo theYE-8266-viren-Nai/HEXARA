@@ -32,10 +32,19 @@ const metricCopy: Record<MetricName, { label: string; unit: string }> = {
   sleep_hours: { label: "Sleep", unit: "h" },
   core_temperature: { label: "Skin temperature", unit: "°C" },
   spo2: { label: "SpO₂", unit: "%" },
-  radiation_dose: { label: "Radiation dose", unit: "mSv/day" },
+  radiation_dose: { label: "Radiation dose", unit: "mSv" },
 };
 
 const metricOrder: BackendMetricName[] = ["sleep_hours", "heart_rate", "hrv", "spo2", "skin_temperature", "radiation_dose"];
+
+const metricMetadata: Record<BackendMetricName, Pick<MetricCardData, "source" | "quality" | "aggregationPeriod">> = {
+  sleep_hours: { source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Last night" },
+  heart_rate: { source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Daily resting summary" },
+  hrv: { source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Latest reading" },
+  spo2: { source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Latest reading" },
+  skin_temperature: { source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Daily summary" },
+  radiation_dose: { source: "Synthetic personal dosimeter", quality: "Simulated", aggregationPeriod: "Total today" },
+};
 
 export function createBackendDashboardRepository(repository: HorizonRepository): BackendDashboardRepository {
   return {
@@ -85,7 +94,8 @@ function toMetricCards(result: Observation[], controls: SimulationControls): Met
       value: round(latest),
       baseline: round(baseline),
       trend: delta > tolerance ? "up" : delta < -tolerance ? "down" : "steady",
-      plainLanguage: `Compared with your last 30 simulated days (seed ${controls.seed}, replay ${controls.replayCount}).`,
+      plainLanguage: backendMetric === "radiation_dose" ? `Total today. Compared with your last 30 simulated daily totals (seed ${controls.seed}, replay ${controls.replayCount}).` : `Compared with your last 30 simulated days (seed ${controls.seed}, replay ${controls.replayCount}).`,
+      ...metricMetadata[backendMetric],
       points: recent.map((observation) => ({ day: observation.observed_on.slice(5), value: round(observation.value), baseline: round(baseline) })),
     };
   });

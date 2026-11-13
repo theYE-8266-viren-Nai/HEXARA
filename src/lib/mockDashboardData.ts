@@ -1,6 +1,6 @@
 import type { Alert, MetricCardData, SimulationControls, SimulationScenario, TravelerProfile } from "../types/horizon";
 
-const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const days = ["06-23", "06-24", "06-25", "06-26", "06-27", "06-28", "06-29"];
 const points = (values: number[], baseline: number, alertedDays: number[] = []) => values.map((value, index) => ({ day: days[index], value, baseline, alert: alertedDays.includes(index) }));
 
 export const profiles: TravelerProfile[] = [
@@ -10,12 +10,12 @@ export const profiles: TravelerProfile[] = [
 ];
 
 const usualMetrics: MetricCardData[] = [
-  { metric: "sleep_hours", label: "Sleep", unit: "h", value: 6.6, baseline: 6.5, trend: "steady", plainLanguage: "Close to your usual sleep range.", points: points([6.4,6.6,6.7,6.5,6.4,6.6,6.6], 6.5) },
-  { metric: "resting_hr", label: "Resting heart rate", unit: "bpm", value: 63, baseline: 62, trend: "up", plainLanguage: "One beat above your usual range.", points: points([61,62,62,63,62,63,63], 62) },
-  { metric: "hrv", label: "HRV", unit: "ms", value: 44, baseline: 45, trend: "down", plainLanguage: "Close to your usual recovery pattern.", points: points([46,45,45,44,45,44,44], 45) },
-  { metric: "spo2", label: "SpO₂", unit: "%", value: 97.4, baseline: 97.5, trend: "steady", plainLanguage: "Within your usual range.", points: points([97.5,97.4,97.6,97.5,97.3,97.4,97.4], 97.5) },
-  { metric: "core_temperature", label: "Skin temperature", unit: "°C", value: 33.2, baseline: 33.2, trend: "steady", plainLanguage: "Close to your usual range.", points: points([33.2,33.2,33.1,33.2,33.2,33.3,33.2], 33.2) },
-  { metric: "radiation_dose", label: "Radiation dose", unit: "mSv", value: 0.5, baseline: 0.5, trend: "steady", plainLanguage: "At your usual simulated daily level.", points: points([.5,.5,.48,.5,.51,.5,.5], .5) },
+  { metric: "sleep_hours", label: "Sleep", unit: "h", value: 6.6, baseline: 6.5, trend: "steady", plainLanguage: "Close to your usual sleep range.", source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Last night", points: points([6.4,6.6,6.7,6.5,6.4,6.6,6.6], 6.5) },
+  { metric: "resting_hr", label: "Resting heart rate", unit: "bpm", value: 63, baseline: 62, trend: "up", plainLanguage: "One beat above your usual range.", source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Daily resting summary", points: points([61,62,62,63,62,63,63], 62) },
+  { metric: "hrv", label: "HRV", unit: "ms", value: 44, baseline: 45, trend: "down", plainLanguage: "Close to your usual recovery pattern.", source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Latest reading", points: points([46,45,45,44,45,44,44], 45) },
+  { metric: "spo2", label: "SpO₂", unit: "%", value: 97.4, baseline: 97.5, trend: "steady", plainLanguage: "Within your usual range.", source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Latest reading", points: points([97.5,97.4,97.6,97.5,97.3,97.4,97.4], 97.5) },
+  { metric: "core_temperature", label: "Skin temperature", unit: "°C", value: 33.2, baseline: 33.2, trend: "steady", plainLanguage: "Close to your usual range.", source: "Synthetic crew wearable", quality: "Simulated", aggregationPeriod: "Daily summary", points: points([33.2,33.2,33.1,33.2,33.2,33.3,33.2], 33.2) },
+  { metric: "radiation_dose", label: "Radiation dose", unit: "mSv", value: 0.5, baseline: 0.5, trend: "steady", plainLanguage: "Total today. At your usual simulated daily level.", source: "Synthetic personal dosimeter", quality: "Simulated", aggregationPeriod: "Total today", points: points([.5,.5,.48,.5,.51,.5,.5], .5) },
 ];
 
 export function getScenarioData(scenario: SimulationScenario, _controls: SimulationControls): { metrics: MetricCardData[]; alert: Alert | null } {
