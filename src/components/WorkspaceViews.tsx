@@ -2,6 +2,7 @@ import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, typ
 import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
+import { ActiveGuidanceView } from "./ActiveGuidanceView";
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
 import type { DashboardSource } from "../lib/backendDashboardRepository";
@@ -311,7 +312,7 @@ export function GuidanceView({ stage, preparationRepository, onViewChange }: { s
   const [summaryFields, setSummaryFields] = usePersistedState("horizon:retired-summary-fields", { trends: true, wellbeing: false });
   if (stage === "future") return <FuturePreparationView preparationRepository={preparationRepository} />;
   if (stage === "retired") return <RetiredGuidanceView summaryFields={summaryFields} setSummaryFields={setSummaryFields} onViewChange={onViewChange} />;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Guidance · Active astronaut</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Make the next step clear</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">When a pattern changes, start with data quality, review the reason, and choose the smallest useful action.</p></header><section className={`${panelClass} max-w-3xl`}><div className="flex items-start gap-3"><Sparkles className="mt-1 text-cyan-200" /><div><h2 className="text-xl font-semibold text-white">A short, practical guide</h2><ul className="mt-5 space-y-4">{["Check the reading and sensor fit", "Review the personal baseline", "Talk to a crew medic when needed"].map((item) => <li key={item} className="flex items-start gap-3 text-slate-300"><Check className="mt-0.5 shrink-0 text-emerald-200" size={18} />{item}</li>)}</ul></div></div></section><section className={`${panelClass} max-w-3xl`} aria-labelledby="about-limits-title"><h2 id="about-limits-title" className="text-xl font-semibold text-white">About and limits</h2><p className="mt-2 text-sm leading-6 text-slate-400">OrbitWell is a research demo using synthetic data only. It is not a medical device and never diagnoses. Real baselines should be cited from NASA research sources.</p><div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold"><a className="text-cyan-200 underline" href="https://ntrs.nasa.gov/" target="_blank" rel="noreferrer">NASA NTRS</a><a className="text-cyan-200 underline" href="https://osdr.nasa.gov/" target="_blank" rel="noreferrer">NASA OSDR</a></div></section></div>;
+  return <ActiveGuidanceView onViewChange={onViewChange} />;
 }
 
 type RetiredSummaryFields = { trends: boolean; wellbeing: boolean };
