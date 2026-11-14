@@ -27,7 +27,6 @@ import { hasCompletedDay } from "./lib/dayCoverage";
 import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
-import type { ChatContextSummary } from "./domain/chat";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -247,6 +246,5 @@ function HorizonApp() {
     }
   })();
 
-  const chatContext: ChatContextSummary = { stage, dataQuality, source: viewSource, signals: liveMetrics.slice(0, 6).map((metric) => ({ label: metric.label, trend: metric.trend })) };
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId }}>{content}</AppShell></DeviceContext.Provider>;
 }
