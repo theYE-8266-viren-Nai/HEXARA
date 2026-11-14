@@ -33,7 +33,8 @@ export interface PoseOptions { aspect?: number; fps?: number }
 /** The joints worth reporting for each task. */
 export function relevantJoints(task: VisualCheckTask): JointName[] {
   switch (task.type) {
-    case "sit_to_stand": return ["left_knee", "right_knee", "left_hip", "right_hip"];
+    case "sit_to_stand":
+    case "anchored_lower_body_flexion": return ["left_knee", "right_knee", "left_hip", "right_hip"];
     case "shoulder_mobility": return ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow"];
     case "reach_and_return": return ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow"];
     case "single_leg_balance": return ["left_knee", "right_knee"];
@@ -156,7 +157,7 @@ const worse = (a: CameraQuality, b: CameraQuality): CameraQuality => (a === "poo
 
 /** The signal whose cycles are counted as repetitions for each task. */
 function repetitionSignal(frames: PoseFrame[], task: VisualCheckTask, options: PoseOptions): { series: Array<number | null>; minRange: number } {
-  if (task.type === "sit_to_stand") return { series: combine(jointAngleSeries(frames, "left_knee", options), jointAngleSeries(frames, "right_knee", options)), minRange: 25 };
+  if (task.type === "sit_to_stand" || task.type === "anchored_lower_body_flexion") return { series: combine(jointAngleSeries(frames, "left_knee", options), jointAngleSeries(frames, "right_knee", options)), minRange: 25 };
   if (task.type === "shoulder_mobility") return { series: combine(jointAngleSeries(frames, "left_shoulder", options), jointAngleSeries(frames, "right_shoulder", options)), minRange: 40 };
   // Reach and return: how far the furthest wrist is from the body centre, in shoulder widths.
   const aspect = options.aspect ?? DEFAULT_ASPECT;

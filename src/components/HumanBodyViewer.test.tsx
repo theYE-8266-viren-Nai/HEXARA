@@ -191,15 +191,16 @@ describe('Human body viewer', () => {
     expect(within(panel).getByRole('status')).toHaveTextContent(signalState === 'loading' ? 'Waiting' : signalState === 'unpaired' ? 'No device paired' : 'Readings unavailable');
   });
 
-  it('shows only in-flight movement regions for Active and opens the mapped task', async () => {
+  it('shows in-flight movement regions including anchored lower-body practice', async () => {
     const user = userEvent.setup();
     const onStartMovement = vi.fn();
     render(<HumanBodyViewer stage="active" onStartMovement={onStartMovement} />);
     await user.click(screen.getByRole('button', {name:'Movement'}));
     expect(await screen.findByRole('button', {name:'Shoulder'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name:'Arm'})).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name:'Hip'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', {name:'Knee'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name:'Hip'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name:'Knee'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name:'Legs'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name:'Ankle'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name:'Shoulder'}));
     await user.click(screen.getByRole('button', {name:'Open Shoulder mobility'}));

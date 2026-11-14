@@ -16,7 +16,7 @@ import type { JointName } from "./poseFeatures";
 
 export const VISUAL_CHECK_DISCLAIMER = "Camera observations are experimental movement context only. They are not medical measurements, diagnosis, injury prediction, or flight clearance.";
 
-export type VisualCheckType = "standing_posture" | "shoulder_mobility" | "sit_to_stand" | "single_leg_balance" | "reach_and_return";
+export type VisualCheckType = "standing_posture" | "shoulder_mobility" | "sit_to_stand" | "anchored_lower_body_flexion" | "single_leg_balance" | "reach_and_return";
 export type VisualWorkflow = "movement_exercise" | "sensorimotor" | "recovery_context";
 export type CompletionStatus = "completed" | "partial" | "not_assessable";
 export type CameraQuality = "good" | "limited" | "poor";
@@ -29,6 +29,7 @@ export const ANCHOR_NOTE = "Anchor your feet in a foot restraint or hold a handr
 
 export const VISUAL_CHECK_TASKS: VisualCheckTask[] = [
   { type: "sit_to_stand", label: "Sit-to-stand", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "Stand up from a stable chair and sit down at a steady, comfortable pace." },
+  { type: "anchored_lower_body_flexion", label: "Anchored lower-body flexion", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "With your feet secured, slowly bend and extend your hips and knees while holding a handrail." },
   { type: "shoulder_mobility", label: "Shoulder mobility", workflow: "movement_exercise", durationSeconds: 15, repetitive: true, instructions: "Raise both arms overhead and lower them slowly, keeping the movement even." },
   { type: "standing_posture", label: "Standing posture", workflow: "movement_exercise", durationSeconds: 10, repetitive: false, instructions: "Stand tall and still, facing the camera, with arms relaxed." },
   { type: "single_leg_balance", label: "Single-leg balance", workflow: "sensorimotor", durationSeconds: 15, repetitive: false, instructions: "Stand on one leg near a support you can hold. Stop if you feel unsteady." },
@@ -42,7 +43,7 @@ export const taskFor = (type: VisualCheckType) => VISUAL_CHECK_TASKS.find((task)
  * mean nothing, so Active astronauts get only the tasks that work without gravity. Retired astronauts are back on Earth
  * and get the full set as reconditioning practice. Future travelers can use the same simple practice set.
  */
-export const IN_ORBIT_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reach_and_return"];
+export const IN_ORBIT_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "anchored_lower_body_flexion", "reach_and_return"];
 export const RETIRED_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reach_and_return", "sit_to_stand", "single_leg_balance"];
 
 export const tasksForStage = (stage: LifeStage): VisualCheckTask[] => (stage === "active" ? VISUAL_CHECK_TASKS.filter((task) => IN_ORBIT_TASK_TYPES.includes(task.type)) : VISUAL_CHECK_TASKS.filter((task) => RETIRED_TASK_TYPES.includes(task.type)));
@@ -70,6 +71,8 @@ export interface ObservedFeatures {
 export interface UserReportedContext {
   exertion?: number; // 1–5 self-rated
   discomfort: "none" | "mild" | "pain" | "severe_or_worsening";
+  steadiness?: "steady" | "slightly_unsteady" | "very_unsteady";
+  /** Retained for older saved records; the movement form no longer asks for these wellbeing fields. */
   sleepHours?: number;
   stress?: number; // 1–5
   energy?: number; // 1–5
@@ -273,23 +276,25 @@ export function describeObservations(features: ObservedFeatures, task: VisualChe
 export function supportRecommendationFor(context: UserReportedContext, comparison: ComparisonSummary): string {
   if (context.discomfort === "severe_or_worsening") return "You reported severe or worsening symptoms. Stop the practice and contact the crew medic now. OrbitWell does not interpret the video for symptoms.";
   if (context.discomfort === "pain") return "You reported pain. Stop this movement and tell the crew medic. OrbitWell does not interpret the video for pain.";
+  if (context.steadiness === "very_unsteady") return "You reported feeling very unsteady. Stop the practice and contact your approved support person. OrbitWell does not assess balance or injury.";
   if (comparison.trend === "different") return "Tell the crew medic if this change is persistent, worsening, or concerning.";
   return "Keep practising under similar conditions so your personal comparison stays meaningful.";
 }
 
 /**
- * Phase 4: combine movement practice with sleep and stress context.
- * Returns a neutral pattern note, never a condition.
+ * Combine movement self-report with the camera-derived comparison.
+ * Returns a neutral practice note, never a condition or health score.
  */
 export function combinedContextNote(context: UserReportedContext, comparison: ComparisonSummary): string | undefined {
-  const lowSleep = context.sleepHours !== undefined && context.sleepHours < 6;
-  const highStress = context.stress !== undefined && context.stress >= 4;
-  const lowEnergy = context.energy !== undefined && context.energy <= 2;
-  const movementChanged = comparison.trend === "different";
-  const signals = [lowSleep && "sleep", highStress && "stress", lowEnergy && "energy", movementChanged && "movement practice"].filter(Boolean) as string[];
-  if (signals.length < 2 || !movementChanged) return undefined;
-  const list = signals.length === 2 ? signals.join(" and ") : `${signals.slice(0, -1).join(", ")}, and ${signals[signals.length - 1]}`;
-  return `Your recent ${list} changed together. Review the pattern and consider discussing it with a crew medic.`;
+  const signals = [
+    context.exertion !== undefined && `effort ${context.exertion}/5`,
+    context.steadiness === "slightly_unsteady" && "some unsteadiness",
+    context.steadiness === "very_unsteady" && "marked unsteadiness",
+    context.discomfort === "mild" && "mild discomfort",
+    comparison.trend === "different" && "a difference from earlier practice",
+  ].filter(Boolean) as string[];
+  if (!signals.length) return undefined;
+  return `Your movement notes include ${signals.join(", ")}. This is context for your own practice, not a medical finding.`;
 }
 
 /* ---------- Language guard ---------- */
@@ -314,11 +319,19 @@ export function composeCrewSummary(check: VisualCheck, fields: CrewSummaryFields
   if (fields.cameraLimits) lines.push(`Camera quality: ${check.observedFeatures.cameraQuality}.${check.observedFeatures.qualityNotes.length ? ` ${check.observedFeatures.qualityNotes.join(" ")}` : ""}`);
   if (fields.context) {
     const c = check.userReportedSymptoms;
-    lines.push(`Context: sleep ${c.sleepHours ?? "not given"} h, stress ${c.stress ?? "not given"}/5, energy ${c.energy ?? "not given"}/5, exertion ${c.exertion ?? "not given"}/5.`);
+    lines.push(`Movement context: comfort ${c.discomfort.replace(/_/g, " ")}, effort ${c.exertion ?? "not given"}/5, steadiness ${c.steadiness?.replace(/_/g, " ") ?? "not given"}.`);
   }
   if (check.isSynthetic) lines.push("Synthetic demo data.");
   lines.push(VISUAL_CHECK_DISCLAIMER);
   return lines.join("\n");
+}
+
+function describeSelfReportedContext(context: UserReportedContext): string[] {
+  const lines: string[] = [];
+  if (context.exertion !== undefined) lines.push(`You marked the effort as ${context.exertion} out of 5.`);
+  if (context.steadiness) lines.push(`You marked your steadiness as ${context.steadiness.replace(/_/g, " ")}.`);
+  if (context.discomfort !== "none") lines.push(`You marked comfort as ${context.discomfort.replace(/_/g, " ")}.`);
+  return lines;
 }
 
 /* ---------- Assembly ---------- */
@@ -337,7 +350,7 @@ export function buildVisualCheck(input: { checkId: string; ownerKey: string; sta
     observedFeatures: input.features,
     userReportedSymptoms: input.context,
     comparisonSummary: comparison,
-    observationSummary: describeObservations(input.features, input.task),
+    observationSummary: [...describeObservations(input.features, input.task), ...describeSelfReportedContext(input.context)],
     supportRecommendation: supportRecommendationFor(input.context, comparison),
     disclaimer: VISUAL_CHECK_DISCLAIMER,
     isSynthetic: input.isSynthetic,

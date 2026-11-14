@@ -38,10 +38,10 @@ readable but cannot start a new session.
 | --- | --- | --- |
 | Shoulder | Shoulder mobility | `shoulder_muscles_l` |
 | Arm | Reach-and-return | `upper_arm_muscles_l` |
-| Spine | Sit-to-stand | `back_muscles_r` |
-| Hip | Sit-to-stand | `pelvis` |
-| Knee | Sit-to-stand | `patella_l` |
-| Legs | Sit-to-stand | `quadriceps_l` |
+| Spine | Sit-to-stand (Earth) / Anchored lower-body flexion (Active) | `back_muscles_r` |
+| Hip | Sit-to-stand (Earth) / Anchored lower-body flexion (Active) | `pelvis` |
+| Knee | Sit-to-stand (Earth) / Anchored lower-body flexion (Active) | `patella_l` |
+| Legs | Sit-to-stand (Earth) / Anchored lower-body flexion (Active) | `quadriceps_l` |
 | Ankle | Single-leg balance | `foot_l` |
 
 Selecting a Movement marker shows the newest cloud-saved derived summary for
