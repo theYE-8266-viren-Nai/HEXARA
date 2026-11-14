@@ -13,5 +13,5 @@ export const BODY_DEVICES: BodyDevice[] = [
   { id: "motion", name: "Motion sensors", worn: "Thighs and lower back", measures: "Leg and back movement", parts: ["Legs", "Back"] },
 ];
 
-/** How long the simulated pairing takes. Tests shorten it. */
-export const bodyDeviceTiming = { pairMs: 1200 };
+/** How long the simulated pairing and the "searching for devices" step take. Tests shorten them. */
+export const bodyDeviceTiming = { pairMs: 1200, scanMs: 700 };
