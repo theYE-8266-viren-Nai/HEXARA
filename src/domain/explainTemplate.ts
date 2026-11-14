@@ -25,5 +25,13 @@ export function templateExplanation(request: ExplainRequest): string {
   }
   if (request.drivers.some((driver) => driver.metricLabel === "HRV")) sentences.push("HRV is a rough, short-term estimate.");
   if (request.dataQuality === "limited") sentences.push("Data quality was limited, so treat this as rough context.");
+  const months = request.monthlyHistory ?? [];
+  if (months.length >= 1) {
+    const latest = months.at(-1)!;
+    const earlier = months.slice(0, -1).filter((month) => month.quality !== "insufficient");
+    sentences.push(earlier.length
+      ? `${latest.month} was ${latest.personalSummary.charAt(0).toLowerCase()}${latest.personalSummary.slice(1)} compared with the earlier monthly history.`
+      : `${latest.month} provides an initial monthly reference; there is not an earlier month to compare yet.`);
+  }
   return sentences.join(" ");
 }

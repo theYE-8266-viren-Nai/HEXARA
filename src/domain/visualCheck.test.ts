@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  tasksForStage, taskInstructions, ANCHOR_NOTE, IN_ORBIT_TASK_TYPES,
   VISUAL_CHECK_DISCLAIMER, VISUAL_CHECK_TASKS, assessCameraQuality, buildVisualCheck, combinedContextNote, compareWithPersonalHistory, composeCrewSummary, extractMovementFeatures,
   frameStats, generateSyntheticFeatures, isNonDiagnostic, ownerKeyFor, supportRecommendationFor, taskFor, type MotionSample, type ObservedFeatures, type UserReportedContext, type VisualCheck,
 } from "./visualCheck";
@@ -125,5 +126,35 @@ describe("crew summary and persistence row", () => {
     const serialized = JSON.stringify(row).toLowerCase();
     expect(serialized).not.toMatch(/frame"|image|video|blob|data:/);
     expect(Object.keys(row)).toEqual(["id", "user_id", "owner_key", "check_type", "started_at", "completed_at", "completion_status", "observed_features", "user_reported_context", "comparison_summary", "support_recommendation", "camera_quality", "is_synthetic"]);
+  });
+});
+
+describe("which Movement tasks each stage is offered", () => {
+  it("gives astronauts in space only the tasks that work without gravity", () => {
+    const offered = tasksForStage("active").map((task) => task.type);
+    expect(offered.sort()).toEqual(["reach_and_return", "shoulder_mobility"]);
+    expect(offered.sort()).toEqual([...IN_ORBIT_TASK_TYPES].sort());
+    for (const gravityTask of ["sit_to_stand", "standing_posture", "single_leg_balance"]) expect(offered).not.toContain(gravityTask);
+  });
+
+  it("gives retired astronauts, who are back on Earth, the full reconditioning set", () => {
+    expect(tasksForStage("retired").map((task) => task.type)).toEqual(["sit_to_stand", "shoulder_mobility", "single_leg_balance", "reach_and_return"]);
+    expect(tasksForStage("retired")).toHaveLength(4);
+    expect(tasksForStage("retired")).not.toContainEqual(expect.objectContaining({ type: "standing_posture" }));
+  });
+
+  it("offers Future travelers nothing", () => {
+    expect(tasksForStage("future")).toEqual([]);
+  });
+
+  it("adds the anchoring reminder only in space, and keeps the balance task's own safety line on Earth", () => {
+    for (const task of tasksForStage("active")) expect(taskInstructions(task, "active")).toBe(`${ANCHOR_NOTE} ${task.instructions}`);
+    for (const task of tasksForStage("retired")) expect(taskInstructions(task, "retired")).toBe(task.instructions);
+    expect(taskInstructions(taskFor("single_leg_balance"), "retired")).toMatch(/near a support you can hold. Stop if you feel unsteady/);
+    expect(isNonDiagnostic(ANCHOR_NOTE)).toBe(true);
+  });
+
+  it("still knows every task, so sessions saved earlier can be labelled and shown", () => {
+    for (const task of VISUAL_CHECK_TASKS) expect(taskFor(task.type).label.length).toBeGreaterThan(0);
   });
 });

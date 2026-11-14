@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { VisualCheck } from "../domain/visualCheck";
+import { VISUAL_CHECK_DISCLAIMER, describeObservations, taskFor, type ComparisonSummary, type ObservedFeatures, type VisualCheck, type VisualCheckType } from "../domain/visualCheck";
 
 /**
  * Persists derived visual-check summaries only. There is no field for frames,
@@ -7,6 +7,18 @@ import type { VisualCheck } from "../domain/visualCheck";
  */
 export type VisualCheckRepository = ReturnType<typeof createVisualCheckRepository>;
 export type SaveResult = { ok: true } | { ok: false; reason: string };
+export type CloudVisualChecksResult = { data: VisualCheck[]; warning?: string };
+
+type CloudVisualCheckRow = {
+  id: string;
+  owner_key: string;
+  check_type: VisualCheckType;
+  started_at: string;
+  completion_status: VisualCheck["completionStatus"];
+  observed_features: ObservedFeatures;
+  comparison_summary: ComparisonSummary;
+  is_synthetic: boolean;
+};
 
 const LOCAL_KEY = "horizon:visual-checks";
 
@@ -36,6 +48,28 @@ export function toVisualCheckRow(check: VisualCheck, userId: string) {
   };
 }
 
+/** Rebuilds the display-safe part of a check. Home never requests the private symptom/note JSON. */
+export function fromCloudVisualCheckRow(row: CloudVisualCheckRow): VisualCheck {
+  const task = taskFor(row.check_type);
+  return {
+    checkId: row.id,
+    ownerKey: row.owner_key,
+    stage: row.owner_key.split(":", 1)[0] as VisualCheck["stage"],
+    checkType: row.check_type,
+    startedAt: row.started_at,
+    duration: row.observed_features.movementDurationSeconds,
+    cameraConsent: false,
+    completionStatus: row.completion_status,
+    observedFeatures: row.observed_features,
+    userReportedSymptoms: { discomfort: "none", symptoms: "" },
+    comparisonSummary: row.comparison_summary,
+    observationSummary: describeObservations(row.observed_features, task),
+    supportRecommendation: "Review this practice summary as personal context only.",
+    disclaimer: VISUAL_CHECK_DISCLAIMER,
+    isSynthetic: row.is_synthetic,
+  };
+}
+
 export function createVisualCheckRepository(client: SupabaseClient | null, userId: string | null) {
   return {
     /** Local history for personal comparison; filtered to one owner by the caller. */
@@ -50,6 +84,22 @@ export function createVisualCheckRepository(client: SupabaseClient | null, userI
         return { ok: true };
       } catch (error) {
         return { ok: false, reason: error instanceof Error ? error.message : "Cloud save failed." };
+      }
+    },
+    /** Owner-filtered cloud history for the Home body. RLS applies the same user boundary again. */
+    async listCloud(ownerKey: string): Promise<CloudVisualChecksResult> {
+      if (!client || !userId) return { data: [], warning: "Cloud movement history is unavailable." };
+      try {
+        const { data, error } = await client.from("visual_checks")
+          .select("id,owner_key,check_type,started_at,completion_status,observed_features,comparison_summary,is_synthetic")
+          .eq("user_id", userId)
+          .eq("owner_key", ownerKey)
+          .order("started_at", { ascending: false })
+          .limit(50);
+        if (error) return { data: [], warning: error.message };
+        return { data: (data ?? []).map((row) => fromCloudVisualCheckRow(row as CloudVisualCheckRow)) };
+      } catch (error) {
+        return { data: [], warning: error instanceof Error ? error.message : "Cloud movement history could not be loaded." };
       }
     },
   };

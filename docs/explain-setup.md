@@ -13,12 +13,32 @@ dates, notes, raw readings, files, video, or images. The browser and the Edge Fu
 (`supabase/functions/_shared/validate.ts`). The summary goes to the AI service you choose and, with OpenRouter, on to
 the company that runs the model. Check that model's page on OpenRouter for its data and logging policy.
 
+## Free models only (the default, so credit can never run out)
+
+The cloud features (Explain this pattern, the wellbeing AI feedback and the ORBIT chat) share the same secrets and the same free-only rule from
+`supabase/functions/_shared/providers.ts`:
+
+- A model is allowed only if it is `openrouter/free` or its id ends in `:free`.
+- Anything else is refused **before any request is sent**, with the code `paid_model_blocked`. A paid model typed into `OPENROUTER_MODEL` by
+  mistake therefore cannot spend credit. A comma list is refused if even one entry is not free.
+- Anthropic is paid, so an `ANTHROPIC_API_KEY` alone is refused too, and a blocked OpenRouter model never quietly falls back to it.
+- Only the owner can lift the guard, by setting the secret `ALLOW_PAID_MODELS=true` on purpose. Do not set it if you want to spend nothing.
+
+The recommended, no-cost setting is:
+
+```bash
+supabase secrets set OPENROUTER_MODEL=openrouter/free
+```
+
+Free models can still be slow or rate limited (`429`). That never costs money: the app shows its built-in text and you can press the button again.
+For extra safety, keep the OpenRouter key's credit limit tiny and never add credit.
+
 ## Which service is used
 
 | You set | What happens |
 | --- | --- |
-| `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` | OpenRouter is used with that model (wins if both services are set) |
-| only `ANTHROPIC_API_KEY` | Anthropic is used with a built-in model |
+| `OPENROUTER_API_KEY` and a free `OPENROUTER_MODEL` | OpenRouter is used with that model (wins if both services are set) |
+| only `ANTHROPIC_API_KEY` | refused as paid, unless `ALLOW_PAID_MODELS=true` |
 | nothing | the function answers "not configured" and the app shows the built-in text |
 
 If `OPENROUTER_API_KEY` is set but `OPENROUTER_MODEL` is not, the function answers "model_missing" rather than guessing.
@@ -71,6 +91,7 @@ Open Home or Trends, choose the Recovery concern demo scenario, and press **Expl
 unavailable. To see the reason, send an empty request to the function and read the status:
 
 - `503 not_configured`: no key secret is set.
+- `503 paid_model_blocked`: the chosen model is not free (see above).
 - `503 model_missing` or `model_invalid`: `OPENROUTER_MODEL` is missing or has odd characters.
 - `502 upstream_error` with `upstreamStatus` and a short `upstreamMessage` from OpenRouter (for example "No auth credentials found" or a rate-limit reason): `400` the model id is not a chat model or does not exist (the function already retries once with the instructions inside the user message for models that reject a system message), `401` wrong or revoked key, `402` no credit, `404` unknown model, `429` rate limited.
 - `502 unsafe_output`: the model's text failed OrbitWell's wording check twice (the function already asked once more).

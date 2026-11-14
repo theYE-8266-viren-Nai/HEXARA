@@ -3,6 +3,8 @@ import { useState } from "react";
 import { summarizeCheckIn, visibleQuestions, type CheckInAnswers } from "../domain/wellbeingCheckIn";
 import { usePersistedState } from "../lib/usePersistedState";
 import type { LifeStage } from "../types/horizon";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createWellbeingFeedbackRepository } from "../lib/wellbeingFeedbackRepository";
 
 type SavedCheckIn = { answers: CheckInAnswers; note: string; completedAt: string } | null;
 
@@ -12,7 +14,7 @@ const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> =
   retired: { kicker: "Wellbeing · After flight", title: "A moment for yourself", lede: "Start with your feelings and connections. The questions are optional, one at a time, and your answers stay on this device." },
 };
 
-export function WellbeingCheckIn({ stage }: { stage: LifeStage }) {
+export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: SupabaseClient | null }) {
   const [saved, setSaved] = usePersistedState<SavedCheckIn>(`horizon:checkin:${stage}`, null);
   const [answers, setAnswers] = useState<CheckInAnswers>({});
   const [note, setNote] = useState("");
@@ -37,7 +39,7 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage }) {
     <header className="page-header">
       <div><p className="page-kicker">{copy.kicker}</p><h1>{copy.title}</h1><p className="page-lede">{copy.lede}</p></div>
     </header>
-    {saved ? <CheckInSummaryView stage={stage} saved={saved} onRestart={restart} /> : <section className="tech-card checkin-card" aria-live="polite">
+    {saved ? <CheckInSummaryView stage={stage} saved={saved} onRestart={restart} client={client} /> : <section className="tech-card checkin-card" aria-live="polite">
       <div className="checkin-progress" aria-hidden="true"><span style={{ width: `${Math.round((Math.min(step, questions.length) / (questions.length + 1)) * 100)}%` }} /></div>
       {!onNoteStep ? (() => {
         const question = questions[step];
@@ -70,18 +72,38 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage }) {
   </div>;
 }
 
-function CheckInSummaryView({ stage, saved, onRestart }: { stage: LifeStage; saved: NonNullable<SavedCheckIn>; onRestart: () => void }) {
+function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeStage; saved: NonNullable<SavedCheckIn>; onRestart: () => void; client: SupabaseClient | null }) {
   const summary = summarizeCheckIn(stage, saved.answers);
   const when = new Date(saved.completedAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const [feedback, setFeedback] = useState<string>();
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackWarning, setFeedbackWarning] = useState<string>();
+  // The AI is never called on its own: nothing is sent to the cloud until the person presses the button.
+  const getFeedback = async () => {
+    setFeedbackBusy(true); setFeedbackWarning(undefined);
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage, headline: summary.headline, concern: summary.overall, lines: summary.lines.map((line) => line.text) });
+    if (result.text) setFeedback(result.text); else setFeedbackWarning(result.warning ?? result.error ?? "AI feedback is unavailable right now.");
+    setFeedbackBusy(false);
+  };
+  const buttonLabel = feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : feedbackWarning ? "Try again" : "Get AI feedback";
   return <section className="tech-card checkin-summary" data-tone={summary.overall} aria-labelledby="checkin-summary-title">
     <div className="checkin-summary-head">
       <div><p className="checkin-count">Your wellbeing summary · {when}</p><h2 id="checkin-summary-title">{summary.headline}</h2></div>
       <button type="button" className="btn-secondary" onClick={onRestart}><RotateCcw size={15} aria-hidden="true" /> New check-in</button>
     </div>
     {summary.talkTo ? <div className="notice" data-tone="watch" role="note"><div className="notice-row"><UserRound size={18} aria-hidden="true" /><p>{summary.talkTo}</p></div></div> : null}
-    {summary.lines.length ? <div><h3 className="checkin-subhead">What you told us</h3><ul className="checkin-lines">{summary.lines.map((line, index) => <li key={index} data-concern={line.concern}>{line.text}</li>)}</ul></div> : <p className="panel-note">You skipped every question, so there's nothing to summarise yet.</p>}
-    {saved.note ? <div><h3 className="checkin-subhead">Your note</h3><p className="checkin-note">{saved.note}</p></div> : null}
-    <div><h3 className="checkin-subhead">What might help</h3><div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div></div>
-    <p className="panel-footnote">This summary comes from your own answers. It is not a medical assessment or diagnosis.</p>
+    <div className="builtin-steps" data-testid="builtin-steps">
+      {summary.lines.length ? <><h3 className="checkin-subhead">What you told us</h3><ul className="checkin-lines">{summary.lines.map((line, index) => <li key={index} data-concern={line.concern}>{line.text}</li>)}</ul></> : <p className="panel-note">You skipped every question, so there's nothing to summarise yet.</p>}
+      <h3 className="checkin-subhead">What might help</h3>
+      <div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div>
+      <small className="panel-note">Built from your own answers. Not medical advice or diagnosis.</small>
+    </div>
+    <div className="checkin-feedback">
+      <div className="checkin-section-head"><div><p className="ai-feedback-label">ORBIT · AI feedback · optional</p><h3 className="checkin-subhead">Want more tailored next steps?</h3></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{buttonLabel}</button></div>
+      {!feedback && !feedbackBusy && !feedbackWarning ? <p className="panel-note">Press the button to ask for AI feedback. Only the selected check-in themes are sent, and only when you press it. Your private note is never sent.</p> : null}
+      {feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing feedback from this check-in…</p> : null}
+      {feedback ? <article className="ai-feedback" aria-live="polite"><p>{feedback}</p><small>AI-assisted educational guidance, not medical advice or diagnosis.</small></article> : null}
+      {feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}
+    </div>
   </section>;
 }

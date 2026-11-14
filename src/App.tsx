@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell, type ViewName } from "./components/AppShell";
+import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
 import { createBackendDashboardRepository, type DashboardSource } from "./lib/backendDashboardRepository";
@@ -16,6 +16,8 @@ import { missionDayFrom, type AstronautProfile } from "./domain/astronautAccount
 import { createPreparationRepository } from "./lib/preparationRepository";
 import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
+import { ownerKeyFor, type VisualCheck, type VisualCheckType } from "./domain/visualCheck";
+import { primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
 import { ThemeProvider } from "./lib/theme";
 import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
@@ -27,8 +29,9 @@ import { hasCompletedDay } from "./lib/dayCoverage";
 import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
-import type { ChatContextSummary } from "./domain/chat";
 import { GroundTeamDashboard } from "./components/GroundTeamDashboard";
+import { summarizeMonthlyHistory } from "./domain/monthlyHistory";
+import { generateSyntheticData } from "./data/synthetic";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -64,6 +67,10 @@ function HorizonApp() {
   const profile = profiles.find((candidate) => candidate.id === profileId) ?? profiles[0];
   const preparationRepository = useMemo(() => createPreparationRepository(supabase, userId), [userId]);
   const visualCheckRepository = useMemo(() => createVisualCheckRepository(supabase, userId), [userId]);
+  const [movementChecks, setMovementChecks] = useState<VisualCheck[]>([]);
+  const [movementHistoryWarning, setMovementHistoryWarning] = useState<string | undefined>();
+  const [movementLaunch, setMovementLaunch] = useState<{ task: VisualCheckType; nonce: number } | null>(null);
+  const [bodyFocus, setBodyFocus] = useState<{ region: MovementBodyRegionId; nonce: number } | null>(null);
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
@@ -85,8 +92,16 @@ function HorizonApp() {
   const alertBasis = webhookScored ? "webhook" as const : device.alert !== undefined ? "device" as const : "scenario" as const;
   // Pattern context (adds to alerts, never changes them): completed days only, from the source in use.
   const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive });
+  const patternHistory = useMemo(() => {
+    if (scenario === "usual") return backendSnapshot?.history ?? [];
+    if (scenario !== "recovery_concern") return [];
+    const generated = generateSyntheticData(seed);
+    const personId = generated.people.some((person) => person.id === profile.id) ? profile.id : generated.people[0].id;
+    return generated.observations.filter((observation) => observation.person_id === personId);
+  }, [backendSnapshot?.history, profile.id, scenario, seed]);
+  const monthlyHistory = useMemo(() => summarizeMonthlyHistory(patternHistory), [patternHistory]);
   const explainRepository = useMemo(() => createExplainRepository(supabase), []);
-  const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, explainRepository]);
+  const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const, monthlyHistory }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, monthlyHistory, explainRepository]);
   const deviceStatus = useMemo(() => ({
     ...device.status,
     hasPaired: devicePaired,
@@ -127,6 +142,21 @@ function HorizonApp() {
     })();
     return () => { cancelled = true; };
   }, [accounts, setProfileId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!stage || stage === "future") {
+      setMovementChecks([]);
+      setMovementHistoryWarning(undefined);
+      return;
+    }
+    void visualCheckRepository.listCloud(ownerKeyFor(stage, profile.id)).then((result) => {
+      if (cancelled) return;
+      setMovementChecks(result.data);
+      setMovementHistoryWarning(result.warning);
+    });
+    return () => { cancelled = true; };
+  }, [profile.id, stage, visualCheckRepository]);
 
   const setStageAndProfile = (nextStage: LifeStage) => {
     const matchingProfile = profiles.find((candidate) => candidate.stage === nextStage) ?? profiles[0];
@@ -222,6 +252,21 @@ function HorizonApp() {
   }, [backendRepository, mockProfiles, profileId, replayCount, scenario, seed, setProfileId]);
 
   const replayEvents = () => setReplayCount((count) => count + 1);
+  const openMovementFromBody = (task: VisualCheckType) => {
+    setMovementLaunch({ task, nonce: Date.now() });
+    setActiveView("movement");
+  };
+  const showSavedMovementOnBody = (check: VisualCheck) => {
+    setMovementChecks((current) => [check, ...current.filter((item) => item.checkId !== check.checkId)]);
+    setMovementHistoryWarning(undefined);
+    setMovementLaunch(null);
+    setBodyFocus({ region: primaryMovementRegion(check.checkType), nonce: Date.now() });
+    setActiveView("home");
+  };
+  const changeView = (next: ViewName) => {
+    if (next !== "movement") setMovementLaunch(null);
+    setActiveView(next);
+  };
 
   if (authLoading) return <StageSelectionView loading />;
   if (groundPreview) return <GroundTeamDashboard onExit={() => setGroundPreview(false)} />;
@@ -231,24 +276,25 @@ function HorizonApp() {
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
 
+  // A view that is not offered to this stage (Movement for Future travelers) falls back to Home.
+  const view: ViewName = viewAvailable(activeView, stage) ? activeView : "home";
   const content = (() => {
-    switch (activeView) {
+    switch (view) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} pattern={<PatternCard view={pattern} explain={explain} />} />;
       case "movement":
-        return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
+        return <VisualCheckView key={`${stage}:${profile.id}:${movementLaunch?.nonce ?? "nav"}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} initialTask={movementLaunch?.task} onSavedToBody={showSavedMovementOnBody} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
-        return <WellbeingView stage={stage} />;
+        return <WellbeingView stage={stage} client={supabase} />;
       case "guidance":
-        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} />;
+        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={changeView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} />;
       case "profile":
         return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
-        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
+        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} movementChecks={movementChecks} movementWarning={movementHistoryWarning} bodyFocus={bodyFocus} onBodyFocusHandled={() => setBodyFocus(null)} onStartMovement={openMovementFromBody} onViewChange={changeView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
     }
   })();
 
-  const chatContext: ChatContextSummary = { stage, dataQuality, source: viewSource, signals: liveMetrics.slice(0, 6).map((metric) => ({ label: metric.label, trend: metric.trend })) };
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && activeView === "home" && !devicePaired ? undefined : { client: supabase, userId, context: chatContext, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && view === "home" && !devicePaired ? undefined : { client: supabase, userId, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
 }
