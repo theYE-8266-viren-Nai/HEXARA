@@ -7,7 +7,7 @@ export const GLUCOSE_GUIDANCE_URL = "https://www.niddk.nih.gov/health-informatio
 export const EMERGENCY_GUIDANCE = "Contact your crew medic and mission control now.\nOn Earth: call local emergency services. Do not wait for this chat.";
 export const GLUCOSE_GUIDANCE = "Contact your crew medic now; on Earth, local emergency services.\nFollow your clinician's plan. Insulin lowers blood sugar: do not use it to treat suspected low blood sugar.\nUnconscious, seizing, or unable to swallow: get emergency help; no food or drink by mouth.\nOrbitWell does not measure blood glucose or choose doses. No one has been contacted.";
 const FIRST_AID = { label: "MedlinePlus · First aid", url: "https://www.medlineplus.gov/firstaid.html" };
-const NHS_HELP = { label: "NHS · Recognising emergencies", url: "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/when-to-call-999/" };
+const CRISIS_LINES = { label: "Find A Helpline · Crisis lines worldwide", url: "https://findahelpline.com/" };
 const NHS = (path: string, label: string): SupportResource => ({ label: `NHS · ${label}`, url: `https://www.nhs.uk/${path}/` });
 
 const TOPICS: Record<EmergencyTopic, { label: string; detail: string; resources: SupportResource[] }> = {
@@ -24,9 +24,9 @@ const TOPICS: Record<EmergencyTopic, { label: string; detail: string; resources:
   temperature: { label: "Heat or cold exposure", detail: "Report heat/cold exposure, confusion, collapse, or breathing changes.\nFollow onboard environmental procedures and medical instructions.", resources: [FIRST_AID] },
   glucose: { label: "Blood sugar concern", detail: GLUCOSE_GUIDANCE, resources: [{ label: "NIH · Blood sugar guidance", url: GLUCOSE_GUIDANCE_URL }] },
   mission: { label: "Mission environment hazard", detail: "Report the alarm/exposure. Use the specific onboard emergency checklist.\nChat cannot determine cabin safety, exposure dose, or equipment actions.", resources: [] },
-  distress: { label: "Personal safety", detail: "Reach a nearby crewmate now. Say you need help staying safe.\nFollow crew medical support's instructions.", resources: [NHS_HELP] },
+  distress: { label: "Personal safety", detail: "Reach a nearby crewmate now. Say you need help staying safe.\nFollow crew medical support's instructions.", resources: [CRISIS_LINES, FIRST_AID] },
   illness: { label: "Feeling unwell", detail: "Report symptoms, when they began, and any worsening.\nFlag severe pain, persistent vomiting, confusion, or breathing trouble immediately.", resources: [FIRST_AID] },
-  general: { label: "Urgent support", detail: "Report what happened, your location, and whether the person is awake and breathing normally.\nFollow mission emergency procedures.", resources: [NHS_HELP] },
+  general: { label: "Urgent support", detail: "Report what happened, your location, and whether the person is awake and breathing normally.\nFollow mission emergency procedures.", resources: [FIRST_AID] },
   check_in: { label: "Symptom conversation", detail: "What are you feeling, and when did it start?\nSudden, severe, or worsening symptoms: contact your crew medic now; on Earth, local emergency services. Don't wait for chat.\nI cannot diagnose. No one has been contacted.", resources: [FIRST_AID] },
   medication: { label: "Medication question", detail: "Ask your crew medic. Follow your clinician's existing plan.\nI cannot prescribe or choose injections/doses.\nUrgent: contact medical support now; on Earth, local emergency services. No one has been contacted.", resources: [] },
 };
@@ -57,9 +57,11 @@ const normalize = (text: string) => text.normalize("NFKC").toLowerCase().replace
 
 // Conservative matching is a routing convenience, never a severity assessment.
 const rules: Array<[EmergencyTopic, RegExp]> = [
-  ["unresponsive", /\b(unconscious|unresponsive|collapsed?)\b|pass(?:ed|ing)? out|can'?t wake|cannot wake|not breathing|stopped breathing/],
+  ["unresponsive", /\b(unconscious|unresponsive|collapsed?)\b|pass(?:ed|ing)? out|can'?t wake|cannot wake|not breathing|isn'?t breathing|stopped breathing|not responding|isn'?t responding/],
   ["distress", /hurt myself|kill myself|end my life|suicid\w*|hurt someone|harm myself/],
   ["allergy", /\b(allerg\w*|anaphyl\w*)\b|(?:throat|tongue|lips?).{0,20}(?:swell|swoll|tight)|(?:swell|swoll).{0,20}(?:throat|tongue|lips?)/],
+  // Heat stroke is checked before stroke so it is not routed to neurological guidance.
+  ["temperature", /heat\s*stroke|heat exhaustion|hypothermia|frostbite|overheating/],
   ["stroke", /\b(stroke|slurr\w*|paralys\w*)\b|face.{0,12}droop|one side.{0,20}(?:weak|numb)|(?:weak|numb).{0,20}one side|sudden.{0,20}(?:vision|speech)/],
   ["breathing", /\b(breath\w*|chok\w*|gasp\w*|wheez\w*|asthma)\b|can'?t get air|cannot get air/],
   ["chest", /\b(chest|heart attack|palpitation\w*)\b/],
@@ -68,9 +70,8 @@ const rules: Array<[EmergencyTopic, RegExp]> = [
   ["poisoning", /\b(poison\w*|overdos\w*)\b|swallowed.{0,25}(?:chemical|cleaner|bleach|pills)|toxic.{0,12}(?:fumes|gas)/],
   ["mission", /\b(decompression|radiation|dosimeter)\b|cabin pressure|oxygen (?:leak|alarm|failure)|co2 alarm|carbon dioxide|air leak|smoke alarm/],
   ["burn", /\b(burn\w*|scald\w*|electrocut\w*)\b|electric(?:al)? shock/],
-  ["temperature", /heat\s*stroke|heat exhaustion|hypothermia|frostbite|overheating/],
   ["glucose", /\b(insulin|glucose|hypoglyc\w*|hyperglyc\w*|blood\s*sugar)\b/],
-  ["injury", /\b(injur\w*|fractur\w*|broken|sprain\w*|wound\w*)\b|hit my head|head trauma|neck pain|cut (?:my|his|her|their)/],
+  ["injury", /\b(injur\w*|fractur\w*|broken|sprain\w*|wound\w*)\b|hit my head|head trauma|neck pain|cut (?:my|his|her|their)|broke (?:my|his|her|their)/],
   ["medication", /\b(inject\w*|dos(?:e|es|ing)|medicat\w*|prescri\w*|\d+\s*(?:mg|mcg|ml|units))\b/],
   ["general", /\b(emergency|urgent|severe|faint\w*|dizz\w*|confus\w*)\b|need help now/],
   ["illness", /\b(pain|hurts?|ache\w*|headache\w*|vomit\w*|diarrh\w*|fever|nause\w*)\b/],
@@ -85,6 +86,11 @@ export function getEmergencySupport(message: string, previousTopic?: EmergencyTo
   if (!topic) return undefined;
   const item = TOPICS[topic];
   const result = (details: string, content = BRIEF_SUPPORT[topic]): EmergencySupport => ({ topic, content, details, resources: item.resources });
+  // "Is the person awake and breathing?" answered with "no" is an unresponsive emergency, not a "can't reach help" reply.
+  if (previousTopic === "general" && !detected && /^(?:no|nope|neither|not really)\b|not (?:awake|breathing|responding)|isn'?t (?:awake|breathing|responding)/.test(text)) {
+    const unresponsive = TOPICS.unresponsive;
+    return { topic: "unresponsive", content: BRIEF_SUPPORT.unresponsive, details: `${EMERGENCY_GUIDANCE}\n${unresponsive.detail}\nI cannot diagnose. No one has been contacted.`, resources: unresponsive.resources };
+  }
   if (previousTopic && !detected) {
     if (/what.{0,20}(?:tell|say)|summary|handoff/.test(text)) return result("Tell the medic:\n• Symptoms, location, start time, changes.\n• Awake? Breathing normally?\n• Actual readings, time/units, allergies, actions taken.\nDo not use OrbitWell's simulated values. Nothing sent automatically.", "Tell the medic symptoms, location, start time, and breathing/awareness.\nInclude actual readings and actions taken.\nNever use simulated values.");
     if (/\balone\b|^no[.! ]*$|can'?t reach|cannot reach|no (?:medic|help|signal)|disconnected/.test(text)) return result("Use your backup mission emergency channel or alert a nearby crewmate now.\nOn Earth: call local emergency services; give your location.\nDo not wait here. I cannot reach help for you.", "Use the backup emergency channel or alert a crewmate now.\nEarth: call emergency services; give your location.\nI cannot contact help.");
@@ -100,7 +106,40 @@ export function getEmergencySupport(message: string, previousTopic?: EmergencyTo
 export function getUrgentSupport(message: string, previousTopic?: EmergencyTopic): EmergencySupport | undefined {
   if (previousTopic) return getEmergencySupport(message, previousTopic);
   const text = normalize(message);
-  const educationalQuestion = /^(what|why|how|when|where|which|does|do|is|are|can|could|would|explain|tell me about)\b/.test(text)
-    && /\b(nasa|space|spaceflight|astronaut|spacecraft|mission|iss|microgravity|radiation|orbit|lunar|mars)\b/.test(text);
+  const asksQuestion = /^(what|why|how|when|where|which|does|do|is|are|can|could|should|would|explain|tell me about)\b/.test(text);
+  const spaceTopic = /\b(nasa|space|spaceflight|astronaut|spacecraft|mission|iss|microgravity|radiation|orbit|lunar|mars)\b/.test(text);
+  // A general question that describes no one's current situation ("What causes headaches?") is education, not an emergency report.
+  // Anything about a person ("I", "my", "he", "my friend"...) still goes through the urgent rules.
+  const aboutSomeone = /\b(i|i'm|im|i've|i'd|me|my|mine|we|we're|us|our|he|he's|she|she's|they|they're|his|her|their|them|someone|somebody|friend|partner|husband|wife|son|daughter|mom|mum|dad|child|kid|baby|crewmate|colleague)\b/.test(text);
+  const educationalQuestion = asksQuestion && (spaceTopic || !aboutSomeone);
   return educationalQuestion ? undefined : getEmergencySupport(message);
+}
+
+/**
+ * Earth wording for people who are not on a mission (Future trainees, Retired astronauts):
+ * emergency services come first, and crew/mission-only steps are removed.
+ */
+export function forEarth(support: EmergencySupport): EmergencySupport {
+  const rewrite = (text: string) => text
+    .replace(/Tell your crew medic what changed\./g, "Tell whoever is helping you what changed.")
+    .replace(/Share that update with your crew medic\./g, "Share that update with whoever is helping you.")
+    .replace(/Tell the medic:/g, "Tell the emergency operator:")
+    .replace(/Tell the medic /g, "Tell the emergency operator ")
+    .replace(/Contact your crew medic and mission control now\.\nOn Earth: call local emergency services\. Do not wait for this chat\./g, "Call emergency services now. Do not wait for this chat.")
+    .replace(/(?:Contact )?(?:your )?(?:crew medic|mission control and crew medic)(?: now)?[.;,]? (?:on )?Earth[:,]? (?:call )?(?:local )?emergency services\.?/gi, "Call emergency services now.")
+    .replace(/Contact mission control and crew medic now\./g, "Call emergency services now.")
+    .replace(/Contact (?:your )?crew medic(?: now)?\./g, "Contact your doctor; if it is severe, call emergency services.")
+    .replace(/Ask your crew medic\./g, "Ask your doctor or pharmacist.")
+    .replace(/Urgent\? Crew medic now\. Earth: emergency services\./g, "Urgent? Call emergency services.")
+    .replace(/Severe or worsening\? Crew medic now\. Earth: emergency services\./g, "Severe or worsening? Call emergency services.")
+    .replace(/Severe symptoms\? Get urgent help now\. Earth: emergency services\./g, "Severe symptoms? Call emergency services now.")
+    .replace(/(?:contact )?(?:your )?crew medic now; on Earth, local emergency services/gi, "call emergency services now")
+    .replace(/(?:your )?crew medic(?:al support)?|medical support|the medic\b/gi, (match) => /^the/i.test(match) ? "the responder" : "emergency services")
+    .replace(/a nearby crewmate|a crewmate|nearby crewmate/gi, "someone nearby")
+    .replace(/(?:On )?Earth: call/g, "Call").replace(/On Earth, d/g, "D").replace(/\bEarth: /g, "").replace(/; on Earth,[^.]*\./g, ".")
+    .replace(/emergency services's/g, "the responders'").replace(/: Call emergency/g, ": call emergency")
+    // Drop only the sentences that describe mission-only steps, keeping the rest of each line.
+    .split("\n").map((line) => (line.match(/[^.!?]+[.!?]*/g) ?? [line]).filter((sentence) => !/onboard|mission emergency|mission control|backup .*channel|alert a crewmate|Earth guidance/i.test(sentence)).join("").trim()).filter(Boolean)
+    .map((line) => line.charAt(0).toUpperCase() + line.slice(1)).join("\n");
+  return { ...support, content: rewrite(support.content), details: support.details ? rewrite(support.details) : undefined };
 }

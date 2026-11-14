@@ -3,7 +3,7 @@
 // Deploy with: supabase functions deploy explain-pattern   (see docs/explain-setup.md)
 // Simulated data only. Not medical advice. Not diagnostic.
 import { buildSystemPrompt, buildUserPrompt, isSafeExplanation, validateExplainRequest } from "../_shared/validate.ts";
-import { buildProviderRequest, chooseProvider, completeSentences, extractText, extractUpstreamMessage, retryWhenUnsafe, type AttemptOutcome } from "../_shared/providers.ts";
+import { buildProviderRequest, chooseProviderChain, completeSentences, extractText, extractUpstreamMessage, retryWhenUnsafe, type AttemptOutcome, shouldFailOver, type ProviderChoice } from "../_shared/providers.ts";
 
 declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 
@@ -37,8 +37,9 @@ function rateLimited(key: string): boolean {
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
-  const choice = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY"), ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS") });
-  if (!choice.ok) return json(503, { error: choice.error });
+  // OpenRouter first, then the free Groq/Gemini keys when OpenRouter is out of quota, credit or unavailable.
+  const providers = chooseProviderChain({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY"), ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS"), GROQ_API_KEY: Deno.env.get("GROQ_API_KEY"), GROQ_MODEL: Deno.env.get("GROQ_MODEL"), GEMINI_API_KEY: Deno.env.get("GEMINI_API_KEY"), GEMINI_MODEL: Deno.env.get("GEMINI_MODEL") });
+  if (!providers.ok) return json(503, { error: providers.error });
   if (rateLimited(userKey(request))) return json(429, { error: "rate_limited" });
 
   const raw = await request.text();
@@ -50,27 +51,36 @@ Deno.serve(async (request) => {
 
   const controller = new AbortController();
   const started = Date.now();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    const send = (mergeSystem: boolean) => {
-      const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value), { mergeSystem });
-      return fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
+    const tryProvider = async (choice: Extract<ProviderChoice, { ok: true }>) => {
+      const send = (mergeSystem: boolean) => {
+        const upstream = buildProviderRequest(choice, buildSystemPrompt(), buildUserPrompt(checked.value), { mergeSystem });
+        return fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal });
+      };
+      const attempt = async (): Promise<AttemptOutcome> => {
+        let response: Response;
+        try { response = await send(false); } catch (error) { if (controller.signal.aborted) throw error; return { kind: "error", status: 503 }; }
+        // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
+        if (response.status === 400 && choice.provider !== "anthropic") response = await send(true);
+        if (!response.ok) {
+          // Only the status code and a short, sanitized error message are passed on (never the key or the full body).
+          const message = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
+          return { kind: "error", status: response.status, message };
+        }
+        const text = completeSentences(extractText(choice.provider, await response.json()));
+        // Never forward text that fails the same safety check the browser applies.
+        return isSafeExplanation(text) ? { kind: "text", text: text.trim() } : { kind: "unsafe" };
+      };
+      // A rejected or cut-off reply is asked for once more, if there is still time; errors are not retried.
+      return await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 8_000 });
     };
-    const attempt = async (): Promise<AttemptOutcome> => {
-      let response = await send(false);
-      // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
-      if (response.status === 400 && choice.provider === "openrouter") response = await send(true);
-      if (!response.ok) {
-        // Only the status code and a short, sanitized error message are passed on (never the key or the full body).
-        const message = response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined;
-        return { kind: "error", status: response.status, message };
-      }
-      const text = completeSentences(extractText(choice.provider, await response.json()));
-      // Never forward text that fails the same safety check the browser applies.
-      return isSafeExplanation(text) ? { kind: "text", text: text.trim() } : { kind: "unsafe" };
-    };
-    // A rejected or cut-off reply is asked for once more, if there is still time; errors are not retried.
-    const outcome = await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 8_000 });
+    let choice = providers.chain[0];
+    let outcome = await tryProvider(choice);
+    for (const next of providers.chain.slice(1)) {
+      if (outcome.kind === "text" || (outcome.kind === "error" && !shouldFailOver(outcome.status))) break;
+      choice = next; outcome = await tryProvider(next);
+    }
     if (outcome.kind === "text") return json(200, { text: outcome.text });
     if (outcome.kind === "unsafe") return json(502, { error: "unsafe_output", attempts: outcome.attempts });
     return json(502, { error: "upstream_error", provider: choice.provider, upstreamStatus: outcome.status, ...(outcome.message ? { upstreamMessage: outcome.message } : {}) });
