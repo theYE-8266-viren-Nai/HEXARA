@@ -9,6 +9,7 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Interactive landing orbit (2026-11-14):** The astronaut panel now has slow drift, moving orbital markers, a pulsing signal trace, pointer/touch parallax, a following teal glow, and a pause control. Reduced-motion preferences disable the scene motion. Production build, focused landing tests, desktop/mobile browser checks, pointer/pause checks, and diff check pass.
 - **Dark-only appearance (2026-11-14):** Removed the appearance toggle, saved/device light-mode selection, and light-only CSS. The app starts dark and uses brighter blue-teal surfaces, borders, accents, and chart colors. The 50 app tests, production build, desktop and 390px mobile browser checks, and diff check pass. The later blue-teal color correction passed a production build and desktop visual check.
 - **Pattern card simplification (2026-11-14):** Removed the abstract visual pattern-score meter and numeric scale from Home/Trends. The card now shows the plain-language personal-pattern result and a compact “30-day personal comparison” summary; the numeric score remains internal for explanation logic only. Focused PatternCard tests (8) and production build pass.
+- **Safety-copy simplification (2026-11-14):** Replaced the repeated fixed disclaimer bar with the quieter `Research demo · Synthetic data` label. Import and device-source copy now uses concise provenance language; urgent, movement, and AI safety boundaries remain contextual where they are needed.
 
 - **Monthly personal history in Trends (2026-11-14):** Trends now aggregates the available 180-day synthetic observations into UTC monthly summaries with averages, ranges, observed days, personal-pattern direction, data quality, and notable-day counts from the existing alert rules. The newest month is expanded by default; older months are collapsible. Explain this pattern sends only bounded monthly summaries to the Supabase Edge Function/OpenRouter path, never raw readings, notes, symptoms, IDs, or device data. The deterministic fallback also includes monthly context.
 - **Monthly-history verification (2026-11-14):** Focused aggregation, explanation-contract, fallback, and UI tests pass; the full frontend suite has 458 passing tests, `npm run build` passes, and `git diff --check` passes. The existing Vite large-chunk warning remains.
@@ -33,7 +34,7 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 - **Supabase client:** Browser client exists in `src/lib/supabase.ts`.
 - **Environment setup:** `.env.example` is committed and `.env.local` is ignored.
 - **Supabase boundary:** `src/lib/supabase.ts` keeps the browser client available; UI components use repository adapters and retain a deterministic local fallback when cloud configuration is unavailable.
-- **Safety disclaimer:** The placeholder page displays: `Simulated data. Not medical advice. Not diagnostic.`
+- **Research-demo label:** The global footer uses concise provenance copy: `Research demo · Synthetic data`.
 - **Build verification:** `npm run build` passes.
 - **Git:** Initial local commit exists and `origin` points to the HEXARA GitHub repository.
 - **Agent guidance:** Supabase, Postgres best practices, and security best practices are installed.
@@ -312,7 +313,7 @@ Complete phases in order. Do not mark a phase complete until its verification ch
 - Keep all alert logic in one small, well-commented module.
 - Every alert must include a plain-language reason.
 - Do not present diagnoses or clinical conclusions.
-- Preserve the persistent disclaimer: `Simulated data. Not medical advice. Not diagnostic.`
+- Keep provenance copy concise and visible without repeating a long warning sentence globally. Preserve contextual safety guidance where a user is performing movement, using AI feedback, or reporting urgent concerns.
 
 ## 🤖 Agent Workflow Rules
 

@@ -28,7 +28,7 @@ describe("ImportDataPanel", () => {
     expect(within(result).getByText(/Duplicate reading/)).toBeInTheDocument();
     expect(within(result).getByText(/Expected 6 columns but found 8/)).toBeInTheDocument();
     expect(within(result).getByRole("status")).toHaveTextContent(/outside your usual range/);
-    expect(within(result).getByRole("status")).toHaveTextContent(/Not diagnostic/);
+    expect(within(result).getByRole("status")).toHaveTextContent(/Processed on this device only/);
     expect(result.textContent).not.toMatch(/diagnos(is|ed)\b|medical condition/i);
   });
 
