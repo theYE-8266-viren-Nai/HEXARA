@@ -1,6 +1,6 @@
 # ORBIT · NASA Research Assistant
 
-ORBIT is Horizon's floating NASA research assistant for Future, Active, and Retired workspaces. It answers educational NASA and space-research questions from an indexed set of official public NASA sources. It is not a doctor, emergency service, mission authority, or substitute for qualified crew, medical, engineering, or flight-control teams.
+ORBIT is Horizon's floating NASA research assistant for Future and Active workspaces. Retired astronauts start in a private, built-in conversation about life after flight and can explicitly switch to NASA research. NASA answers come from an indexed set of official public NASA sources. ORBIT is not a doctor, emergency service, mission authority, or substitute for qualified crew, medical, engineering, or flight-control teams.
 
 ## User workflow
 
@@ -10,7 +10,11 @@ ORBIT is Horizon's floating NASA research assistant for Future, Active, and Reti
 4. Open the source cards under the reply to inspect the NASA title, collection, date when available, excerpt, and direct official URL.
 5. If retrieval finds no adequate support, ORBIT says it could not verify the answer. OpenRouter is not called for that question.
 
-The assistant does not share dashboard readings. Chats are stored separately by life stage in the owner's Supabase session.
+Visible replies show at most 30 words in 1–3 short lines, with longer fixed guidance and references collapsed under "More guidance". Urgent escalation and key cautions remain visible. NASA research prompts request the same concise format; server and browser checks reject generated replies over 30 words, 250 characters, or three nonempty lines. Older cloud replies outside this contract get a brief notice.
+
+`supabase/functions/_shared/emergencySupport.ts` provides fixed conversational guidance for breathing/choking, chest symptoms, sudden neurological changes, bleeding, allergy, seizure, unresponsiveness, poisoning/overdose, burns, injuries, heat/cold exposure, glucose, personal safety, illness, medication questions, and mission hazards. Unfamiliar urgent concerns get general escalation guidance. `chatSafety.ts` shares this routing with the repository and Edge Function while retaining the output wording guard. This broad keyword matching is not exhaustive and must never be presented as emergency detection or triage.
+
+The assistant does not share dashboard readings. NASA research chats are stored by life stage in the owner's Supabase session. Retired private conversation stays in browser session memory and is not sent to cloud AI or saved to the account.
 
 ## Urgent-language boundary
 

@@ -11,7 +11,7 @@ const mapMessage = (row: Row): ChatMessage => ({ id: String(row.id), role: row.r
 const mapConversation = (row: Row): ChatConversation => ({ id: String(row.id), stage: row.stage as LifeStage, title: String(row.title ?? "OrbitWell chat"), updatedAt: String(row.updated_at) });
 
 export function createChatRepository(client: SupabaseClient | null, userId: string | null) {
-  const unavailable = "Cloud chat is unavailable; this conversation is not saved remotely.";
+  const unavailable = "Cloud unavailable. Not saved remotely.";
   return {
     async listConversations(stage: LifeStage) {
       if (!client || !userId) return { data: [] as ChatConversation[], warning: unavailable };
@@ -27,18 +27,18 @@ export function createChatRepository(client: SupabaseClient | null, userId: stri
       if (!client || !userId) return { data: [] as ChatMessage[], warning: unavailable };
       const result = await client.from("chat_messages").select("id,role,content,created_at,status,answer_kind,citations,sanitized_query").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at", { ascending: true }).limit(60);
       return { data: (result.data ?? []).map(mapMessage).map((message) => message.role === "assistant" && !isAllowedChatOutput(message.content)
-        ? { ...message, content: "This older AI response cannot be displayed. Please bring personal medical questions to your crew medic. OrbitWell cannot diagnose or recommend medication doses.", source: "built-in" as const }
+        ? { ...message, content: "Older reply hidden. Ask again for a short answer.\nFor medical concerns, contact your crew medic.", source: "built-in" as const }
         : message), warning: result.error?.message };
     },
     async sendMessage(conversationId: string, stage: LifeStage, message: string, options: { sanitizedFromTopic?: EmergencyTopic } = {}): Promise<ChatSendResult> {
       const builtIn = (content: string): ChatMessage => ({ id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString(), status: "complete", source: "built-in", answerKind: "unavailable" });
       const safety = getUrgentSupport(message);
-      if (safety && !options.sanitizedFromTopic) return { data: { ...builtIn(safety.content), answerKind: "urgent_warning", supportTopic: safety.topic, resources: safety.resources }, warning: "Urgent guidance. This exchange was not sent to cloud AI or saved remotely." };
-      if (!client || !userId) return { data: builtIn(offlineChatReply(stage, message)), warning: unavailable };
+      if (safety && !options.sanitizedFromTopic) return { data: { ...builtIn(safety.content), answerKind: "urgent_warning", supportTopic: safety.topic, details: safety.details, resources: safety.resources }, warning: "Urgent guidance. This exchange was not sent to cloud AI or saved remotely." };
+      if (!client || !userId) return { data: builtIn(offlineChatReply(null, message)), warning: unavailable };
       const requestId = crypto.randomUUID();
       const result = await client.functions.invoke("chat-assistant", { body: { conversationId, stage, message, sanitizedFromTopic: options.sanitizedFromTopic, requestId } });
       if (result.error || !result.data?.message) return { error: result.data?.detail ?? result.data?.error ?? result.error?.message ?? "NASA research chat could not be completed." };
-      if (!isAllowedChatOutput(result.data.message.content)) return { data: builtIn(offlineChatReply(stage, message)), warning: "The AI response could not be shown. Built-in guidance is shown instead." };
+      if (!isAllowedChatOutput(result.data.message.content)) return { data: builtIn(offlineChatReply(null, message)), warning: "The AI response could not be shown. Built-in guidance is shown instead." };
       return { data: { ...mapMessage(result.data.message), source: "cloud" } };
     },
   };

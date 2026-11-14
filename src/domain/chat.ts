@@ -4,7 +4,7 @@ import type { EmergencyTopic, SupportResource } from "../../supabase/functions/_
 import type { ChatAnswerKind, NasaCitation } from "../../supabase/functions/_shared/nasaGrounding";
 
 export type ChatRole = "user" | "assistant";
-export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; resources?: SupportResource[]; answerKind?: ChatAnswerKind; citations?: NasaCitation[]; sanitizedQuery?: string };
+export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; details?: string; resources?: SupportResource[]; answerKind?: ChatAnswerKind; citations?: NasaCitation[]; sanitizedQuery?: string };
 export type ChatConversation = { id: string; stage: LifeStage; title: string; updatedAt: string };
 export type ChatSendResult = { data?: ChatMessage; warning?: string; error?: string };
 
@@ -13,5 +13,11 @@ export const stageName = (stage: LifeStage) => stage === "future" ? "Future trav
 export function offlineChatReply(stage: LifeStage | null, message: string): string {
   const safetyReply = chatSafetyReply(message);
   if (safetyReply) return safetyReply;
+  if (stage === "retired") {
+    if (/\b(earth|overview effect|orbit|planet|the view)\b/i.test(message)) return "That view can stay with you in many ways. What part of seeing Earth feels most present today?";
+    if (/\b(mission|spaceflight|retir\w*|different|purpose|identity)\b/i.test(message)) return "A mission can remain part of your story as daily life changes. What feels different for you lately?";
+    if (/\b(reconnect|lonel\w*|isolat\w*|miss (?:my )?(?:crew|friends|family)|people)\b/i.test(message)) return "Missing connection can feel heavy. Is there a person you would like to reach out to today?";
+    return "I'm here to listen. You can tell me about a memory, a change, or how today feels. What would you like to share?";
+  }
   return "NASA-grounded answers are unavailable right now. ORBIT will not answer from model memory; try again when the cloud connection is restored.";
 }
