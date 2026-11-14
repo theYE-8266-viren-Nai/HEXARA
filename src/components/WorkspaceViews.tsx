@@ -26,6 +26,7 @@ import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { formatMetricValue } from "../lib/formatMetricValue";
 import { LandingScene } from "./LandingScene";
+import { SpaceLoader } from "./SpaceLoader";
 import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
 import type { MovementBodyRegionId } from "../domain/movementBody";
 import type { MonthlyHistorySummary } from "../domain/monthlyHistory";
@@ -48,7 +49,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
           <h1 id="journey-title" className="landing-title landing-rise">Far from Earth.<br /><span>Close to your health.</span></h1>
           <p className="landing-intro landing-rise">OrbitWell tracks your vital signs against your own baseline and tells you what changed.</p>
           <h2 id="stage-options-title" className="landing-stage-title landing-rise">Choose your mission stage</h2>
-          {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="landing-stages landing-rise" aria-labelledby="stage-options-title">{options.map(({ stage, title, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`landing-stage journey-${stage}`}><span className="landing-stage-icon"><Icon size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">{title}</span><span className="landing-stage-body">{body}</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button>)}{onOpenGroundDemo ? <button type="button" className="landing-stage landing-stage-ground" onClick={onOpenGroundDemo}><span className="landing-stage-icon"><HeartPulse size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">Ground health team</span><span className="landing-stage-body">Review the whole crew's trends</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button> : null}</div>}
+          {loading ? <div className="tech-card journey-loading"><SpaceLoader message="Preparing your private workspace…" /></div> : <div className="landing-stages landing-rise" aria-labelledby="stage-options-title">{options.map(({ stage, title, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`landing-stage journey-${stage}`}><span className="landing-stage-icon"><Icon size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">{title}</span><span className="landing-stage-body">{body}</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button>)}{onOpenGroundDemo ? <button type="button" className="landing-stage landing-stage-ground" onClick={onOpenGroundDemo}><span className="landing-stage-icon"><HeartPulse size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">Ground health team</span><span className="landing-stage-body">Review the whole crew's trends</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button> : null}</div>}
         </section>
       </div>
     </div>
@@ -544,10 +545,8 @@ function LoadingPanel() {
   const connecting = Boolean(device?.connecting);
   return <section className={`${panelClass} device-connect`} role="status" aria-live="polite" aria-busy="true">
     <div className="flex items-start gap-3">
-      <span className={`device-connect-icon ${connecting ? "is-active" : ""}`} aria-hidden="true"><Watch size={20} /></span>
+      <SpaceLoader message={connecting ? device!.label : "Loading simulated signals…"} detail={connecting ? device!.detail : "Preparing the selected scenario and personal comparison."} />
       <div className="min-w-0 flex-1">
-        <h2 className="font-semibold text-white">{connecting ? device!.label : "Loading simulated signals…"}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{connecting ? device!.detail : "Preparing the selected scenario and personal comparison."}</p>
         {connecting ? <>
           <div className="device-progress" role="progressbar" aria-label="Wearable connection progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(device!.progress * 100)}><span style={{ width: `${Math.round(device!.progress * 100)}%` }} /></div>
           <ol className="device-steps" aria-label="Connection steps">{CONNECT_PHASES.map((step) => <li key={step.phase} data-state={step.phase === device!.phase ? "current" : CONNECT_PHASES.findIndex((item) => item.phase === device!.phase) > CONNECT_PHASES.findIndex((item) => item.phase === step.phase) ? "done" : "todo"}>{step.phase === "searching" ? "Find device" : step.phase === "pairing" ? "Pair" : "Sync data"}</li>)}</ol>
