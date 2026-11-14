@@ -23,8 +23,8 @@ describe("PatternCard", () => {
   it("shows a calm usual state with no drivers", () => {
     render(<PatternCard view={ok("usual")} />);
     expect(screen.getByText("Close to your usual pattern")).toBeInTheDocument();
-    expect(screen.getByRole("meter", { name: "Pattern score" })).toHaveAttribute("aria-valuenow", "8");
-    expect(screen.getByText(/No single signal stands out/)).toBeInTheDocument();
+    expect(screen.getByText(/Compared with your earlier 28 days.*3 signal.*included/)).toBeInTheDocument();
+    expect(screen.getByText(/Each of the 3 reviewed signals stayed inside its own usual range/)).toBeInTheDocument();
   });
 
   it("names the signals that changed together, with direction and percent", () => {
@@ -71,7 +71,7 @@ describe("PatternCard explain button", () => {
     render(<PatternCard view={ok("notably_different")} explain={{ request, run }} />);
     expect(run).not.toHaveBeenCalled();
     expect(screen.getByText(/de-identified summary.*Raw readings never leave your device/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+    await user.click(screen.getByRole("button", { name: "Explain in plain English" }));
     expect(run).toHaveBeenCalledWith(request);
     expect(await screen.findByText("Explanation by OrbitWell (AI-assisted)")).toBeInTheDocument();
     expect(screen.getByText(/Sleep was lower than your usual range/)).toBeInTheDocument();
@@ -83,9 +83,9 @@ describe("PatternCard explain button", () => {
     const run = vi.fn(() => new Promise<ExplainResult>((r) => { resolve = r; }));
     const user = userEvent.setup();
     render(<PatternCard view={ok("different")} explain={{ request, run }} />);
-    await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+    await user.click(screen.getByRole("button", { name: "Explain in plain English" }));
     expect(screen.getByText("Writing a short explanation…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Explain this pattern" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Explain in plain English" })).toBeDisabled();
     resolve({ text: "Sleep was lower, compared with your own usual range.", source: "template", reason: "timeout" });
     expect(await screen.findByText("Built-in explanation")).toBeInTheDocument();
     expect(screen.getByText(/took too long, so this is the built-in text/)).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("PatternCard explain button", () => {
     const user = userEvent.setup();
     for (const reason of ["not_configured", "error", "timeout", "unsafe", "invalid_request"] as const) {
       const { container, unmount } = render(<PatternCard view={ok("notably_different")} explain={{ request, run: async () => ({ text: "Sleep was lower, compared with your own usual range.", source: "template", reason }) }} />);
-      await user.click(screen.getByRole("button", { name: "Explain this pattern" }));
+      await user.click(screen.getByRole("button", { name: "Explain in plain English" }));
       await waitFor(() => expect(screen.getByText("Built-in explanation")).toBeInTheDocument());
       expect(isNonDiagnostic((container.textContent ?? "").replace("Not a diagnosis.", "").replace(/did not pass OrbitWell's wording check/, ""))).toBe(true);
       unmount();
