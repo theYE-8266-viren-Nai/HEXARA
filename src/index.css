@@ -63,27 +63,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .btn-square { border-radius: 10px; }
 .btn-square:hover { filter: brightness(1.12); }
+/* Guidance shortcuts use the same look as the primary action buttons (e.g. "Check in with yourself"). */
 .mission-guide-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 12px 18px;
-  border: 1px solid var(--accent);
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
   border-radius: 10px;
   background: var(--accent);
   color: var(--on-accent);
+  font-family: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
   text-decoration: none;
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 40%, var(--page-bg));
+  box-shadow: none;
   cursor: pointer;
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition: background-color 150ms ease;
 }
-.mission-guide-button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.mission-guide-button:active { box-shadow: none; }
+.mission-guide-button:hover { background: var(--accent-hover); }
 .mission-guide-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 
 /* The generic anatomy canvas is deliberately separate from signal/alert status. */

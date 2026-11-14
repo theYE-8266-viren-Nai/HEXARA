@@ -480,9 +480,9 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, on
       <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Finding your rhythm after flight</h1>
       <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">Use this guide to reflect on life after a mission, care for everyday wellbeing, and prepare for follow-up conversations.</p>
       <nav aria-label="Retirement guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
-        <a href="#retired-workflow" className="mission-guide-button">Using OrbitWell</a>
-        <a href="#retired-routine" className="mission-guide-button">Everyday wellbeing</a>
-        <a href="#retired-follow-ups" className="mission-guide-button">Follow-ups</a>
+        <a href="#retired-workflow" className="mission-guide-button">Using OrbitWell<ArrowRight size={16} aria-hidden="true" /></a>
+        <a href="#retired-routine" className="mission-guide-button">Everyday wellbeing<ArrowRight size={16} aria-hidden="true" /></a>
+        <a href="#retired-follow-ups" className="mission-guide-button">Follow-ups<ArrowRight size={16} aria-hidden="true" /></a>
       </nav>
     </header>
 
