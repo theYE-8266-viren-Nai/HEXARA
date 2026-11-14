@@ -424,6 +424,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .chat-empty .chat-stage-label { margin-top: 9px; font-size: 10px; color: var(--text-secondary); }
 .chat-empty button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--surface-inset); color: var(--text-primary); text-align: left; font-size: 11px; }
 .chat-empty button > svg { flex-shrink: 0; color: var(--muted); }
+.orbit-faq-grid { display: grid; gap: 7px; }
+.orbit-faq-grid button { min-width: 0; }
+.orbit-faq-grid button span { display: grid; gap: 3px; min-width: 0; }
+.orbit-faq-grid button strong { color: var(--text-primary); font-size: 11px; font-weight: 600; }
+.orbit-faq-grid button small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.chat-voice-button { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); padding: 5px 0; font-size: 10px; }
+.chat-voice-button:disabled { cursor: not-allowed; opacity: .55; }
 .chat-transcript { display: flex; flex-direction: column; gap: 14px; }
 .chat-message { display: flex; flex-direction: column; max-width: 94%; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .chat-message small { margin: 0 2px 4px; color: var(--muted); font-size: 9px; }
