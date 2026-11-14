@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, isFreeModel, extractText, extractUpstreamMessage, completeSentences, retryWhenUnsafe, type AttemptOutcome } from "../../supabase/functions/_shared/providers";
+import { ANTHROPIC_MODEL, GROQ_DEFAULT_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, chooseProviderChain, shouldFailOver, isFreeModel, extractText, extractUpstreamMessage, completeSentences, retryWhenUnsafe, type AttemptOutcome } from "../../supabase/functions/_shared/providers";
 import { buildSystemPrompt, buildUserPrompt, type ExplainRequest } from "../../supabase/functions/_shared/validate";
 
 const summary: ExplainRequest = { stage: "active", level: "different", patternScore: 60, dataQuality: "good", source: "api", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
@@ -205,7 +205,7 @@ describe("free models only (never spends credit)", () => {
 
   it("the functions that use the shared chooser pass the owner switch through, and none can hard-code paid models", () => {
     const sources = import.meta.glob("../../supabase/functions/*/index.ts", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
-    const usingChooser = Object.entries(sources).filter(([, code]) => code.includes("chooseProvider("));
+    const usingChooser = Object.entries(sources).filter(([, code]) => /chooseProvider(?:Chain)?\(/.test(code));
     const names = usingChooser.map(([path]) => path.split("/").slice(-2)[0]);
     expect(names).toEqual(expect.arrayContaining(["explain-pattern", "wellbeing-feedback"]));
     for (const [path, code] of usingChooser.filter(([path]) => !path.includes("chat-assistant"))) expect(code, path).toContain('ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS")');
@@ -215,5 +215,28 @@ describe("free models only (never spends credit)", () => {
     expect(chat).toContain("paid_model_blocked");
     // Without the switch the chooser blocks paid models, so a function that does not pass it is strict by default.
     for (const [path, code] of usingChooser) expect(code, path).not.toMatch(/ALLOW_PAID_MODELS:\s*["'`]true/);
+  });
+});
+
+describe("failover to free fallback providers", () => {
+  it("tries OpenRouter first, then Groq, then Gemini", () => {
+    const result = chooseProviderChain({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openrouter/free", GROQ_API_KEY: "groq-key", GEMINI_API_KEY: "gemini-key", GEMINI_MODEL: "gemini-2.5-flash-lite" });
+    expect(result.ok && result.chain.map((choice) => `${choice.provider}:${choice.model}`)).toEqual(["openrouter:openrouter/free", `groq:${GROQ_DEFAULT_MODEL}`, "gemini:gemini-2.5-flash-lite"]);
+  });
+  it("still works with only a fallback key, and reports the primary error when nothing is usable", () => {
+    const result = chooseProviderChain({ GROQ_API_KEY: "groq-key" });
+    expect(result.ok && result.chain.map((choice) => choice.provider)).toEqual(["groq"]);
+    expect(chooseProviderChain({})).toEqual({ ok: false, error: "not_configured" });
+  });
+  it("fails over on quota, credit, key, model and server errors but not on a bad request", () => {
+    for (const status of [401, 402, 403, 404, 408, 429, 500, 503]) expect(shouldFailOver(status), String(status)).toBe(true);
+    for (const status of [400, 413, 422]) expect(shouldFailOver(status), String(status)).toBe(false);
+  });
+  it("builds an OpenAI-compatible Groq request with the key only in the header", () => {
+    const request = buildProviderRequest({ ok: true, provider: "groq", apiKey: "groq-key", model: "openai/gpt-oss-120b" }, "system", "user");
+    expect(request.url).toBe("https://api.groq.com/openai/v1/chat/completions");
+    expect(request.headers.authorization).toBe("Bearer groq-key");
+    expect(request.body).not.toContain("groq-key");
+    expect(JSON.parse(request.body)).toMatchObject({ model: "openai/gpt-oss-120b", reasoning_effort: "low", messages: [{ role: "system" }, { role: "user" }] });
   });
 });

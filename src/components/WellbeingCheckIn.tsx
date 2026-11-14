@@ -1,6 +1,6 @@
-import { ArrowLeft, ArrowRight, Check, RotateCcw, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { summarizeCheckIn, visibleQuestions, type CheckInAnswers } from "../domain/wellbeingCheckIn";
+import { summarizeCheckIn, visibleQuestions, type CheckInAnswers, type WellbeingArea } from "../domain/wellbeingCheckIn";
 import { usePersistedState } from "../lib/usePersistedState";
 import type { LifeStage } from "../types/horizon";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -12,6 +12,25 @@ const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> =
   active: { kicker: "Wellbeing · In flight", title: "Daily check-in", lede: "A few quick questions about your last sleep period, your workload and life on board. Skip anything you'd rather not answer." },
   future: { kicker: "Wellbeing · Training", title: "Training check-in", lede: "A few quick questions about sleep, recovery and how training is going this week. Skip anything you'd rather not answer." },
   retired: { kicker: "Wellbeing · After flight", title: "A moment for yourself", lede: "Start with your feelings and connections. The questions are optional, one at a time, and your answers stay on this device." },
+};
+
+const SUMMARY_CONTEXT: Record<LifeStage, string> = {
+  active: "This helps you notice changes during mission work.",
+  future: "This helps you build a personal preparation pattern.",
+  retired: "This helps you notice changes during long-term follow-up.",
+};
+
+const GROUP_ORDER = ["Sleep and recovery", "Energy and workload", "Mood and stress", "Body comfort", "Crew, family, and purpose"] as const;
+const GROUP_BY_AREA: Record<WellbeingArea, (typeof GROUP_ORDER)[number]> = {
+  sleep: "Sleep and recovery",
+  energy: "Energy and workload",
+  stress: "Energy and workload",
+  mood: "Mood and stress",
+  body: "Body comfort",
+  connection: "Crew, family, and purpose",
+  purpose: "Crew, family, and purpose",
+  readiness: "Crew, family, and purpose",
+  followUp: "Crew, family, and purpose",
 };
 
 export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: SupabaseClient | null }) {
@@ -97,6 +116,9 @@ export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: 
 function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeStage; saved: NonNullable<SavedCheckIn>; onRestart: () => void; client: SupabaseClient | null }) {
   const summary = summarizeCheckIn(stage, saved.answers);
   const when = new Date(saved.completedAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const answerGroups = GROUP_ORDER.map((group) => ({ group, lines: summary.lines.filter((line) => GROUP_BY_AREA[line.area] === group) })).filter((group) => group.lines.length);
+  const primarySuggestion = summary.suggestions[0];
+  const suggestionReason = primarySuggestion?.area ? `This suggestion is based on your answers about ${GROUP_BY_AREA[primarySuggestion.area].toLowerCase()}.` : "This is a general reminder to keep noticing your own pattern.";
   const [feedback, setFeedback] = useState<string>();
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackWarning, setFeedbackWarning] = useState<string>();
@@ -107,25 +129,31 @@ function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeSt
     if (result.text) setFeedback(result.text); else setFeedbackWarning(result.warning ?? result.error ?? "AI feedback is unavailable right now.");
     setFeedbackBusy(false);
   };
-  const buttonLabel = feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : feedbackWarning ? "Try again" : "Get AI feedback";
+  const buttonLabel = feedbackBusy ? "Thinking…" : feedback ? "Refresh reflection" : feedbackWarning ? "Try again" : "Generate reflection";
   return <section className="tech-card checkin-summary" data-tone={summary.overall} aria-labelledby="checkin-summary-title">
     <div className="checkin-summary-head">
-      <div><p className="checkin-count">Your wellbeing summary · {when}</p><h2 id="checkin-summary-title">{summary.headline}</h2></div>
+      <div><p className="checkin-count">Wellbeing check-in · {when}</p><h2 id="checkin-summary-title">{summary.headline}</h2><p className="checkin-summary-context">{SUMMARY_CONTEXT[stage]}</p></div>
       <button type="button" className="btn-secondary" onClick={onRestart}><RotateCcw size={15} aria-hidden="true" /> New check-in</button>
     </div>
-    {summary.talkTo ? <div className="notice" data-tone="watch" role="note"><div className="notice-row"><UserRound size={18} aria-hidden="true" /><p>{summary.talkTo}</p></div></div> : null}
     <div className="builtin-steps" data-testid="builtin-steps">
-      {summary.lines.length ? <><h3 className="checkin-subhead">What you told us</h3><ul className="checkin-lines">{summary.lines.map((line, index) => <li key={index} data-concern={line.concern}>{line.text}</li>)}</ul></> : <p className="panel-note">You skipped every question, so there's nothing to summarise yet.</p>}
-      <h3 className="checkin-subhead">What might help</h3>
-      <div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div>
-      <small className="panel-note">Built from your own answers. Not medical advice or diagnosis.</small>
+      <section className="checkin-answer-section" aria-labelledby="checkin-answers-title">
+        <h3 id="checkin-answers-title" className="checkin-subhead">What you told us</h3>
+        {answerGroups.length ? <div className="checkin-answer-groups">{answerGroups.map(({ group, lines }) => <section key={group} className="checkin-answer-group"><h4>{group}</h4><ul className="checkin-lines">{lines.map((line, index) => <li key={`${line.area}-${index}`} data-concern={line.concern}><strong>{line.label ?? line.text}</strong>{line.label ? <span className="checkin-answer-detail">Selected in your check-in</span> : null}</li>)}</ul></section>)}</div> : <p className="panel-note">You skipped every question, so there is no answer summary yet.</p>}
+      </section>
+      <section className="checkin-next-step" aria-labelledby="checkin-next-step-title">
+        <h3 id="checkin-next-step-title" className="checkin-subhead">Suggested next step</h3>
+        {primarySuggestion ? <article className="checkin-suggestion-primary"><h4>{primarySuggestion.title}</h4><p>{primarySuggestion.body}</p><small>{suggestionReason}</small></article> : null}
+      </section>
     </div>
-    <div className="checkin-feedback">
-      <div className="checkin-section-head"><div><p className="ai-feedback-label">ORBIT · AI feedback · optional</p><h3 className="checkin-subhead">Want more tailored next steps?</h3></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{buttonLabel}</button></div>
-      {!feedback && !feedbackBusy && !feedbackWarning ? <p className="panel-note">Press the button to ask for AI feedback. Only the selected check-in themes are sent, and only when you press it. Your private note is never sent.</p> : null}
-      {feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing feedback from this check-in…</p> : null}
-      {feedback ? <article className="ai-feedback" aria-live="polite"><p>{feedback}</p><small>AI-assisted educational guidance, not medical advice or diagnosis.</small></article> : null}
-      {feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}
-    </div>
+    <details className="checkin-feedback">
+      <summary className="checkin-feedback-summary"><span><span className="ai-feedback-label">Optional AI reflection</span><strong>Want a second explanation?</strong></span><span className="checkin-optional-label">Optional</span></summary>
+      <div className="checkin-feedback-body">
+        <p className="panel-note">Horizon can turn the selected check-in themes into a short reflection and one or two possible next steps. Your private note and wearable readings are not sent.</p>
+        <button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{buttonLabel}</button>
+        {feedbackBusy && !feedback ? <p className="panel-note" role="status">Horizon is preparing a reflection from this check-in…</p> : null}
+        {feedback ? <article className="ai-feedback" aria-live="polite"><p className="ai-feedback-result-label">AI-assisted reflection</p><p>{feedback}</p><small>Educational only. Not medical advice, diagnosis, or mission guidance.</small></article> : null}
+        {feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}
+      </div>
+    </details>
   </section>;
 }

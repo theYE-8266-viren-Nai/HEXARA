@@ -22,7 +22,7 @@ async function reachSummary(user: ReturnType<typeof userEvent.setup>, pain = fal
     await user.click(next);
   }
   await user.click(await screen.findByRole("button", { name: "See my summary" }));
-  await screen.findByText(/Your wellbeing summary/);
+  await screen.findByText(/Wellbeing check-in/);
 }
 
 describe("wellbeing summary: AI feedback only when the person asks for it", () => {
@@ -36,9 +36,11 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     expect(generate).not.toHaveBeenCalled();
     const steps = screen.getByTestId("builtin-steps");
     expect(steps).toHaveTextContent("What you told us");
-    expect(steps).toHaveTextContent("What might help");
-    expect(screen.getByRole("button", { name: "Get AI feedback" })).toBeEnabled();
-    expect(screen.getByText(/only when you press it/)).toBeInTheDocument();
+    expect(steps).toHaveTextContent("Suggested next step");
+    expect(screen.getByRole("button", { name: "Generate reflection" })).toBeEnabled();
+    expect(screen.getByText("Broken sleep, still tired")).toBeInTheDocument();
+    expect(screen.getByText("Sleep and recovery")).toBeInTheDocument();
+    expect(screen.getByText(/private note and wearable readings are not sent/)).toBeInTheDocument();
     expect(screen.queryByText(/ORBIT is preparing feedback/)).not.toBeInTheDocument();
   });
 
@@ -46,13 +48,13 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     generate.mockResolvedValue({ text: "1. Wind down earlier tonight.\n2. Talk with your mission team about workload." });
     const user = userEvent.setup();
     await reachSummary(user);
-    await user.click(screen.getByRole("button", { name: "Get AI feedback" }));
+    await user.click(screen.getByRole("button", { name: "Generate reflection" }));
     expect(await screen.findByText(/Wind down earlier tonight/)).toBeInTheDocument();
     expect(generate).toHaveBeenCalledTimes(1);
     const sent = generate.mock.calls[0][0];
     expect(Object.keys(sent).sort()).toEqual(["concern", "headline", "lines", "stage"]);
     expect(screen.getByTestId("builtin-steps")).toBeInTheDocument(); // nothing disappears
-    expect(screen.getByRole("button", { name: "Refresh AI feedback" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Refresh reflection" })).toBeEnabled();
   });
 
   it("shows a loading line while the AI works, with the built-in steps still visible", async () => {
@@ -60,8 +62,8 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     generate.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     const user = userEvent.setup();
     await reachSummary(user);
-    await user.click(screen.getByRole("button", { name: "Get AI feedback" }));
-    expect(screen.getByText(/ORBIT is preparing feedback/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Generate reflection" }));
+    expect(screen.getByText(/Horizon is preparing a reflection/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Thinking…" })).toBeDisabled();
     expect(screen.getByTestId("builtin-steps")).toBeInTheDocument();
     finish({ text: "1. Keep your routine going." });
@@ -72,7 +74,7 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     generate.mockResolvedValueOnce({ error: FEEDBACK_ERROR_TEXT.upstream_unavailable }).mockResolvedValueOnce({ text: "1. Rest well tonight." });
     const user = userEvent.setup();
     await reachSummary(user);
-    await user.click(screen.getByRole("button", { name: "Get AI feedback" }));
+    await user.click(screen.getByRole("button", { name: "Generate reflection" }));
     expect(await screen.findByText("The AI service could not be reached.")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/upstream_unavailable/);
     expect(screen.getByTestId("builtin-steps")).toBeInTheDocument();
@@ -82,10 +84,10 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     expect(generate).toHaveBeenCalledTimes(2);
   });
 
-  it("always shows the crew-medic note when pain is reported, with no AI call at all", async () => {
+  it("does not duplicate the support notice in the summary when pain is reported", async () => {
     generate.mockResolvedValue({ text: "1. Contact your crew medic." });
     await reachSummary(userEvent.setup(), true);
-    expect(screen.getByRole("note")).toHaveTextContent("This app doesn't contact anyone for you.");
+    expect(screen.queryByText(/Some of your answers are worth talking through/)).not.toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(generate).not.toHaveBeenCalled();
   });
