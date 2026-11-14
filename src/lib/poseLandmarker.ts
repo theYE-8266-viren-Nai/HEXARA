@@ -11,8 +11,15 @@ import type { Landmark } from "../domain/poseFeatures";
 export interface PoseDetector { detect(video: HTMLVideoElement, timestampMs: number): Landmark[] | null; close(): void }
 export type PoseLoad = { ok: true; detector: PoseDetector } | { ok: false; reason: string };
 
+/**
+ * A native `import()` that Vite never rewrites. In the dev server Vite adds "?import" to every dynamic import it can see and then refuses
+ * files from /public ("should not be imported from source code"). Building the call with `new Function` hides it from Vite, so the browser
+ * loads the tracker file exactly as it is on disk. The same code is used in production builds.
+ */
+const nativeImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<unknown>;
+
 /** Mutable so tests can point at fakes and use short timeouts. */
-export const poseAssets = { module: "/mediapipe/vision_bundle.mjs", wasm: "/mediapipe/wasm", model: "/mediapipe/pose_landmarker_lite.task", timeoutMs: 20_000 };
+export const poseAssets = { module: "/mediapipe/vision_bundle.mjs", wasm: "/mediapipe/wasm", model: "/mediapipe/pose_landmarker_lite.task", timeoutMs: 20_000, importModule: nativeImport };
 
 interface VisionModule {
   FilesetResolver: { forVisionTasks(basePath: string): Promise<unknown> };
@@ -20,6 +27,7 @@ interface VisionModule {
 }
 
 let ready: Promise<PoseLoad> | null = null;
+
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -30,7 +38,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 async function load(): Promise<PoseLoad> {
   try {
-    const vision = await withTimeout(import(/* @vite-ignore */ poseAssets.module) as Promise<VisionModule>, poseAssets.timeoutMs);
+    const vision = await withTimeout(poseAssets.importModule(poseAssets.module) as Promise<VisionModule>, poseAssets.timeoutMs);
     const fileset = await withTimeout(vision.FilesetResolver.forVisionTasks(poseAssets.wasm), poseAssets.timeoutMs);
     const landmarker = await withTimeout(vision.PoseLandmarker.createFromOptions(fileset, { baseOptions: { modelAssetPath: poseAssets.model, delegate: "CPU" }, runningMode: "VIDEO", numPoses: 1 }), poseAssets.timeoutMs);
     return {
