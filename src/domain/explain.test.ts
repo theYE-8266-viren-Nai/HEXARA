@@ -5,6 +5,7 @@ import { NOT_ASSUMED } from "./deviceAssumptions";
 import { NOT_ASSUMED_LINES, buildSystemPrompt, buildUserPrompt, DRIVER_LABELS, EXPLAIN_LEVELS, EXPLAIN_SOURCES } from "../../supabase/functions/_shared/validate";
 import type { AssessmentView } from "../lib/useAssessment";
 import type { AnomalyAssessment } from "./anomalyModel";
+import type { MonthlyHistorySummary } from "./monthlyHistory";
 
 const valid: ExplainRequest = { stage: "active", level: "notably_different", patternScore: 100, dataQuality: "good", source: "simulated", audience: "traveler",
   drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -14.8 }, { metricLabel: "Resting heart rate", direction: "higher", changePct: 20.4 }, { metricLabel: "HRV", direction: "lower", changePct: -31.8 }] };
@@ -12,6 +13,8 @@ const valid: ExplainRequest = { stage: "active", level: "notably_different", pat
 const assessment = (over: Partial<AnomalyAssessment> = {}): AnomalyAssessment => ({ asOf: "2026-05-05", level: "notably_different", patternScore: 99.6, baselineDays: 30, metricsUsed: ["heart_rate"], elevatedDays: 2,
   drivers: [{ metric: "sleep_hours", label: "Sleep", direction: "lower", changePct: -14.84, contribution: 0.6, z: -3 }], ...over });
 const ok = (a: AnomalyAssessment): AssessmentView => ({ status: "ok", basis: "stored history", assessment: a });
+const monthly: MonthlyHistorySummary[] = [{ month: "2026-05", label: "May 2026", personalSummary: "Some signals were lower than your earlier personal pattern.", notableDays: 2, quality: "good", metrics: [{ metric: "sleep_hours", average: 6.1, minimum: 5.2, maximum: 7.1, observedDays: 31, direction: "lower" }] }];
+const monthlyRequest: NonNullable<ExplainRequest["monthlyHistory"]> = [{ month: "2026-05", personalSummary: monthly[0].personalSummary, notableDays: 2, quality: "good", metrics: [{ metricLabel: "Sleep", average: 6.1, minimum: 5.2, maximum: 7.1, observedDays: 31, direction: "lower" }] }];
 
 describe("explain request validation", () => {
   it("accepts a well-formed de-identified summary", () => {
@@ -61,6 +64,14 @@ describe("buildExplainRequest", () => {
     expect(request.dataQuality).toBe("limited");
     expect(request.source).toBe("api");
   });
+
+  it("adds bounded monthly context without raw observations or private fields", () => {
+    const request = buildExplainRequest(ok(assessment()), { ...context, monthlyHistory: monthly })!;
+    expect(request.monthlyHistory).toEqual([{ month: "2026-05", personalSummary: monthly[0].personalSummary, notableDays: 2, quality: "good", metrics: [{ metricLabel: "Sleep", average: 6.1, minimum: 5.2, maximum: 7.1, observedDays: 31, direction: "lower" }] }]);
+    expect(JSON.stringify(request)).not.toMatch(/traveler-|symptom|note|observed_on|2026-05-\d/);
+    expect(validateExplainRequest(request).ok).toBe(true);
+    expect(buildUserPrompt(request)).toContain("2026-05");
+  });
 });
 
 describe("built-in template explanation", () => {
@@ -86,6 +97,12 @@ describe("built-in template explanation", () => {
   });
 
   it("is deterministic", () => { expect(templateExplanation(valid)).toBe(templateExplanation({ ...valid })); });
+
+  it("uses monthly context in the offline fallback", () => {
+    const text = templateExplanation({ ...valid, monthlyHistory: monthlyRequest });
+    expect(text).toContain("2026-05");
+    expect(text).not.toMatch(/healthy|unhealthy|diagnos|clearance/i);
+  });
 });
 
 describe("safety language guard", () => {
