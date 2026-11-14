@@ -15,8 +15,9 @@ type Step = "intro" | "quality" | "countdown" | "capture" | "context" | "result"
 type Mode = "camera" | "synthetic";
 const panelClass = "tech-card p-5 sm:p-6";
 
-/** Movement checks are offered to astronauts in space and to retired astronauts back on Earth. */
-const stageCopy: Record<"active" | "retired", { eyebrow: string; title: string; note?: string }> = {
+/** Movement checks are offered before, during, and after flight with stage-appropriate tasks. */
+const stageCopy: Record<LifeStage, { eyebrow: string; title: string; note?: string }> = {
+  future: { eyebrow: "Movement check · Future traveler", title: "Build your movement practice" },
   active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent" },
   retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", note: "Practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };
@@ -123,8 +124,8 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
   };
 
   // Movement is not offered to Future travelers. The view is never routed to them, but fail safe if it is ever rendered.
-  if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">Movement checks are not part of this stage</h1><p className="mt-2 text-sm leading-6 text-slate-400">They are offered to astronauts in space and to retired astronauts doing reconditioning practice.</p></section>;
-  const copy = stageCopy[stage === "retired" ? "retired" : "active"];
+  if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">No movement checks are available</h1></section>;
+  const copy = stageCopy[stage];
   return <div className="space-y-7">
     <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1></header>
     <div className="max-w-2xl space-y-1 text-xs leading-5">

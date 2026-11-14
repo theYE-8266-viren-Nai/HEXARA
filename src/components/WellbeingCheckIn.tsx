@@ -19,11 +19,19 @@ export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: 
   const [answers, setAnswers] = useState<CheckInAnswers>({});
   const [note, setNote] = useState("");
   const [step, setStep] = useState(0);
+  const [showMoodIntro, setShowMoodIntro] = useState(stage === "future");
+  const [moodRating, setMoodRating] = useState(3);
   const questions = visibleQuestions(stage, answers);
   const onNoteStep = step >= questions.length;
   const copy = COPY[stage];
 
-  const restart = () => { setSaved(null); setAnswers({}); setNote(""); setStep(0); };
+  const restart = () => { setSaved(null); setAnswers({}); setNote(""); setStep(0); setMoodRating(3); setShowMoodIntro(stage === "future"); };
+  const beginQuestions = (includeMood: boolean) => {
+    if (includeMood) setAnswers((current) => ({ ...current, overallMood: String(moodRating) }));
+    else setAnswers((current) => { const { overallMood: _overallMood, ...rest } = current; return rest; });
+    setShowMoodIntro(false);
+    setStep(0);
+  };
   const choose = (questionId: string, optionId: string) => {
     const next = { ...answers, [questionId]: optionId };
     setAnswers(next);
@@ -41,7 +49,21 @@ export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: 
     </header>
     {saved ? <CheckInSummaryView stage={stage} saved={saved} onRestart={restart} client={client} /> : <section className="tech-card checkin-card" aria-live="polite">
       <div className="checkin-progress" aria-hidden="true"><span style={{ width: `${Math.round((Math.min(step, questions.length) / (questions.length + 1)) * 100)}%` }} /></div>
-      {!onNoteStep ? (() => {
+      {showMoodIntro ? <fieldset className="checkin-question mood-intro" aria-labelledby="mood-intro-title">
+        <legend><span className="checkin-count">A moment for you · Future traveler</span><h2 id="mood-intro-title">How have you felt overall today?</h2></legend>
+        <p className="checkin-hint">Take a moment to check in with yourself before your training questions.</p>
+        <div className="mood-intro-art" aria-hidden="true"><div className="mood-flower"><i /><i /><i /><i /><i /><span /></div></div>
+        <div className="mood-rating">
+          <label htmlFor="overall-mood-rating">Your mood today</label>
+          <strong>{["Very unpleasant", "Unpleasant", "Neutral", "Pleasant", "Very pleasant"][moodRating - 1]}</strong>
+          <input id="overall-mood-rating" type="range" min="1" max="5" step="1" value={moodRating} onChange={(event) => setMoodRating(Number(event.target.value))} aria-valuetext={["Very unpleasant", "Unpleasant", "Neutral", "Pleasant", "Very pleasant"][moodRating - 1]} />
+          <div className="mood-rating-scale" aria-hidden="true"><span>Very unpleasant</span><span>Very pleasant</span></div>
+        </div>
+        <div className="checkin-nav">
+          <button type="button" className="btn-link" onClick={() => beginQuestions(false)}>Skip mood check-in</button>
+          <button type="button" className="btn-primary" onClick={() => beginQuestions(true)}>Continue to questions <ArrowRight size={15} aria-hidden="true" /></button>
+        </div>
+      </fieldset> : !onNoteStep ? (() => {
         const question = questions[step];
         const current = answers[question.id];
         return <fieldset key={question.id} className="checkin-question">
@@ -54,7 +76,7 @@ export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: 
             </button>;
           })}</div>
           <div className="checkin-nav">
-            {step > 0 ? <button type="button" className="btn-secondary" onClick={() => setStep((value) => value - 1)}><ArrowLeft size={15} aria-hidden="true" /> Back</button> : <span />}
+            {step > 0 ? <button type="button" className="btn-secondary" onClick={() => setStep((value) => value - 1)}><ArrowLeft size={15} aria-hidden="true" /> Back</button> : stage === "future" ? <button type="button" className="btn-secondary" onClick={() => setShowMoodIntro(true)}><ArrowLeft size={15} aria-hidden="true" /> Mood check-in</button> : <span />}
             <button type="button" className={question.multi ? "btn-primary" : "btn-link"} onClick={() => setStep((value) => value + 1)}>{question.multi ? "Continue" : "Skip this question"}{question.multi ? <ArrowRight size={15} aria-hidden="true" /> : null}</button>
           </div>
         </fieldset>;

@@ -211,6 +211,15 @@ export function summarizeCheckIn(stage: LifeStage, answers: CheckInAnswers): Che
   const lines: CheckInSummary["lines"] = [];
   let escalate = false;
   const concernByArea = new Map<WellbeingArea, number>();
+  if (stage === "future" && typeof answers.overallMood === "string") {
+    const rating = Number(answers.overallMood);
+    const labels = ["very unpleasant", "unpleasant", "neutral", "pleasant", "very pleasant"];
+    if (Number.isInteger(rating) && rating >= 1 && rating <= labels.length) {
+      const concern = rating === 1 ? 2 : rating === 2 ? 1 : 0;
+      lines.push({ area: "mood", text: `Your overall mood today felt ${labels[rating - 1]}.`, concern });
+      concernByArea.set("mood", concern);
+    }
+  }
   for (const question of visibleQuestions(stage, answers)) {
     const answer = answers[question.id];
     if (question.multi) {

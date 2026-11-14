@@ -179,10 +179,10 @@ describe("VisualCheckView", () => {
     }
   });
 
-  it("fails safe if it is ever rendered for a Future traveler: no tasks and no camera", () => {
+  it("offers Future travelers land-based practice without a camera by default", () => {
     render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
-    expect(screen.getByRole("heading", { name: "Movement checks are not part of this stage" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Allow camera|Run synthetic demo/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Build your movement practice" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Sit-to-stand/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Allow camera/ })).not.toBeInTheDocument();
   });
 });

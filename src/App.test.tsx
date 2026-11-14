@@ -264,7 +264,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });
 
-  it("opens the retired mental friend and shows wearable information on Home", async () => {
+  it("opens the retired mental friend and reveals wearable information only from body regions", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace("retired");
@@ -273,27 +273,17 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByText("Your signals look usual")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "How are you feeling today?" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Making sense of the view" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Wearable activity, at a glance" })).toBeInTheDocument();
-    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
-    expect(screen.getByText("Mobility")).toBeInTheDocument();
-    expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
-    expect(screen.getByText("Connected measurements")).toBeInTheDocument();
-    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
-    expect(screen.getByText("HRV")).toBeInTheDocument();
-    expect(screen.getByText("SpO₂")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Wearable activity, at a glance" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Sleep duration")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connected measurements")).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Brain" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Chat with ORBIT" }));
     expect(screen.getByRole("dialog", { name: /ORBIT AI/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "I miss the view of Earth" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close chat" }));
-
-    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Core temperature" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Mobility" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Mobility trend chart" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Exercise minutes" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Exercise minutes trend chart" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Brain" }));
+    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Brain signals" })).toHaveAttribute("data-side", "right");
   });
 
   it("shows only one pairing action on retired Home until the wearable is paired", async () => {
@@ -308,7 +298,7 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByRole("heading", { name: "Life after the mission" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Mental friend" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Chat with ORBIT" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Wearable activity, at a glance" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Wearable activity, at a glance" })).not.toBeInTheDocument();
   });
 
   it("renders the safety disclaimer and switches stage by logging out and choosing another card", async () => {
@@ -625,11 +615,14 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByText(/Anchor your feet in a foot restraint/)).not.toBeInTheDocument(); // no restraint on Earth
   });
 
-  it("does not offer Movement to Future travelers anywhere", async () => {
+  it("offers Future travelers land-based Movement practice", async () => {
+    const user = userEvent.setup();
     await openWorkspace("future");
-    expect(screen.queryByRole("button", { name: "Movement" })).not.toBeInTheDocument(); // desktop, drawer and mobile bar alike
+    await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
+    expect(screen.getByRole("heading", { name: "Build your movement practice" })).toBeInTheDocument();
+    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Standing posture/ })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Wellbeing" }).length).toBeGreaterThan(0); // the other items are still there
-    expect(screen.queryByRole("heading", { name: /Movement checks are not part of this stage/ })).not.toBeInTheDocument();
   });
 
   it("shows the staged wearable loader, then live readings with a freshness badge", async () => {
