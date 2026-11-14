@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createWellbeingFeedbackRepository } from "./wellbeingFeedbackRepository";
+import { FEEDBACK_ERROR_TEXT, GENERIC_FEEDBACK_ERROR, createWellbeingFeedbackRepository, friendlyFeedbackError } from "./wellbeingFeedbackRepository";
 
 describe("wellbeing feedback repository", () => {
   it("returns a safe cloud response", async () => {
@@ -12,13 +12,37 @@ describe("wellbeing feedback repository", () => {
     const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: { message: "offline" } }) } } as never;
     const result = await createWellbeingFeedbackRepository(client).generate({ stage: "future", headline: "You seem to be doing well", concern: "steady", lines: ["Mood was steady."] });
     expect(result.text).toBeUndefined();
-    expect(result.error).toBe("offline");
+    // The person sees plain wording, never the raw message.
+    expect(result.error).toBe(GENERIC_FEEDBACK_ERROR);
   });
 
-  it("surfaces the function's safe JSON error detail", async () => {
+  it("turns the function's error code into plain wording", async () => {
     const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: "model_missing" }, error: { message: "Edge Function returned a non-2xx status code" } }) } } as never;
     const result = await createWellbeingFeedbackRepository(client).generate({ stage: "future", headline: "A steady check-in", concern: "steady", lines: ["Sleep was steady."] });
     expect(result.text).toBeUndefined();
-    expect(result.error).toBe("model_missing");
+    expect(result.error).toBe(FEEDBACK_ERROR_TEXT.model_missing);
+  });
+
+  it("never shows a raw error code or provider message", async () => {
+    for (const code of ["upstream_unavailable", "upstream_timeout", "upstream_error", "unsafe_output", "not_configured", "rate_limited", "something_new"]) {
+      const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: code, upstreamMessage: "Rate limit exceeded: free-models-per-day" }, error: { message: "non-2xx" } }) } } as never;
+      const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
+      expect(result.error, code).toBe(friendlyFeedbackError(code));
+      expect(result.error).not.toMatch(/upstream|_|free-models|non-2xx/i);
+    }
+  });
+
+  it("reads the code from the error response body when the data is empty", async () => {
+    const context = { json: async () => ({ error: "upstream_timeout" }) };
+    const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: { message: "non-2xx", context } }) } } as never;
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
+    expect(result.error).toBe(FEEDBACK_ERROR_TEXT.upstream_timeout);
+  });
+
+  it("falls back to plain wording when the call itself throws", async () => {
+    const client = { functions: { invoke: vi.fn().mockRejectedValue(new Error("Failed to fetch")) } } as never;
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
+    expect(result.error).toBe(FEEDBACK_ERROR_TEXT.upstream_unavailable);
+    expect(result.text).toBeUndefined();
   });
 });
