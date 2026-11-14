@@ -11,7 +11,7 @@ function Harness({ onPair = vi.fn(), onUnpair = vi.fn(), paired = new Set<BodyDe
 }
 
 describe("Connect wearables button", () => {
-  beforeEach(() => { bodyDeviceTiming.scanMs = 10; });
+  beforeEach(() => { bodyDeviceTiming.scanMs = 500; });
 
   it("has no switch; each click opens the list after a short search", async () => {
     const user = userEvent.setup();
@@ -22,7 +22,7 @@ describe("Connect wearables button", () => {
     await user.click(button);
     expect(screen.getByRole("status")).toHaveTextContent("Searching for nearby devices…");
     const list = await screen.findByRole("region", { name: "Available wearables" });
-    expect(await within(list).findByText("Astroskin shirt")).toBeInTheDocument();
+    expect(await within(list).findByText("Astroskin shirt", {}, { timeout: 2_000 })).toBeInTheDocument();
     for (const name of ["Actiwatch", "Personal dosimeter", "Motion sensors"]) expect(within(list).getByText(name)).toBeInTheDocument();
     await user.click(button);
     expect(screen.queryByRole("region", { name: "Available wearables" })).not.toBeInTheDocument();

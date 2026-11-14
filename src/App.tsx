@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
@@ -18,7 +18,6 @@ import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 import { ownerKeyFor, type VisualCheck, type VisualCheckType } from "./domain/visualCheck";
 import { movementRegionsForTask, primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
-import { ThemeProvider } from "./lib/theme";
 import { DeviceContext, type BodyDeviceControls } from "./lib/deviceContext";
 import { bodyDeviceTiming, type BodyDeviceId } from "./domain/bodyDevices";
 import { motionReadings } from "./domain/motionSensor";
@@ -56,7 +55,11 @@ function monthlyHistoryWindow(account: Account | null): MonthlyHistoryWindow {
 }
 
 export default function App() {
-  return <ThemeProvider><HorizonApp /></ThemeProvider>;
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = "dark";
+    document.documentElement.style.colorScheme = "dark";
+  }, []);
+  return <HorizonApp />;
 }
 
 function HorizonApp() {

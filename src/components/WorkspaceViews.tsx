@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
+import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, Check, CircleHelp, Compass, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, ShieldCheck, Sparkles, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { ActiveGuidanceView } from "./ActiveGuidanceView";
@@ -24,8 +24,8 @@ import { ProfileFields } from "./AccountViews";
 import { BaselineSummaryPanel } from "./BaselineSummaryPanel";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
-import { ThemeToggle } from "./ThemeToggle";
 import { formatMetricValue } from "../lib/formatMetricValue";
+import { OrbitalVisual } from "./OrbitalVisual";
 import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
 import type { MovementBodyRegionId } from "../domain/movementBody";
 import type { MonthlyHistorySummary } from "../domain/monthlyHistory";
@@ -34,35 +34,24 @@ const panelClass = "tech-card p-5 sm:p-6";
 
 export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDemo }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void; onOpenGroundDemo?: () => void }) {
   const options = [
-    { stage: "future" as const, title: "Future traveler", label: "BEFORE THE MISSION", body: "Build your baseline. Find your rhythm. Prepare for what’s ahead.", Icon: Rocket },
-    { stage: "active" as const, title: "Active astronaut", label: "DURING THE MISSION", body: "Your signals, wellbeing, and next steps. One clear view.", Icon: Orbit },
-    { stage: "retired" as const, title: "Retired astronaut", label: "BEYOND THE MISSION", body: "See the bigger picture. Reflect, recover, and reconnect.", Icon: Compass },
+    { stage: "future" as const, title: "Future astronaut", Icon: Rocket },
+    { stage: "active" as const, title: "Active astronaut", Icon: Orbit },
+    { stage: "retired" as const, title: "Retired astronaut", Icon: Compass },
   ];
   return <main className="star-field onboarding">
     <div className="onboarding-container">
-      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span><ThemeToggle /></div></header>
+      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span></div></header>
       <div className="onboarding-grid">
         <section className="journey-selection" aria-labelledby="journey-title">
           <p className="eyebrow"><span className="small-rule" /> YOUR SPACE. YOUR PACE.</p>
           <h1 id="journey-title">A universe to explore.<br /><span>A moment for you.</span></h1>
           <p className="journey-intro">A little clarity, wherever your journey takes you. Explore your health and wellbeing, one small step at a time.</p>
-          <div className="journey-section-label"><h2>Choose your mission stage</h2><span>Log in or create an account</span></div>
-          {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="journey-options">{options.map(({ stage, title, label, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={22} strokeWidth={1.4} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-kicker">{label}</span><h3>{title}</h3><span className="journey-description">{body}</span></span><span className="journey-arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></button>)}</div>}
-          {!loading && onOpenGroundDemo ? <button type="button" className="journey-ground-link" onClick={onOpenGroundDemo}><span className="journey-ground-icon"><HeartPulse size={20} aria-hidden="true" /></span><span><strong>Ground health team</strong><small>Open the synthetic mission dashboard</small></span><ArrowUpRight size={18} aria-hidden="true" /></button> : null}
-          <p className="journey-footnote"><ShieldCheck size={14} aria-hidden="true" /> Each astronaut has their own private account.</p>
+          <h2 id="stage-options-title" className="sr-only">Choose your mission stage</h2>
+          {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="journey-options" aria-labelledby="stage-options-title">{options.map(({ stage, title, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={25} strokeWidth={1.5} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-card-title">{title}</span></span><span className="journey-arrow"><ArrowUpRight size={21} aria-hidden="true" /></span></button>)}{onOpenGroundDemo ? <button type="button" className="journey-card journey-ground-link" onClick={onOpenGroundDemo}><span className="journey-icon"><HeartPulse size={25} strokeWidth={1.5} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-card-title">Ground health team</span></span><span className="journey-arrow"><ArrowUpRight size={21} aria-hidden="true" /></span></button> : null}</div>}
           {warning ? <details className="cloud-note"><summary>Exploring in demo mode · cloud save unavailable</summary><p>{warning} Accounts are saved only in this browser until the connection is available.</p></details> : null}
         </section>
-        <figure className="orbital-visual">
-          <img className="orbital-photo" src="/images/nasa-spacewalk.jpg" alt="NASA astronaut Bruce McCandless floating above the blue curve of Earth" fetchPriority="high" />
-          <div className="orbital-shade" />
-          <div className="orbital-topline"><span><span className="status-dot" /> THE HUMAN SIDE OF EXPLORATION</span><Orbit size={21} strokeWidth={1} aria-hidden="true" /></div>
-          <div className="orbit-path orbit-path-one" aria-hidden="true" /><div className="orbit-path orbit-path-two" aria-hidden="true" />
-          <span className="orbital-marker" aria-hidden="true"><span /> A LITTLE PERSPECTIVE</span>
-          <div className="orbital-caption"><p>Far from ordinary.<br /><span>Closer to yourself.</span></p><div className="visual-health-card"><span className="health-card-icon"><Activity size={21} aria-hidden="true" /></span><div><span>HUMAN, FIRST.</span><p>Small signals. Meaningful context.</p></div><svg viewBox="0 0 82 28" fill="none" aria-hidden="true"><path d="M1 17h17l5-7 6 15L38 2l8 22 5-9 5 2h25" stroke="currentColor" strokeWidth="1.5" /></svg></div></div>
-          <figcaption>STS-41B · Earth orbit <a href="https://www.nasa.gov/image-article/astronaut-bruce-mccandless-performs-the-first-untethered-spacewalk/" target="_blank" rel="noreferrer">Photography: NASA <ArrowUpRight size={11} aria-hidden="true" /></a></figcaption>
-        </figure>
+        <OrbitalVisual />
       </div>
-      <footer className="onboarding-footer"><p>Built around the person inside the spacesuit.</p><div><span><Activity size={14} />Personal patterns</span><span><Heart size={14} />Everyday wellbeing</span><span><ShieldCheck size={14} />Clear next steps</span></div></footer>
     </div>
     <SafetyDisclaimer landing />
   </main>;
@@ -85,7 +74,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
   const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
-  if (stage === "retired") return <div className="page retired-page">
+  if (stage === "retired") return <div className="page retired-page"><DeviceIdleGate stage={stage}>
     <header className="page-header"><div><p className="page-kicker">{profile.name} · Retired astronaut</p><h1>Life after the mission</h1><p className="page-lede">A place to talk about what matters to you.</p></div>{device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}</header>
     <section className="retired-advisor tech-card" aria-labelledby="retired-advisor-title">
       <span className="retired-advisor-icon" aria-hidden="true"><MessageCircleHeart size={30} /></span>
@@ -94,14 +83,13 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <p>Talk with ORBIT about life after flight, the view of Earth, your relationships, or whatever is on your mind. Start anywhere, at your own pace.</p>
       <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
     </section>
-    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /></DeviceIdleGate>}
     <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegions={bodyFocus?.regions} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
 
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
       <DataSourceStatus source={source} warning={warning} />
     </footer>
-  </div>;
+  </DeviceIdleGate></div>;
 
   return <div className="page">
     <header className="page-header">
@@ -110,7 +98,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         <h1>{stageContent.title}</h1>
         <p className="page-lede" id={stage === "active" ? "body-viewer-instructions" : undefined}>{stageContent.description}</p>
       </div>
-      <div className="page-meta home-device-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{(stage === "active" || stage === "future") && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
+      <div className="page-meta home-device-meta">{(stage === "active" || stage === "future") && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
     {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} {...(device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegions={bodyFocus?.regions} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
@@ -143,44 +131,6 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <DataSourceStatus source={source} warning={warning} />
     </footer>
   </div>;
-}
-
-function RetiredWearableSignals({ metrics, dataUnavailable, onViewTrends }: { metrics: MetricCardData[]; dataUnavailable: boolean; onViewTrends: () => void }) {
-  const metric = (name: MetricCardData["metric"]) => metrics.find((item) => item.metric === name);
-  const restingHeartRate = metric("resting_hr");
-  const hrv = metric("hrv");
-  const spo2 = metric("spo2");
-  const sleep = metric("sleep_hours");
-  const sleepTotalMinutes = sleep ? Math.round(sleep.value * 60) : 0;
-  const sleepHours = Math.floor(sleepTotalMinutes / 60);
-  const sleepMinutes = sleepTotalMinutes % 60;
-  const unavailable = "Unavailable";
-  const cards = [
-    { label: "Sleep duration", value: dataUnavailable || !sleep ? unavailable : `${sleepHours} h ${sleepMinutes} min`, comparison: sleep ? `Usual: ${sleep.baseline} ${sleep.unit}` : "Usual comparison unavailable", metadata: "Synthetic Apple Health · Simulated · Last night", Icon: Moon, spark: "2,19 18,19 34,19 50,19 66,19 82,19" },
-    { label: "Mobility", value: dataUnavailable ? unavailable : "Stable", comparison: "Usual: 90% walking steadiness", metadata: "Walking steadiness · Simulated · Updated today", Icon: Activity, spark: "2,20 17,12 31,16 44,8 57,13 70,6 82,12" },
-    { label: "Exercise minutes", value: dataUnavailable ? unavailable : "28 min", comparison: "Usual: 25 min", metadata: "Synthetic Apple Health · Simulated · Total today", Icon: Timer, spark: "2,22 16,12 30,12 44,13 57,8 70,15 82,11" },
-  ];
-  const measurements = [
-    { label: "Resting heart rate", value: dataUnavailable || !restingHeartRate ? unavailable : `${Math.round(restingHeartRate.value)} bpm`, usual: restingHeartRate ? `${restingHeartRate.baseline} ${restingHeartRate.unit}` : unavailable, metadata: "Synthetic Apple Health · Simulated · Daily resting summary", Icon: Heart, spark: "2,12 16,19 30,19 44,24 57,13 70,8 82,19" },
-    { label: "HRV", value: dataUnavailable || !hrv ? unavailable : `${Math.round(hrv.value)} ms`, usual: hrv ? `${hrv.baseline} ${hrv.unit}` : unavailable, metadata: "Synthetic Apple Health · Simulated · Latest reading", Icon: Activity, spark: "2,20 16,11 30,7 44,14 57,21 70,10 82,18" },
-    { label: "SpO₂", value: dataUnavailable || !spo2 ? unavailable : `${Math.round(spo2.value)}%`, usual: spo2 ? `${spo2.baseline}%` : unavailable, metadata: "Synthetic Apple Health · Simulated · Latest reading", Icon: Droplets, spark: "2,18 16,16 30,8 44,8 57,12 70,6 82,13" },
-  ];
-  return <section className="signals-section retired-wearable-signals" aria-labelledby="retired-signals-title">
-    <div className="mb-3 flex items-end justify-between gap-3"><div><p className="eyebrow">SIMULATED APPLE HEALTH</p><h2 id="retired-signals-title" className="text-xl font-semibold text-white">Wearable activity, at a glance</h2></div><button type="button" onClick={onViewTrends} className="text-sm font-semibold text-cyan-200 hover:text-cyan-100">See all trends</button></div>
-    <div className="metric-grid">{cards.map((card) => <RetiredSignalCard key={card.label} {...card} />)}</div>
-    <div className="connected-measurements-title"><Activity size={20} aria-hidden="true" /><div><h3>Connected measurements</h3><p>Synthetic Apple Health · Wellness context only</p></div></div>
-    <div className="metric-grid connected-measurements-grid">{measurements.map((card) => <RetiredSignalCard key={card.label} {...card} />)}</div>
-  </section>;
-}
-
-function RetiredSignalCard({ label, value, comparison, metadata, Icon, spark, usual }: { label: string; value: string; comparison?: string; metadata: string; Icon: typeof Activity; spark: string; usual?: string }) {
-  return <article className="metric-tile">
-    <div className="metric-header"><span className="metric-icon" aria-hidden="true"><Icon size={15} strokeWidth={1.75} /></span><p>{label}</p></div>
-    <p className="metric-value">{value}</p>
-    <p className="metric-delta">{comparison ?? `Usual: ${usual}`}</p>
-    <svg className="metric-sparkline" viewBox="0 0 84 28" preserveAspectRatio="none" fill="none" aria-hidden="true"><line x1="0" x2="84" y1="19" y2="19" className="metric-spark-baseline" /><polyline points={spark} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></svg>
-    <p className="metric-metadata">{metadata}</p>
-  </article>;
 }
 
 function RadiationPanel({ metric, solarEvents }: { metric?: MetricCardData; solarEvents?: SolarEventResult | null }) {
@@ -379,37 +329,10 @@ function FuturePreparationView({ preparationRepository }: { preparationRepositor
 }
 
 export function GuidanceView({ stage, preparationRepository, onViewChange, onOpenChat }: { stage: LifeStage; preparationRepository?: PreparationRepository; onViewChange: (view: ViewName) => void; onOpenChat?: () => void }) {
-  const [lessonComplete, setLessonComplete] = usePersistedState("horizon:trainee-lesson-complete", false);
-  const [summaryFields, setSummaryFields] = usePersistedState("horizon:retired-summary-fields", { trends: true, wellbeing: false });
   if (stage === "future") return <FuturePreparationView preparationRepository={preparationRepository} />;
-  if (stage === "retired") return <RetiredGuidanceView summaryFields={summaryFields} setSummaryFields={setSummaryFields} onViewChange={onViewChange} onOpenChat={onOpenChat} />;
+  if (stage === "retired") return <RetiredGuidanceView onViewChange={onViewChange} onOpenChat={onOpenChat} />;
   return <ActiveGuidanceView onViewChange={onViewChange} />;
 }
-
-type RetiredSummaryFields = { trends: boolean; wellbeing: boolean };
-type SyntheticDxaRecord = { id: string; reportDate: string; facility: string; lumbarSpineTScore: number; totalHipTScore: number; femoralNeckTScore: number; clinicianInterpretation: string; followUpDue: string };
-type SyntheticVisionRecord = { id: string; examDate: string; facility: string; visualAcuity: string; clinicianNote: string; followUpDue: string };
-type SyntheticAppointment = { date: string; reminder: boolean };
-
-const sampleDxaRecord: SyntheticDxaRecord = {
-  id: "sample-dxa-2026-05",
-  reportDate: "2026-05-12",
-  facility: "OrbitWell Medical Center",
-  lumbarSpineTScore: -1.4,
-  totalHipTScore: -1.1,
-  femoralNeckTScore: -1.3,
-  clinicianInterpretation: "Bone density is below the young-adult reference range. Review this result with prior studies, history, and a qualified clinician.",
-  followUpDue: "2027-05-12",
-};
-
-const sampleVisionRecord: SyntheticVisionRecord = {
-  id: "sample-vision-2026-08",
-  examDate: "2026-08-20",
-  facility: "OrbitWell Eye Clinic",
-  visualAcuity: "20/20 corrected · both eyes",
-  clinicianNote: "No urgent concern documented in this synthetic exam. Continue the follow-up plan and report new or worsening vision changes to a qualified eye-care professional.",
-  followUpDue: "2026-12-15",
-};
 
 const retiredEducationCards = [
   { group: "physical", title: "Movement & strength", subtitle: "Aerobic activity, strength, mobility, and gradual progression", Icon: Activity, points: ["Use a gradual, individualized plan that matches current ability and health history.", "Include a mix of aerobic, strength, mobility, and balance work rather than relying on one activity.", "Review pain, dizziness, unusual breathlessness, or a major change in capacity with a qualified professional."], resources: [{ label: "NASA strength, conditioning and rehabilitation", href: "https://www.nasa.gov/directorates/esdmd/hhp/astronaut-strength-conditioning-and-rehabilitation/" }] },
@@ -428,33 +351,17 @@ function RetiredEducationCard({ card }: { card: (typeof retiredEducationCards)[n
   return <details className="tech-card p-5 sm:p-7" open={title === "Emotional wellbeing"}><summary className="cursor-pointer text-base font-semibold text-white"><Icon className="mr-2 inline text-cyan-200" size={18} aria-hidden="true" />{title}</summary><p className="mt-3 text-sm leading-6 text-slate-400">{subtitle}</p><div className="mt-4 border-t border-slate-800 pt-4"><div className="space-y-3 text-sm leading-6 text-slate-300">{points.map((point) => <p key={point}>{point}</p>)}</div><div className="mt-4 border-t border-slate-800 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Supporting resources</p><div className="mt-3 flex flex-col items-start gap-2">{resources.map((resource) => <a key={resource.href} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 underline" href={resource.href} target="_blank" rel="noreferrer">{resource.label} <ArrowUpRight size={14} aria-hidden="true" /></a>)}</div></div></div></details>;
 }
 
-function formatSampleDate(value: string) {
-  return new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`));
-}
-
-function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, onOpenChat }: {
-  summaryFields: RetiredSummaryFields;
-  setSummaryFields: Dispatch<SetStateAction<RetiredSummaryFields>>;
+function RetiredGuidanceView({ onViewChange, onOpenChat }: {
   onViewChange: (view: ViewName) => void;
   onOpenChat?: () => void;
 }) {
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [dxaRecord, setDxaRecord] = useState<SyntheticDxaRecord | null>(null);
-  const [visionRecord, setVisionRecord] = useState<SyntheticVisionRecord | null>(null);
-  const [appointment, setAppointment] = useState<SyntheticAppointment | null>(null);
-  const selectedCount = Object.values(summaryFields).filter(Boolean).length;
-  const nextFollowUpOptions = [
-    visionRecord ? { label: "Vision follow-up", date: visionRecord.followUpDue } : null,
-    appointment ? { label: "Bone health appointment", date: appointment.date } : dxaRecord ? { label: "Bone health follow-up due", date: dxaRecord.followUpDue } : null,
-  ].filter((item): item is { label: string; date: string } => Boolean(item)).sort((a, b) => a.date.localeCompare(b.date));
-  const nextFollowUp = nextFollowUpOptions[0] ? `${nextFollowUpOptions[0].label} · ${formatSampleDate(nextFollowUpOptions[0].date)}` : "No follow-up scheduled";
   const workflow: Array<{ title: string; body: string; action: string; view?: ViewName; opensChat?: boolean; href?: string }> = [
     { title: "Confirm your sources", body: "Check your profile and device connection. This workspace combines simulated wearable readings with any sample records you choose to import.", action: "Check Profile", view: "profile" },
     { title: "Start with Home", body: "See your wearable summary and notice when a reading is unavailable or out of date. A device reading cannot tell you how you feel.", action: "Open Home", view: "home" },
     { title: "Look at longer patterns", body: "Use Trends to compare readings over time. Treat changes as context for a conversation, not a diagnosis or target.", action: "Review Trends", view: "trends" },
     { title: "Talk about life after flight", body: "Open ORBIT to reflect on the view of Earth, relationships, purpose, or anything else on your mind. Your experience does not need to fit one story.", action: "Talk with ORBIT", opensChat: true },
     { title: "Add your own perspective", body: "Use Wellbeing for a private check-in about mood, sleep, and daily life. Skipping a question never means you are feeling well.", action: "Open Wellbeing", view: "wellbeing" },
-    { title: "Prepare for follow-up", body: "Review your imported sample records and choose the context to bring to a qualified professional. Nothing is booked or shared automatically.", action: "View follow-ups", href: "#retired-follow-ups" },
+    { title: "Prepare for follow-up", body: "Note what has changed and bring your questions to a qualified professional. Nothing is booked or shared automatically.", action: "View follow-ups", href: "#retired-follow-ups" },
   ];
 
   return <div className="space-y-7">
@@ -514,45 +421,16 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, on
             ["Check the source", "Look at when a wearable reading was captured and whether the data is complete. A missing reading is not a reassuring result."],
             ["Add your own context", "Notice symptoms, sleep, mood, activity, and what has changed in daily life. You can seek support even when a chart looks usual."],
             ["Talk with the right person", "Bring new, persistent, or worsening concerns to a qualified professional. ORBIT can help you reflect but cannot contact anyone for you."],
-            ["Record the next step", "Use the dates and notes from your own records and care team. The sample appointment and reminder below stay in this demo."],
+            ["Record the next step", "Use the dates and notes from your own records and care team to keep track of the agreed plan."],
           ].map(([title, body], index) => <li key={title} className="flex items-start gap-3"><span className="mt-0.5 font-mono text-sm text-cyan-200">0{index + 1}</span><div><h3 className="font-semibold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></li>)}
         </ol>
         <p className="mt-5 border-t border-slate-700 pt-4 text-sm leading-6 text-slate-400">Do not change treatment or activity limits based on a wearable value or AI reply.</p>
       </div>
-      <div className={`${panelClass} border-cyan-300/30`} aria-labelledby="next-follow-up-title">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200"><CalendarDays size={22} /></span><div><p className="text-sm font-semibold text-cyan-200">Next follow-up</p><h3 id="next-follow-up-title" className="mt-1 text-xl font-semibold text-white">{nextFollowUp}</h3><p className="mt-2 text-sm text-slate-400">Dates update from imported sample records and the locally created appointment. Nothing is booked or sent.</p></div></div>
-          <a href="#appointment-summary" className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">Prepare now <ArrowRight size={16} /></a>
-        </div>
-      </div>
-    <section className={panelClass} aria-labelledby="health-areas-title">
-      <h2 id="health-areas-title" className="text-xl font-semibold text-white">Long-term follow-up preview</h2>
-      <div className="health-areas-grid mt-5 grid items-start gap-3">
-        <details className="group rounded-xl border border-slate-800 bg-slate-950/20 p-5">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-4"><span><span className="block font-semibold text-white">Bone-density trend over years</span><span className="mt-1 block text-sm text-slate-400">{dxaRecord ? "DXA report imported" : "Historical records are not connected."}</span></span><span className="text-sm font-semibold text-cyan-200 group-open:hidden">Details</span><span className="hidden text-sm font-semibold text-cyan-200 group-open:inline">Close</span></summary>
-          {dxaRecord ? <div className="mt-5 border-t border-slate-800 pt-4"><div className="flex justify-end"><button type="button" onClick={() => { setDxaRecord(null); setAppointment(null); }} className="text-xs font-semibold text-slate-400 underline hover:text-slate-200">Remove record</button></div><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Report date</dt><dd className="mt-1 font-semibold text-slate-200">{formatSampleDate(dxaRecord.reportDate)}</dd></div><div><dt className="text-slate-500">Recommended follow-up</dt><dd className="mt-1 font-semibold text-slate-200">{formatSampleDate(dxaRecord.followUpDue)}</dd></div><div><dt className="text-slate-500">Lumbar spine T-score</dt><dd className="mt-1 font-mono font-semibold text-slate-200">{dxaRecord.lumbarSpineTScore}</dd></div><div><dt className="text-slate-500">Total hip T-score</dt><dd className="mt-1 font-mono font-semibold text-slate-200">{dxaRecord.totalHipTScore}</dd></div><div><dt className="text-slate-500">Femoral neck T-score</dt><dd className="mt-1 font-mono font-semibold text-slate-200">{dxaRecord.femoralNeckTScore}</dd></div><div><dt className="text-slate-500">Source</dt><dd className="mt-1 font-semibold text-slate-200">{dxaRecord.facility}</dd></div></dl><div className="mt-4 rounded-xl bg-slate-950/30 p-4"><p className="text-sm font-semibold text-amber-100">Clinician interpretation from imported report</p><p className="mt-2 text-sm leading-6 text-slate-300">{dxaRecord.clinicianInterpretation}</p></div><div className="mt-4 flex flex-wrap items-center gap-3">{appointment ? <><span className="text-sm font-semibold text-emerald-200">Appointment: {formatSampleDate(appointment.date)}</span><label className="inline-flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={appointment.reminder} onChange={(event) => setAppointment({ ...appointment, reminder: event.target.checked })} className="size-4 accent-cyan-300" /> Create local reminder</label></> : <button type="button" onClick={() => setAppointment({ date: "2027-05-18", reminder: false })} className="rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">Create appointment</button>}</div>{appointment?.reminder ? <p className="mt-3 text-xs text-emerald-200" role="status">Local reminder created for {formatSampleDate(appointment.date)}. No external calendar or clinic was contacted.</p> : null}</div> : <div className="mt-5 border-t border-slate-800 pt-4"><p className="text-sm leading-6 text-slate-400">Import a built-in synthetic report to preview DXA results, a clinician-supplied interpretation, follow-up dates, and reminders.</p><button type="button" onClick={() => setDxaRecord(sampleDxaRecord)} className="btn-square mt-4 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">Import DXA report</button></div>}
-        </details>
-        <details className="group rounded-xl border border-slate-800 bg-slate-950/20 p-5">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-4"><span><span className="block font-semibold text-white">Vision and cardiovascular trend</span><span className="mt-1 block text-sm text-slate-400">{visionRecord ? "Eye-exam record imported; wearable trends available." : "Historical records are not connected."}</span></span><span className="text-sm font-semibold text-cyan-200 group-open:hidden">Details</span><span className="hidden text-sm font-semibold text-cyan-200 group-open:inline">Close</span></summary>
-          {visionRecord ? <div className="mt-5 border-t border-slate-800 pt-4"><div className="flex justify-end"><button type="button" onClick={() => setVisionRecord(null)} className="text-xs font-semibold text-slate-400 underline hover:text-slate-200">Remove record</button></div><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-slate-500">Exam date</dt><dd className="mt-1 font-semibold text-slate-200">{formatSampleDate(visionRecord.examDate)}</dd></div><div><dt className="text-slate-500">Recommended follow-up</dt><dd className="mt-1 font-semibold text-slate-200">{formatSampleDate(visionRecord.followUpDue)}</dd></div><div><dt className="text-slate-500">Recorded acuity</dt><dd className="mt-1 font-semibold text-slate-200">{visionRecord.visualAcuity}</dd></div><div><dt className="text-slate-500">Source</dt><dd className="mt-1 font-semibold text-slate-200">{visionRecord.facility}</dd></div></dl><div className="mt-4 rounded-xl bg-slate-950/30 p-4"><p className="text-sm font-semibold text-slate-200">Clinician note from imported record</p><p className="mt-2 text-sm leading-6 text-slate-300">{visionRecord.clinicianNote}</p><p className="mt-2 text-xs text-slate-500">OrbitWell displays the supplied note; it does not assess or diagnose vision.</p></div></div> : <div className="mt-5 border-t border-slate-800 pt-4"><p className="text-sm leading-6 text-slate-400"><span className="font-semibold text-slate-200">Source:</span> No eye-exam source is connected. Import a built-in synthetic record to preview its exam date, clinician note, and follow-up date.</p><button type="button" onClick={() => setVisionRecord(sampleVisionRecord)} className="btn-square mt-4 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">Import eye-exam record</button></div>}
-        </details>
-        <details className="group rounded-xl border border-slate-800 bg-slate-950/20 p-5">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-4"><span><span className="block font-semibold text-white">Sleep and mood context</span><span className="mt-1 block text-sm text-slate-400">Local check-ins can add sleep and mood context.</span></span><span className="text-sm font-semibold text-cyan-200 group-open:hidden">Details</span><span className="hidden text-sm font-semibold text-cyan-200 group-open:inline">Close</span></summary><div className="mt-5 border-t border-slate-800 pt-4"><p className="text-sm leading-6 text-slate-400"><span className="font-semibold text-slate-200">Source:</span> Sleep, mood, stress, and check-ins that you choose to save locally.</p><p className="mt-3 text-sm leading-6 text-slate-300"><span className="font-semibold text-slate-200">Guidance:</span> Use a short check-in to add personal context. Skipping a check-in never means that no concern exists.</p><button type="button" onClick={() => onViewChange("wellbeing")} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">Complete wellbeing check-in <ArrowRight size={16} /></button></div></details>
-      </div>
-    </section>
-
-    <section id="appointment-summary" className={panelClass} aria-labelledby="summary-title">
-      <div className="flex items-start gap-3"><FileText className="mt-1 shrink-0 text-cyan-200" /><div><h2 id="summary-title" className="text-xl font-semibold text-white">Prepare for your next appointment</h2><p className="mt-2 text-sm leading-6 text-slate-400">Choose the context you want to bring. Nothing is sent automatically.</p></div></div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2"><PrivacyToggle label="Wearable trend summary" checked={summaryFields.trends} onChange={() => setSummaryFields((current) => ({ ...current, trends: !current.trends }))} /><PrivacyToggle label="Wellbeing check-ins" checked={summaryFields.wellbeing} onChange={() => setSummaryFields((current) => ({ ...current, wellbeing: !current.wellbeing }))} /></div>
-      <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" aria-expanded={summaryOpen} aria-controls="retired-summary-preview" onClick={() => setSummaryOpen((open) => !open)} className="btn-square bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">{summaryOpen ? "Hide summary" : "Preview summary"}</button><span className="text-xs text-slate-500">{selectedCount} of 2 sections selected · saved locally</span></div>
-      {summaryOpen ? <div id="retired-summary-preview" className="mt-5 rounded-xl border border-slate-800 bg-slate-950/30 p-4" role="region" aria-label="Appointment summary preview"><p className="font-semibold text-white">Appointment conversation summary</p>{selectedCount ? <ul className="mt-3 space-y-2 text-sm text-slate-300">{summaryFields.trends ? <li>• Wearable trends and long-term context</li> : null}{summaryFields.wellbeing ? <li>• Locally saved wellbeing check-ins</li> : null}</ul> : <p className="mt-3 text-sm text-slate-400">Choose at least one section to include.</p>}<p className="mt-4 text-xs text-slate-500">Research demo. Not for diagnosis or emergency monitoring.</p></div> : null}
-    </section>
     </section>
   </div>;
 }
 
 function FieldLabel({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) { return <label className="block"><span className="flex items-baseline justify-between gap-3 text-sm font-semibold text-slate-200"><span>{label}</span>{hint ? <span className="text-xs font-normal text-slate-500">{hint}</span> : null}</span><span className="mt-2 block">{children}</span></label>; }
-function PrivacyToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) { return <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-950/30 px-3 py-3 text-sm text-slate-300"><span>{label}</span><input type="checkbox" checked={checked} onChange={onChange} className="size-4 accent-cyan-300" /></label>; }
 function DataNotice({ title, body }: { title: string; body: string }) { return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} role="status"><WifiOff className="mt-1 shrink-0 text-slate-300" /><div><h2 className="font-semibold text-white">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></section>; }
 function DataSourceStatus({ source, warning }: { source?: DashboardSource; warning?: string }) {
   if (!source) return null;
@@ -580,7 +458,7 @@ function LoadingPanel() {
 function DeviceIdleGate({ stage, children, hidePrompt = false }: { stage: LifeStage; children: ReactNode; hidePrompt?: boolean }) {
   const context = useDevice();
   const device = context?.status;
-  const wearables = stage === "active" || stage === "future" ? context?.bodyDevices : undefined;
+  const wearables = stage === "active" ? context?.bodyDevices : undefined;
   const connected = wearables ? wearables.paired.size > 0 : context?.bluetooth?.phase === "streaming";
   if (device && device.phase === "idle" && !connected) {
     if (hidePrompt) return null;

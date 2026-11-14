@@ -39,6 +39,6 @@ describe("device assumptions contract", () => {
   });
 
   it("keeps docs/device-assumptions.md in sync (run: npm run docs:assumptions)", () => {
-    expect(doc).toBe(renderAssumptionsMarkdown());
+    expect(doc.replace(/\r\n/g, "\n")).toBe(renderAssumptionsMarkdown());
   });
 });

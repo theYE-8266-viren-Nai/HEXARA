@@ -110,7 +110,3 @@ export function syntheticCrewTrends(person: GroundCrewMember, today = new Date()
     };
   });
 }
-
-export function crewMessageDraft(person: GroundCrewMember, mission: GroundMission): string {
-  return `To ${person.callSign} on ${mission.name}: Ground health team requests a private check-in through the approved medical communications channel. Please confirm receipt and connect with the crew medical officer and flight surgeon using mission procedures. This is a synthetic training draft; no message has been sent.`;
-}
