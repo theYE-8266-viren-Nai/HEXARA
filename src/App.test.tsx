@@ -21,11 +21,11 @@ async function waitForSignals() {
 }
 
 let accountNumber = 0;
-const labels = { active: "Active astronaut", future: "Future traveler", retired: "Retired astronaut" } as const;
+const labels = { active: "Active astronaut", future: "Astronaut in Training", retired: "Former astronaut" } as const;
 
 /** On a stage's account screen: continue a remembered account, or create a new one for that stage. */
 async function signInThroughStage(stage: keyof typeof labels) {
-  await userEvent.click(await screen.findByRole("button", { name: stage === "future" ? "Future astronaut" : labels[stage] }));
+  await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
   const remembered = screen.queryByRole("button", { name: /^Continue/ });
   if (remembered) { await userEvent.click(remembered); await screen.findByRole("button", { name: "Log out" }); return; }
   await userEvent.click(await screen.findByRole("button", { name: "Create an account" }));
@@ -138,11 +138,11 @@ describe("OrbitWell app shell", () => {
     await user.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
     await user.type(screen.getByLabelText("Password"), "test-password");
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("This account is registered as a Future traveler. Go back and choose the Future astronaut card");
+    expect(await screen.findByRole("alert")).toHaveTextContent("This account is registered as an Astronaut in Training. Go back and choose the Astronaut in Training card");
     expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Choose a different stage/ }));
-    await user.click(screen.getByRole("button", { name: "Future astronaut" }));
+    await user.click(screen.getByRole("button", { name: "Astronaut in Training" }));
     await user.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
     await user.type(screen.getByLabelText("Password"), "wrong-password");
     await user.click(screen.getByRole("button", { name: "Log in" }));
@@ -150,7 +150,7 @@ describe("OrbitWell app shell", () => {
     await user.clear(screen.getByLabelText("Password"));
     await user.type(screen.getByLabelText("Password"), "test-password");
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(await screen.findByText(/Test Future traveler · Future traveler/)).toBeInTheDocument();
+    expect(await screen.findByText(/Test Astronaut in Training · Astronaut in Training/)).toBeInTheDocument();
   });
 
   it("keeps the start page for a logged-in astronaut, then opens their workspace in one click", async () => {
@@ -162,7 +162,7 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.getByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
+    await user.click(screen.getByRole("button", { name: "Former astronaut" }));
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 
@@ -211,9 +211,9 @@ describe("OrbitWell app shell", () => {
   it("requires a stage choice and keeps all three paths accessible", async () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Future astronaut" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Astronaut in Training" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Active astronaut" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retired astronaut" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Former astronaut" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Life stage" })).not.toBeInTheDocument();
   });
 
@@ -252,7 +252,7 @@ describe("OrbitWell app shell", () => {
   });
 
   it.each([
-    ["future", "Build your starting pattern"],
+    ["future", "Train with your wearable"],
     ["retired", "Life after the mission"],
   ] as const)("enters the %s workspace from its stage card", async (stage, heading) => {
     await openWorkspace(stage);
@@ -303,7 +303,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Active monitoring workspace")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Log out" }));
     await signInThroughStage("retired");
-    expect(screen.getAllByText(/Retired astronaut/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Former astronaut/).length).toBeGreaterThan(0);
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
 
@@ -491,12 +491,19 @@ describe("OrbitWell app shell", () => {
     await openWorkspace("future");
 
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
-    const workspaceLabel = screen.getByText("Future traveler / preparation workspace");
+    const workspaceLabel = screen.getByText("Astronaut in Training / preparation workspace");
     expect(workspaceLabel.nextElementSibling).toContainElement(screen.getByRole("heading", { name: "Prepare with OrbitWell before your mission" }));
     expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Prepare with OrbitWell before your mission");
     expect(screen.getByRole("heading", { name: "Confirm your future workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Prepare your data connection" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Build your starting pattern" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "When a reading looks different" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tell the appropriate person" })).toBeInTheDocument();
+    const futureGuideNav = within(screen.getByRole("navigation", { name: "Future guidance sections" }));
+    expect(futureGuideNav.getAllByRole("link")).toHaveLength(3);
+    expect(futureGuideNav.getByRole("link", { name: "Using OrbitWell" })).toHaveAttribute("href", "#future-using-orbitwell");
+    expect(futureGuideNav.getByRole("link", { name: "Training guidance" })).toHaveAttribute("href", "#future-training-guidance");
+    expect(futureGuideNav.getByRole("link", { name: "When readings change" })).toHaveAttribute("href", "#future-changed-readings");
+    expect(screen.queryByRole("heading", { name: "Train with your wearable" })).not.toBeInTheDocument();
     expect(screen.getByText(/does not mean you are ready to fly/)).toBeInTheDocument();
     const practice = screen.getByRole("button", { name: /Equipment-free mobility/ });
     await user.click(practice);

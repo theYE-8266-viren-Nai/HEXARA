@@ -6,7 +6,7 @@ const points = (values: number[], baseline: number, alertedDays: number[] = []) 
 export const profiles: TravelerProfile[] = [
   { id: "maya", name: "Maya Chen", role: "Mission specialist", missionDay: 46, stage: "active" },
   { id: "leon", name: "Leon Hart", role: "First-time traveler", missionDay: 8, stage: "future" },
-  { id: "elena", name: "Elena Ruiz", role: "Retired astronaut", missionDay: 0, stage: "retired" },
+  { id: "elena", name: "Elena Ruiz", role: "Former astronaut", missionDay: 0, stage: "retired" },
 ];
 
 const usualMetrics: MetricCardData[] = [

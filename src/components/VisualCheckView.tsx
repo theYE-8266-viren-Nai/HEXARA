@@ -17,7 +17,7 @@ const panelClass = "tech-card p-5 sm:p-6";
 
 /** Movement checks are offered before, during, and after flight with stage-appropriate tasks. */
 const stageCopy: Record<LifeStage, { eyebrow: string; title: string; note?: string }> = {
-  future: { eyebrow: "Movement check · Future traveler", title: "Build your movement practice" },
+  future: { eyebrow: "Movement check · Astronaut in Training", title: "Build your movement practice" },
   active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent" },
   retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", note: "Practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };

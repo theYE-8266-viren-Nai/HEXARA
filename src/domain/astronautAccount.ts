@@ -19,9 +19,9 @@ export interface AstronautProfile {
 }
 
 export const STAGE_CHOICES: Array<{ stage: LifeStage; title: string; body: string }> = [
-  { stage: "future", title: "Future traveler", body: "Candidate or trainee preparing for a first flight." },
+  { stage: "future", title: "Astronaut in Training", body: "Candidate or trainee preparing for a first flight." },
   { stage: "active", title: "Active astronaut", body: "Currently assigned to, or flying, a mission." },
-  { stage: "retired", title: "Retired astronaut", body: "Has flown and now lives life after flight." },
+  { stage: "retired", title: "Former astronaut", body: "Has flown and now lives life after flight." },
 ];
 
 const BLOOD_TYPES = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"];

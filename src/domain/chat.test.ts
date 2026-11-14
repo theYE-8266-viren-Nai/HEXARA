@@ -3,9 +3,9 @@ import { offlineChatReply, stageName } from "./chat";
 
 describe("OrbitWell chat contract", () => {
   it("names each stage in plain language", () => {
-    expect(stageName("future")).toBe("Future traveler");
+    expect(stageName("future")).toBe("Astronaut in Training");
     expect(stageName("active")).toBe("Active astronaut");
-    expect(stageName("retired")).toBe("Retired astronaut");
+    expect(stageName("retired")).toBe("Former astronaut");
   });
 
   it("keeps urgent guidance pointed to human mission support", () => {

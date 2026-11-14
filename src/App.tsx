@@ -51,7 +51,7 @@ function monthlyHistoryWindow(account: Account | null): MonthlyHistoryWindow {
   if (profile.stage === "retired" && journey.lastLanding) {
     return { from: addDays(journey.lastLanding, -179), to: journey.lastLanding, note: "Showing the assumed 180-day window ending at your last landing." };
   }
-  return { note: profile.stage === "future" ? "Future travelers have no flight history yet; only available synthetic practice readings are shown." : "No follow-up date was entered, so all available synthetic readings are shown." };
+  return { note: profile.stage === "future" ? "Astronauts in Training have no flight history yet; only available synthetic practice readings are shown." : "No follow-up date was entered, so all available synthetic readings are shown." };
 }
 
 export default function App() {

@@ -2,28 +2,32 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { WellbeingCheckIn } from "./WellbeingCheckIn";
-import { hasSampleHistory } from "../domain/wellbeingHistory";
 
 describe("WellbeingCheckIn journal", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("shows sample data on only some recent days and never on old days", () => {
-    const today = new Date("2026-11-14T12:00:00");
-    expect(hasSampleHistory(new Date("2026-11-13T12:00:00"), today)).toBe(true);
-    expect(hasSampleHistory(new Date("2026-11-11T12:00:00"), today)).toBe(false);
-    expect(hasSampleHistory(new Date("2026-10-23T12:00:00"), today)).toBe(false);
-    expect(hasSampleHistory(new Date("2026-11-15T12:00:00"), today)).toBe(false);
+  it.each(["future", "active", "retired"] as const)("keeps sample history but hides its label and headline for the %s stage", async (stage) => {
+    render(<WellbeingCheckIn stage={stage} client={null} />);
+    await userEvent.click(screen.getByRole("button", { name: "Previous week" }));
+    const sampleDay = screen.getAllByRole("button", { name: /history available/i })[0];
+    await userEvent.click(sampleDay);
+    await userEvent.click(screen.getByRole("button", { name: "Check history for selected day" }));
+    expect(screen.queryByText("Sample history · simulated demo data")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Today looks hard|Mostly steady|doing well today/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("definition").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Delete check-in" })).not.toBeInTheDocument();
   });
 
   it("restores an existing reflection and allows deleting it", async () => {
     const earlierThisWeek = new Date();
-    earlierThisWeek.setDate(earlierThisWeek.getDate() - (earlierThisWeek.getDay() || 6));
+    earlierThisWeek.setDate(earlierThisWeek.getDate() - 1);
     earlierThisWeek.setHours(9, 0, 0, 0);
     window.localStorage.setItem("horizon:journal:future", JSON.stringify([{ id: "existing", createdAt: earlierThisWeek.toISOString(), text: "Earlier reflection." }]));
     const user = userEvent.setup();
     render(<WellbeingCheckIn stage="future" client={null} />);
+    if (new Date().getDay() === 0) await user.click(screen.getByRole("button", { name: "Previous week" }));
     const week = screen.getByLabelText("Recent days");
-    await user.click(within(week).getAllByRole("button", { name: /history available/i })[0]);
+    await user.click(within(week).getByRole("button", { name: new RegExp(earlierThisWeek.toLocaleDateString(undefined, { dateStyle: "full" })) }));
     await user.click(screen.getByRole("button", { name: "Check history for selected day" }));
     expect(screen.getByText("Earlier reflection.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add a journal reflection" })).not.toBeInTheDocument();
