@@ -86,17 +86,8 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
   const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
-  if (stage === "retired" && device && !(device.status.hasPaired ?? device.status.paired)) return <div className="page retired-pair-page">
-    <section className="retired-pair-card tech-card" aria-labelledby="retired-pair-title">
-      <span className="retired-pair-icon" aria-hidden="true"><Watch size={28} /></span>
-      <p className="eyebrow">RETIRED ASTRONAUT · FIRST STEP</p>
-      <h1 id="retired-pair-title">No device paired</h1>
-      <button type="button" className="btn-primary" onClick={device.status.pair}><Watch size={17} aria-hidden="true" /> Connect wearables</button>
-    </section>
-  </div>;
-
   if (stage === "retired") return <div className="page retired-page">
-    <header className="page-header"><div><p className="page-kicker">{profile.name} · Retired astronaut</p><h1>Life after the mission</h1><p className="page-lede">A place to talk about what matters to you.</p></div></header>
+    <header className="page-header"><div><p className="page-kicker">{profile.name} · Retired astronaut</p><h1>Life after the mission</h1><p className="page-lede">A place to talk about what matters to you.</p></div>{device?.bodyDevices ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}</header>
     <section className="retired-advisor tech-card" aria-labelledby="retired-advisor-title">
       <span className="retired-advisor-icon" aria-hidden="true"><MessageCircleHeart size={30} /></span>
       <p className="eyebrow">A SPACE TO TALK</p>
@@ -104,7 +95,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <p>Talk with ORBIT about life after flight, the view of Earth, your relationships, or whatever is on your mind. Start anywhere, at your own pace.</p>
       <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
     </section>
-    <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
+    <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} {...(device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
 
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
@@ -119,11 +110,11 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         <h1>{stageContent.title}</h1>
         <p className="page-lede" id={stage === "active" ? "body-viewer-instructions" : undefined}>{stageContent.description}</p>
       </div>
-      <div className="page-meta home-device-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
+      <div className="page-meta home-device-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{(stage === "active" || stage === "future") && device?.bodyDevices ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
-    {stage === 'active' || stage === 'future' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={stage === 'active' ? alert : null} onViewChange={onViewChange} {...(stage === "active" && device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
+    {stage === 'active' || stage === 'future' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={stage === 'active' ? alert : null} onViewChange={onViewChange} {...(device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
-    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage} hidePrompt={stage === "active" && Boolean(device?.bodyDevices)}><>
+    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage} hidePrompt={Boolean(device?.bodyDevices)}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
         <div className="status-card-main">
           <StatusChip severity={status} />
@@ -594,7 +585,7 @@ function LoadingPanel() {
 function DeviceIdleGate({ stage, children, hidePrompt = false }: { stage: LifeStage; children: ReactNode; hidePrompt?: boolean }) {
   const context = useDevice();
   const device = context?.status;
-  const wearables = stage === "active" ? context?.bodyDevices : undefined;
+  const wearables = stage === "active" || stage === "future" ? context?.bodyDevices : undefined;
   const connected = wearables ? wearables.paired.size > 0 : context?.bluetooth?.phase === "streaming";
   if (device && device.phase === "idle" && !connected) {
     if (hidePrompt) return null;

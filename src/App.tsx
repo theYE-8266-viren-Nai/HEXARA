@@ -351,5 +351,5 @@ function HorizonApp() {
     }
   })();
 
-  return <DeviceContext.Provider value={{ bodyDevices: bodyDeviceControls, status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && view === "home" && !devicePaired ? undefined : { client: supabase, userId, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ bodyDevices: bodyDeviceControls, status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
 }
