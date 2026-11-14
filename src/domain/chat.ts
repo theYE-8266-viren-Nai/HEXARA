@@ -2,9 +2,10 @@ import type { LifeStage } from "../types/horizon";
 import { chatSafetyReply } from "../../supabase/functions/_shared/chatSafety";
 import type { EmergencyTopic, SupportResource } from "../../supabase/functions/_shared/emergencySupport";
 import type { ChatAnswerKind, NasaCitation } from "../../supabase/functions/_shared/nasaGrounding";
+import type { OrbitFaqCategory } from "./orbitFaq";
 
 export type ChatRole = "user" | "assistant";
-export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; details?: string; resources?: SupportResource[]; answerKind?: ChatAnswerKind; citations?: NasaCitation[]; sanitizedQuery?: string };
+export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; details?: string; resources?: SupportResource[]; answerKind?: ChatAnswerKind; citations?: NasaCitation[]; sanitizedQuery?: string; category?: OrbitFaqCategory; inputMode?: "text" | "voice" };
 export type ChatConversation = { id: string; stage: LifeStage; title: string; updatedAt: string };
 export type ChatSendResult = { data?: ChatMessage; warning?: string; error?: string };
 

@@ -45,12 +45,11 @@ describe('Human body viewer', () => {
     await waitFor(() => expect(slider).toBeEnabled());
     fireEvent.change(slider, {target:{value:'180'}});
     expect(engine.rotate).toHaveBeenLastCalledWith(180);
-    expect(screen.getByRole('button', {name:'Turn right'})).toBeDisabled();
+    expect(screen.queryByRole('button', {name:'Turn right'})).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'ArrowRight'});
     expect(engine.rotate).toHaveBeenLastCalledWith(180);
     fireEvent.change(slider, {target:{value:'-180'}});
-    expect(screen.getByRole('button', {name:'Turn left'})).toBeDisabled();
-    await user.click(screen.getByRole('button', {name:'Front view'}));
+    fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'Home'});
     expect(slider).toHaveValue('0');
     fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'ArrowLeft'});
     expect(slider).toHaveValue('-15');
@@ -59,6 +58,23 @@ describe('Human body viewer', () => {
     expect(clampBodyRotation(999)).toBe(180);
     expect(clampBodyRotation(-999)).toBe(-180);
     view.unmount(); expect(engine.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the region list open through selections until the chooser is toggled', async () => {
+    const user = userEvent.setup();
+    render(<HumanBodyViewer metrics={metrics()} pairedDevices={ALL_DEVICES} motion={motion} />);
+    await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
+    const chooser = screen.getByRole('button', {name:'Choose a body region'});
+    await user.click(chooser);
+    const options = document.getElementById('body-region-options')!;
+    const count = within(options).getAllByRole('button').length;
+    await user.click(within(options).getByRole('button', {name:'Brain'}));
+    expect(chooser).toHaveAttribute('aria-expanded','true');
+    expect(within(options).getAllByRole('button')).toHaveLength(count);
+    expect(screen.getByRole('complementary', {name:'Brain signals'})).toHaveAttribute('data-side','right');
+    await user.click(chooser);
+    expect(document.getElementById('body-region-options')).toBeNull();
+    expect(screen.getByRole('complementary', {name:'Brain signals'})).toBeInTheDocument();
   });
 
   it('supports horizontal pointer drag and stops on release', async () => {
@@ -83,7 +99,7 @@ describe('Human body viewer', () => {
     engine.fail = true;
     const user = userEvent.setup(); render(<HumanBodyViewer />);
     expect(await screen.findByText('3D view unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('button', {name:'Turn left'})).toBeDisabled();
+    expect(screen.getByRole('slider')).toBeDisabled();
     engine.fail = false;
     await user.click(screen.getByRole('button', {name:'Try again'}));
     await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
@@ -123,7 +139,7 @@ describe('Human body viewer', () => {
     expect(back).toHaveTextContent('Upright posture');
     expect(back).not.toHaveTextContent('Sit-to-stand');
     await user.click(screen.getByRole('button', {name:'Back'}));
-    await user.click(screen.getByRole('button', {name:'Front view'}));
+    fireEvent.change(screen.getByRole('slider'), {target:{value:'0'}});
     const expected: Record<string, { has: string[]; not: string[] }> = {
       Brain: { has: ['Sleep'], not: ['Resting heart rate'] },
       Lungs: { has: ['SpO₂'], not: ['HRV'] },
