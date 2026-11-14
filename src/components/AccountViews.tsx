@@ -4,7 +4,6 @@ import { emptyProfile, profileGroups, STAGE_CHOICES, validateProfile, type Astro
 import { checkCredentials, type Account, type AccountRepository } from "../lib/accountRepository";
 import type { LifeStage } from "../types/horizon";
 import { Brand, SafetyDisclaimer } from "./AppShell";
-import { ThemeToggle } from "./ThemeToggle";
 
 const STAGE_ICONS: Record<LifeStage, typeof Rocket> = { future: Rocket, active: Orbit, retired: Compass };
 
@@ -22,7 +21,7 @@ export function AccountScreen({ stage, repository, account, onDone, onBack, onLo
   const Icon = STAGE_ICONS[stage];
   return <main className="star-field onboarding account-page">
     <div className="onboarding-container">
-      <header className="onboarding-topbar"><Brand /><div className="onboarding-actions"><ThemeToggle /></div></header>
+      <header className="onboarding-topbar"><Brand /></header>
       <div className="account-layout">
         <button type="button" className="btn-link account-back" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" /> Choose a different stage</button>
         <div className="account-stage"><span className="stage-choice-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.5} /></span><div><p className="account-stage-title">{choice.title}</p><p className="account-stage-body">{choice.body}</p></div></div>
@@ -53,7 +52,8 @@ function LoginForm({ stage, repository, onDone, onSignup }: { stage: LifeStage; 
       // Each stage only opens its own accounts.
       await repository.signOut();
       setBusy(false);
-      setError(`This account is registered as ${withArticle(stageName(result.account.profile.stage))}. Go back and choose the ${stageName(result.account.profile.stage)} card to log in.`);
+      const cardName = result.account.profile.stage === "future" ? "Future astronaut" : stageName(result.account.profile.stage);
+      setError(`This account is registered as ${withArticle(stageName(result.account.profile.stage))}. Go back and choose the ${cardName} card to log in.`);
       return;
     }
     setBusy(false);
