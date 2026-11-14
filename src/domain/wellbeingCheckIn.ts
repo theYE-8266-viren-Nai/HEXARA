@@ -170,8 +170,8 @@ export type OverallState = "steady" | "watch" | "hard";
 export interface CheckInSummary {
   overall: OverallState;
   headline: string;
-  lines: Array<{ area: WellbeingArea; text: string; label?: string; concern: number }>;
-  suggestions: Array<{ title: string; body: string; area?: WellbeingArea }>;
+  lines: Array<{ area: WellbeingArea; text: string; concern: number }>;
+  suggestions: Array<{ title: string; body: string }>;
   /** Present when an answer should be discussed with a person. Never sent automatically. */
   talkTo?: string;
 }
@@ -216,7 +216,7 @@ export function summarizeCheckIn(stage: LifeStage, answers: CheckInAnswers): Che
     const labels = ["very unpleasant", "unpleasant", "neutral", "pleasant", "very pleasant"];
     if (Number.isInteger(rating) && rating >= 1 && rating <= labels.length) {
       const concern = rating === 1 ? 2 : rating === 2 ? 1 : 0;
-      lines.push({ area: "mood", label: labels[rating - 1], text: `Your overall mood today felt ${labels[rating - 1]}.`, concern });
+      lines.push({ area: "mood", text: `Your overall mood today felt ${labels[rating - 1]}.`, concern });
       concernByArea.set("mood", concern);
     }
   }
@@ -232,7 +232,7 @@ export function summarizeCheckIn(stage: LifeStage, answers: CheckInAnswers): Che
     }
     const option = question.options.find((candidate) => candidate.id === answer);
     if (!option) continue;
-    lines.push({ area: question.area, label: option.label, text: option.summary, concern: option.concern });
+    lines.push({ area: question.area, text: option.summary, concern: option.concern });
     concernByArea.set(question.area, Math.max(concernByArea.get(question.area) ?? 0, option.concern));
     if (option.escalate) escalate = true;
   }
@@ -240,16 +240,15 @@ export function summarizeCheckIn(stage: LifeStage, answers: CheckInAnswers): Che
   const high = concerns.filter((value) => value >= 3).length;
   const medium = concerns.filter((value) => value === 2).length;
   const overall: OverallState = high >= 2 || (high >= 1 && medium >= 2) || escalate ? "hard" : high || medium ? "watch" : "steady";
-  const headline = overall === "steady" ? "Your answers look steady today." : overall === "watch" ? "A few answers are worth noticing." : "You marked something that may need support.";
-  const suggestions: CheckInSummary["suggestions"] = [...concernByArea.entries()]
-    .filter(([, concern]) => concern >= 2)
+  const headline = overall === "steady" ? "You seem to be doing well today." : overall === "watch" ? "Mostly steady, with a few things to look after." : "Today looks hard. You don't have to handle it alone.";
+  const rankedSuggestions = [...concernByArea.entries()]
     .sort((a, b) => b[1] - a[1])
-    .flatMap(([area]) => {
-      const suggestion = SUGGESTIONS[stage][area];
-      return suggestion ? [{ ...suggestion, area }] : [];
-    })
-    .slice(0, 3);
-  if (!suggestions.length) suggestions.push({ title: "Keep your routine going", body: "Keep your usual routine and check in again tomorrow so changes are easier to notice." });
+    .map(([area]) => SUGGESTIONS[stage][area])
+    .filter((item): item is { title: string; body: string } => Boolean(item));
+  const hasConcern = [...concernByArea.values()].some((concern) => concern >= 2);
+  const suggestions = hasConcern
+    ? rankedSuggestions.slice(0, 4)
+    : [{ title: "Keep your routine going", body: "Whatever you're doing is working. Check in again tomorrow so changes are easier to notice." }, ...rankedSuggestions.slice(0, 3)];
   return { overall, headline, lines, suggestions, talkTo: escalate ? `Some of your answers are worth talking through with ${PERSON[stage]}. This app doesn't contact anyone for you.` : undefined };
 }
 
