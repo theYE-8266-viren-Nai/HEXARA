@@ -131,23 +131,41 @@ describe('Human body viewer', () => {
     }
   });
 
-  it('shows no selectable parts until a device is paired, then only that device\'s parts', async () => {
+  it('always shows every dot: red and not connected until its device is paired, then green with readings', async () => {
     const user = userEvent.setup();
     const onPair = vi.fn();
     const view = render(<HumanBodyViewer metrics={metrics()} onPairDevice={onPair} motion={motion} />);
     await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
-    expect(screen.queryByRole('button', {name:'Heart'})).not.toBeInTheDocument();
+    for (const name of ['Heart','Brain','Lungs','Chest','Legs','Skin']) {
+      const dot = screen.getByRole('button', {name:`${name}, not connected`});
+      expect(dot).toHaveAttribute('data-connected', 'false');
+    }
     expect(screen.getByText('No devices paired')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name:'Find devices'}));
+
+    await user.click(screen.getByRole('button', {name:'Heart, not connected'}));
+    const panel = screen.getByRole('complementary', {name:'Heart signals'});
+    expect(panel).toHaveTextContent('Not connected. Pair the Astroskin shirt to see heart signals.');
+    expect(panel).not.toHaveTextContent('Resting heart rate');
+    await user.click(within(panel).getByRole('button', {name:'Pair Astroskin shirt'}));
+    expect(onPair).toHaveBeenCalledWith('astroskin');
+
+    view.rerender(<HumanBodyViewer metrics={metrics()} pairedDevices={new Set<BodyDeviceId>(['astroskin'])} motion={motion} />);
+    expect(screen.getByRole('button', {name:'Heart'})).toHaveAttribute('data-connected', 'true');
+    expect(screen.getByRole('complementary', {name:'Heart signals'})).toHaveTextContent('Resting heart rate');
+    for (const name of ['Lungs','Skin']) expect(screen.getByRole('button', {name})).toHaveAttribute('data-connected', 'true');
+    for (const name of ['Brain','Chest','Legs']) expect(screen.getByRole('button', {name:`${name}, not connected`})).toBeInTheDocument();
+    expect(screen.getByText('1 of 4 devices paired')).toBeInTheDocument();
+  });
+
+  it('lists the devices below the body-region menu', async () => {
+    const user = userEvent.setup();
+    render(<HumanBodyViewer metrics={metrics()} motion={motion} />);
+    const menu = screen.getByRole('button', {name:'Choose a body region'});
+    const find = screen.getByRole('button', {name:'Find devices'});
+    expect(menu.compareDocumentPosition(find) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(find);
     const list = screen.getByRole('list', {name:'Available devices'});
     for (const name of ['Astroskin shirt','Actiwatch','Personal dosimeter','Motion sensors']) expect(within(list).getByText(name)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name:'Pair Actiwatch'}));
-    expect(onPair).toHaveBeenCalledWith('actiwatch');
-
-    view.rerender(<HumanBodyViewer metrics={metrics()} pairedDevices={new Set<BodyDeviceId>(['actiwatch'])} motion={motion} />);
-    expect(await screen.findByRole('button', {name:'Brain'})).toBeInTheDocument();
-    for (const name of ['Heart','Lungs','Chest','Legs','Skin']) expect(screen.queryByRole('button', {name})).not.toBeInTheDocument();
-    expect(screen.getByText('1 of 4 devices paired')).toBeInTheDocument();
   });
 
   it('shows "Pairing…" while a device connects and offers Disconnect once paired', async () => {

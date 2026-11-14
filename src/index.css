@@ -1007,3 +1007,13 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .body-device-meta, .body-device-parts { margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .body-device .btn-secondary { flex-shrink: 0; }
 @media (max-width: 767px) { .body-device-list { grid-template-columns: 1fr; } }
+
+/* Body dots: green when the device for that part is paired, red when it is not */
+.body-hotspot[data-connected="false"] .body-hotspot-light { background: #ff7b7b; border-color: #ffd6d6; box-shadow: 0 0 0 6px #ff4d4d26, 0 0 18px 6px #ff555566; }
+.body-hotspot[data-connected="false"]:hover .body-hotspot-light, .body-hotspot[data-connected="false"]:focus-visible .body-hotspot-light, .body-hotspot[data-connected="false"][aria-pressed="true"] .body-hotspot-light { background: #ffb3b3; box-shadow: 0 0 0 8px #ff4d4d33, 0 0 24px 9px #ff555599; }
+.body-hotspot[data-connected="false"] .body-hotspot-label { border-color: #ff8a8a6b; background: #2a0f12; color: #ffe3e3; }
+.body-region-option { display: inline-flex; align-items: center; gap: 8px; }
+.body-region-dot { width: 9px; height: 9px; border-radius: 50%; background: #e05a5a; }
+.body-region-option[data-connected="true"] .body-region-dot { background: #2fbf86; }
+.body-unpaired { display: grid; justify-items: start; gap: 10px; }
+.body-devices { margin-top: 14px; }
