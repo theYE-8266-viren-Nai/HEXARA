@@ -29,6 +29,8 @@ import { hasCompletedDay } from "./lib/dayCoverage";
 import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
+import { summarizeMonthlyHistory } from "./domain/monthlyHistory";
+import { generateSyntheticData } from "./data/synthetic";
 
 
 export default function App() {
@@ -88,8 +90,16 @@ function HorizonApp() {
   const alertBasis = webhookScored ? "webhook" as const : device.alert !== undefined ? "device" as const : "scenario" as const;
   // Pattern context (adds to alerts, never changes them): completed days only, from the source in use.
   const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive });
+  const patternHistory = useMemo(() => {
+    if (scenario === "usual") return backendSnapshot?.history ?? [];
+    if (scenario !== "recovery_concern") return [];
+    const generated = generateSyntheticData(seed);
+    const personId = generated.people.some((person) => person.id === profile.id) ? profile.id : generated.people[0].id;
+    return generated.observations.filter((observation) => observation.person_id === personId);
+  }, [backendSnapshot?.history, profile.id, scenario, seed]);
+  const monthlyHistory = useMemo(() => summarizeMonthlyHistory(patternHistory), [patternHistory]);
   const explainRepository = useMemo(() => createExplainRepository(supabase), []);
-  const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, explainRepository]);
+  const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const, monthlyHistory }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, monthlyHistory, explainRepository]);
   const deviceStatus = useMemo(() => ({
     ...device.status,
     hasPaired: devicePaired,
@@ -268,7 +278,7 @@ function HorizonApp() {
   const content = (() => {
     switch (view) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} pattern={<PatternCard view={pattern} explain={explain} />} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} pattern={<PatternCard view={pattern} explain={explain} />} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}:${movementLaunch?.nonce ?? "nav"}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} initialTask={movementLaunch?.task} onSavedToBody={showSavedMovementOnBody} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
