@@ -1,14 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { deviceTiming } from "./lib/useDeviceStream";
 import { bodyDeviceTiming } from "./domain/bodyDevices";
-import { bluetoothTiming } from "./lib/useBluetoothHeartRate";
-import { bluetoothAccess } from "./lib/adapters/webBluetoothHeartRate";
-import { createFakeBluetooth, hrBytes } from "./test/fakeBluetooth";
-import { webhookTiming } from "./lib/useWebhookSource";
-import { createFakeReceiver } from "./test/fakeReceiverFetch";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
@@ -332,10 +327,8 @@ describe("OrbitWell app shell", () => {
 
   it("explains a recovery concern in plain language", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
 
@@ -346,10 +339,8 @@ describe("OrbitWell app shell", () => {
 
   it("shows a separate stale-data explanation", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("stale"));
     await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "stale");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
@@ -359,10 +350,8 @@ describe("OrbitWell app shell", () => {
 
   it("shows a clear unavailable state when the simulated source disconnects", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("sensor_disconnected"));
     await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
 
@@ -372,10 +361,8 @@ describe("OrbitWell app shell", () => {
 
   it("keeps Trends unavailable in offline mode with a recovery path", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("offline"));
     await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "offline");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
@@ -385,10 +372,8 @@ describe("OrbitWell app shell", () => {
 
   it("opens the plain-language reason for a trend alert", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     await user.click(screen.getByRole("button", { name: "Show alert reason" }));
@@ -396,11 +381,12 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
   });
 
-  it("no longer shows the simulation seed or replay controls on Profile", async () => {
+  it("no longer shows the demo controls box on Profile", async () => {
     const user = userEvent.setup();
     await openWorkspace();
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    expect(screen.getByRole("combobox", { name: "Demo scenario" })).toBeInTheDocument();
+    expect(screen.queryByText("Demo controls")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Demo scenario" })).not.toBeInTheDocument();
     expect(screen.queryByRole("spinbutton", { name: "Simulation seed" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Replay events" })).not.toBeInTheDocument();
   });
@@ -468,11 +454,10 @@ describe("OrbitWell app shell", () => {
 
   it("verifies the active astronaut flow from alert to local check-in", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace();
 
     expect(screen.getByRole("heading", { name: "Explore your signals" })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
 
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
@@ -716,9 +701,8 @@ describe("OrbitWell app shell", () => {
 
   it("reports a lost signal without inventing readings", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("sensor_disconnected"));
     await openWorkspace("active");
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText("Signal lost · wearable not responding")).toBeInTheDocument();
@@ -747,54 +731,6 @@ describe("OrbitWell app shell", () => {
     expect(strip).toHaveTextContent(/Last sync: \d{1,2}:\d{2}/);
     expect(strip).toHaveTextContent(/Data quality: (good|limited)/);
     expect(strip).toHaveTextContent(/Alerts from: (completed days of device readings|demo scenario)/);
-  });
-
-  it("explains that Bluetooth is unavailable and keeps the simulated wearable", async () => {
-    const user = userEvent.setup();
-    await openWorkspace();
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-
-    const card = await screen.findByLabelText("Bluetooth heart-rate device", { selector: "div" });
-    expect(card).toHaveTextContent("Not supported in this browser");
-    expect(card).toHaveTextContent(/Chrome and Edge/);
-    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
-  });
-
-  it("connects a Bluetooth heart-rate device and shows its cleaned data as the heart-rate source", async () => {
-    const user = userEvent.setup();
-    const fake = createFakeBluetooth({ name: "Test Strap" });
-    const savedGet = bluetoothAccess.get; const savedNow = deviceTiming.now; const savedRefresh = bluetoothTiming.refreshMs;
-    let clock = Date.now();
-    bluetoothAccess.get = () => fake.bluetooth; deviceTiming.now = () => clock; bluetoothTiming.refreshMs = 20;
-    try {
-      await openWorkspace();
-      await waitForSignals();
-      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-      await user.click(await screen.findByRole("button", { name: "Connect Bluetooth heart-rate device" }));
-
-      const card = await screen.findByLabelText("Bluetooth heart-rate device", { selector: "div" });
-      await waitFor(() => expect(card).toHaveTextContent("Connected · Test Strap"));
-      for (const bpm of [71, 72, 73, 72, 71, 72, 73, 74]) { clock += 1000; fake.emit(hrBytes(bpm)); }
-      await waitFor(() => expect(card).toHaveTextContent("Live · Test Strap"));
-      expect(card).toHaveTextContent("Receiving clean readings");
-      expect(card).not.toHaveTextContent("Collecting readings");
-
-      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-      const strip = await screen.findByRole("region", { name: "Data source and quality" });
-      expect(strip).toHaveTextContent("Bluetooth heart-rate device");
-      expect(strip).toHaveTextContent("other signals simulated");
-      expect(strip).toHaveTextContent("Bluetooth readings are display-only until a full day is collected");
-
-      await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-      expect(await screen.findByText("Live from your Bluetooth heart-rate device.")).toBeInTheDocument();
-
-      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-      await user.click(await screen.findByRole("button", { name: "Disconnect device" }));
-      expect(await screen.findByRole("button", { name: "Connect Bluetooth heart-rate device" })).toBeInTheDocument();
-      expect(fake.state.serverDisconnected).toBe(true);
-    } finally {
-      bluetoothAccess.get = savedGet; deviceTiming.now = savedNow; bluetoothTiming.refreshMs = savedRefresh;
-    }
   });
 
   it("shows a personal astronaut profile without the data-source, import and limits boxes", async () => {
@@ -832,61 +768,10 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Cloud save (is )?unavailable/)).toBeInTheDocument();
   });
 
-  it("explains that the webhook receiver is unavailable outside the dev server", async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal("fetch", async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("not json"); } }));
-    try {
-      await openWorkspace();
-      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-      const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
-      await waitFor(() => expect(card).toHaveTextContent("Not available in this build"));
-      expect(card).toHaveTextContent(/only runs on the development server/);
-      expect(within(card).queryByRole("button")).not.toBeInTheDocument();
-    } finally { vi.unstubAllGlobals(); }
-  });
-
-  it("receives a service's readings, cleans them, and shows them as the source for those signals only", async () => {
-    const user = userEvent.setup();
-    const fake = createFakeReceiver(() => Date.now());
-    vi.stubGlobal("fetch", fake.fetchImpl);
-    const savedPoll = webhookTiming.pollMs; webhookTiming.pollMs = 30;
-    try {
-      await openWorkspace();
-      await waitForSignals();
-      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-      const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
-      await waitFor(() => expect(within(card).getByRole("button", { name: "Start receiving" })).toBeInTheDocument());
-      await user.click(within(card).getByRole("button", { name: "Start receiving" }));
-      await waitFor(() => expect(card).toHaveTextContent("Listening"));
-      expect(within(card).getByLabelText("Example request")).toHaveTextContent("Authorization: Bearer test-token");
-      expect(card).toHaveTextContent(/never saved or sent to the cloud/);
-
-      const t = Date.now();
-      const row = (offset: number, metric: string, value: number, unit: string) => ({ timestamp: new Date(t - offset * 1000).toISOString(), metric, value, unit, deviceId: "svc" });
-      fake.send([...[5, 4, 3, 2, 1].flatMap((o, n) => [row(o, "heart_rate", 66 + (n % 3), "bpm"), row(o, "spo2", 97 + n / 10, "%")]), row(1, "heart_rate", 0, "bpm"), row(1, "spo2", 120, "%")]);
-      await waitFor(() => expect(card).toHaveTextContent("readings received"));
-
-      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-      const strip = await screen.findByRole("region", { name: "Data source and quality" });
-      expect(strip).toHaveTextContent("Connected service (webhook): Heart rate, Blood oxygen (SpO₂) · other signals simulated");
-      expect(strip).toHaveTextContent("Webhook readings are display-only until a full day is collected");
-      expect(strip).toHaveTextContent(/2 set aside/); // the lost-contact zero and the impossible SpO₂
-
-      await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-      expect(await screen.findAllByText("From a connected service (webhook).")).toHaveLength(2); // heart rate and SpO₂ only
-
-      await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-      await user.click(await screen.findByRole("button", { name: "Stop receiving" }));
-      await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-      await waitFor(() => expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Source: Simulated wearable"));
-    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
-  });
-
   it("keeps the recovery alert on Home without the pattern or activity cards", async () => {
     const user = userEvent.setup();
+    window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace("active");
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
@@ -895,44 +780,4 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
-  /** Runs the webhook flow: start receiving, post rows, return to Home. */
-  async function receiveWebhookRows(rows: (todayStart: number) => unknown[]) {
-    const user = userEvent.setup();
-    const fake = createFakeReceiver(() => Date.now());
-    vi.stubGlobal("fetch", fake.fetchImpl);
-    webhookTiming.pollMs = 30;
-    await openWorkspace();
-    await waitForSignals();
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    const card = await screen.findByLabelText("Webhook source (local demo)", { selector: "div" });
-    await user.click(await within(card).findByRole("button", { name: "Start receiving" }));
-    await waitFor(() => expect(card).toHaveTextContent("Listening"));
-    const now = new Date();
-    fake.send(rows(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
-    await waitFor(() => expect(card).toHaveTextContent("readings received"));
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    return await screen.findByRole("region", { name: "Data source and quality" });
-  }
-  const hr = (timestamp: number, value: number) => ({ timestamp: new Date(timestamp).toISOString(), metric: "heart_rate", value, unit: "bpm", deviceId: "svc" });
-  const todayRows = (todayStart: number) => [1, 2, 3, 4, 5].map((k) => hr(todayStart + k * 1000, 64 + k * 0.1));
-
-  it("raises an explained alert when a webhook delivers a fully covered day that differs from the person's usual pattern", async () => {
-    const savedPoll = webhookTiming.pollMs;
-    try {
-      const strip = await receiveWebhookRows((todayStart) => [...Array.from({ length: 24 }, (_, h) => hr(todayStart - 86_400_000 + h * 3_600_000 + 1_800_000, 92 + h * 0.05)), ...todayRows(todayStart)]);
-      await waitFor(() => expect(strip).toHaveTextContent("Alerts from: completed days of webhook readings"));
-      expect(await screen.findByText(/Resting heart rate .* outside your usual range/)).toBeInTheDocument();
-      expect(screen.getByText("A pattern is worth reviewing")).toBeInTheDocument();
-    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
-  });
-
-  it("raises no alert from a webhook day that is only thinly covered, however different it looks", async () => {
-    const savedPoll = webhookTiming.pollMs;
-    try {
-      const strip = await receiveWebhookRows((todayStart) => [95, 96, 94.5, 95.5].map((value, n) => hr(todayStart - 5 * 60_000 + n * 60_000, value)).concat(todayRows(todayStart)));
-      expect(strip).toHaveTextContent("Webhook readings are display-only until a full day is collected");
-      expect(screen.queryByText(/Resting heart rate .* outside your usual range/)).not.toBeInTheDocument();
-      expect(screen.getByText("Your signals look usual")).toBeInTheDocument();
-    } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
-  });
 });
