@@ -27,7 +27,7 @@ async function toQualityStep(user: ReturnType<typeof userEvent.setup>, strict = 
   await screen.findByRole("heading", { name: "Lighting and framing check" });
 }
 async function start(user: ReturnType<typeof userEvent.setup>) {
-  const button = await screen.findByRole("button", { name: /Start sit-to-stand or squat/i });
+  const button = await screen.findByRole("button", { name: /Start sit-to-stand/i });
   await waitFor(() => expect(button).toBeEnabled(), { timeout: 4000 });
   await user.click(button);
 }
@@ -76,9 +76,9 @@ describe("Movement check with body tracking", () => {
     const user = userEvent.setup();
     await toQualityStep(user);
     expect(await screen.findByText("Body tracking is loading…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Start sit-to-stand or squat/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Start sit-to-stand/i })).toBeDisabled();
     release({ ok: false, reason: "no files" });
-    await waitFor(() => expect(screen.getByRole("button", { name: /Start sit-to-stand or squat/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Start sit-to-stand/i })).toBeEnabled());
   });
 
   it("reports poor tracking honestly when the person was found for only part of the check", async () => {
@@ -110,7 +110,7 @@ describe("Movement check with body tracking", () => {
     expect(await screen.findByText(/Camera quality:/)).toBeInTheDocument();
     expect(screen.queryByText("Body tracking is loading…")).not.toBeInTheDocument();
     expect(screen.queryByText("Checking the camera image…")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Start sit-to-stand or squat/i })).toBeEnabled(), { timeout: 4000 });
+    await waitFor(() => expect(screen.getByRole("button", { name: /Start sit-to-stand/i })).toBeEnabled(), { timeout: 4000 });
   });
 
   it("still captures and shows a result under StrictMode", async () => {

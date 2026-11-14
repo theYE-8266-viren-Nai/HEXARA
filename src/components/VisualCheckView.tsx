@@ -35,7 +35,7 @@ function useReducedMotion() {
   return reduced;
 }
 
-export function VisualCheckView({ stage, profileId, repository, seed, onRequestCrewMedic }: { stage: LifeStage; profileId: string; repository: VisualCheckRepository; seed: number; onRequestCrewMedic?: () => void }) {
+export function VisualCheckView({ stage, profileId, repository, seed, initialTask, onSavedToBody, onRequestCrewMedic }: { stage: LifeStage; profileId: string; repository: VisualCheckRepository; seed: number; initialTask?: VisualCheckType; onSavedToBody?: (check: VisualCheck) => void; onRequestCrewMedic?: () => void }) {
   const ownerKey = ownerKeyFor(stage, profileId);
   const camera = useCameraMotion();
   const reducedMotion = useReducedMotion();
@@ -43,7 +43,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   const [mode, setMode] = useState<Mode>(cameraSupported() ? "camera" : "synthetic");
   const [consent, setConsent] = useState(false);
   const tasks = tasksForStage(stage);
-  const [taskType, setTaskType] = useState<VisualCheckType>(tasks[0]?.type ?? "shoulder_mobility");
+  const [taskType, setTaskType] = useState<VisualCheckType>(() => initialTask && tasks.some((task) => task.type === initialTask) ? initialTask : tasks[0]?.type ?? "shoulder_mobility");
   const [quality, setQuality] = useState<{ quality: CameraQuality; notes: string[] } | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [remaining, setRemaining] = useState(0);
@@ -176,7 +176,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
 
     {step === "context" && features ? <ContextStep context={context} onChange={setContext} onSubmit={finish} synthetic={mode === "synthetic"} /> : null}
 
-    {step === "result" && result ? <ResultStep check={result} onRepeat={reset} repository={repository} onRequestCrewMedic={onRequestCrewMedic} /> : null}
+    {step === "result" && result ? <ResultStep check={result} onRepeat={reset} repository={repository} onSavedToBody={onSavedToBody} onRequestCrewMedic={onRequestCrewMedic} /> : null}
 
     <HistoryPanel history={ownHistory} />
   </div>;
@@ -243,14 +243,17 @@ function ContextStep({ context, onChange, onSubmit, synthetic }: { context: User
   </form>;
 }
 
-function ResultStep({ check, onRepeat, repository, onRequestCrewMedic }: { check: VisualCheck; onRepeat: () => void; repository: VisualCheckRepository; onRequestCrewMedic?: () => void }) {
+function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewMedic }: { check: VisualCheck; onRepeat: () => void; repository: VisualCheckRepository; onSavedToBody?: (check: VisualCheck) => void; onRequestCrewMedic?: () => void }) {
   const [save, setSave] = useState<{ state: "idle" | "saving" | "saved" | "failed"; reason?: string }>({ state: "idle" });
   const note = combinedContextNote(check.userReportedSymptoms, check.comparisonSummary);
   const escalate = check.userReportedSymptoms.discomfort === "pain" || check.userReportedSymptoms.discomfort === "severe_or_worsening";
   const saveCloud = async () => {
     setSave({ state: "saving" });
     const outcome = await repository.saveCloud(check);
-    setSave(outcome.ok ? { state: "saved" } : { state: "failed", reason: outcome.reason });
+    if (outcome.ok) {
+      setSave({ state: "saved" });
+      onSavedToBody?.(check);
+    } else setSave({ state: "failed", reason: outcome.reason });
   };
   return <div className="grid gap-5 lg:grid-cols-2">
     <section className={panelClass} aria-labelledby="result-title">
@@ -264,7 +267,7 @@ function ResultStep({ check, onRepeat, repository, onRequestCrewMedic }: { check
       {!escalate ? <p className="mt-4 text-sm text-slate-300">{check.supportRecommendation}</p> : null}
       <p className="mt-4 text-xs text-slate-500">{check.disclaimer}</p>
       <div className="mt-5 flex flex-wrap gap-3">
-        <PrimaryButton disabled={save.state === "saving" || save.state === "saved"} onClick={() => void saveCloud()}>{save.state === "saving" ? "Saving…" : save.state === "saved" ? "Saved to cloud" : "Save summary to cloud"}</PrimaryButton>
+        <PrimaryButton disabled={save.state === "saving" || save.state === "saved"} onClick={() => void saveCloud()}>{save.state === "saving" ? "Saving…" : save.state === "saved" ? "Saved to cloud" : onSavedToBody ? "Save and show on body" : "Save summary to cloud"}</PrimaryButton>
         <SecondaryButton onClick={onRepeat}><RotateCcw size={16} aria-hidden="true" />Practise again</SecondaryButton>
       </div>
       <p className="mt-3 text-xs" role="status">{save.state === "saved" ? <span className="text-emerald-200">Saved. Only the derived summary was stored — no video or images.</span> : save.state === "failed" ? <span className="text-rose-100">Not saved to cloud: {save.reason} The result remains on this device.</span> : <span className="text-slate-500">Saved on this device. Cloud save stores the derived summary only.</span>}</p>

@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { bodyRegions, enabledRegions, regionFacesCamera } from './bodyRegions';
 describe('body-region signal mapping', () => {
   it('exposes the seven body parts, each tied to the device that measures it', () => {
-    expect(bodyRegions.map(r => r.label)).toEqual(['Heart','Brain','Lungs','Chest','Legs','Back','Skin']);
-    const byId = Object.fromEntries(bodyRegions.map(r => [r.id, r]));
+    expect(bodyRegions.filter(r => r.layer === 'signals').map(r => r.label)).toEqual(['Heart','Brain','Lungs','Chest','Legs','Back','Skin']);
+    expect(bodyRegions.filter(r => r.layer === 'movement').map(r => r.label)).toEqual(['Shoulder','Arm','Hip','Knee','Ankle']);
+    const byId = Object.fromEntries(bodyRegions.map(r => [r.id, r])) as Record<string, (typeof bodyRegions)[number] & { device?: string }>;
     expect([byId.heart.device, byId.lungs.device, byId.skin.device]).toEqual(['astroskin','astroskin','astroskin']);
     expect(byId.brain.device).toBe('actiwatch');
     expect(byId.chest.device).toBe('dosimeter');
