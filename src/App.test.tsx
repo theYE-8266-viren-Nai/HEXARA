@@ -572,6 +572,8 @@ describe("OrbitWell app shell", () => {
       expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
       expect(screen.getAllByLabelText("Live").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
+      await userEvent.click(await screen.findByRole("button", { name: "Heart" }));
       expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
     } finally { deviceTiming.connectMs = 30; }
   });
@@ -724,6 +726,8 @@ describe("OrbitWell app shell", () => {
     await openWorkspace();
     await waitForSignals();
 
+    expect(screen.queryByText("Skin temperature")).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Skin" }));
     expect(await screen.findByText("Skin temperature")).toBeInTheDocument();
     expect(screen.queryByText("Core temperature")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Signals assume a crew wearable and a personal dosimeter");
@@ -789,50 +793,17 @@ describe("OrbitWell app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("shows the pattern card on Home and changes it for Recovery concern, leaving alerts alone", async () => {
+  it("keeps the recovery alert on Home without the pattern and activity cards", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
-    await waitForSignals();
-    expect(await screen.findByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
-    expect(screen.getByRole("meter", { name: "Pattern score" })).toBeInTheDocument();
-
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
-    expect(screen.getByText(/Resting heart rate higher/)).toBeInTheDocument();
-    expect(screen.getByText(/HRV lower/)).toBeInTheDocument();
-    // The existing alert still comes from the existing rules.
-    expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
     expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("meter", { name: "Pattern score" })).not.toBeInTheDocument();
-  });
-
-  it("pauses the pattern view when the sensor is disconnected", async () => {
-    const user = userEvent.setup();
-    await openWorkspace("active");
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
-    await waitForSignals();
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(await screen.findByText("Pattern view paused")).toBeInTheDocument();
-  });
-
-  it("explains the pattern on request with the built-in text when cloud is not configured", async () => {
-    const user = userEvent.setup();
-    await openWorkspace("active");
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    await waitForSignals();
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    await user.click(await screen.findByRole("button", { name: "Explain this pattern" }));
-    expect(await screen.findByText("Built-in explanation")).toBeInTheDocument();
-    expect(screen.getByText(/Cloud explanations are not set up/)).toBeInTheDocument();
-    expect(screen.getByText(/Resting heart rate was higher/i)).toBeInTheDocument();
-    expect(screen.getByText(/tell the crew medic/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
   /** Runs the webhook flow: start receiving, post rows, return to Home. */
