@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
+import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { ActiveGuidanceView } from "./ActiveGuidanceView";
@@ -309,8 +309,6 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
       <div className="demo-controls-grid">
         <div className="space-y-4">
           <FieldLabel label="Demo scenario"><select value={scenario} onChange={(event) => onScenarioChange(event.target.value as SimulationScenario)} className="field" aria-label="Demo scenario"><option value="usual">Usual day</option><option value="recovery_concern">Recovery concern</option><option value="sensor_disconnected">Sensor disconnected</option><option value="stale">Stale data</option><option value="offline">Offline mode</option></select></FieldLabel>
-          <FieldLabel label="Simulation seed" hint="Saved on this device"><input type="number" min="0" value={seed} onChange={(event) => onSeedChange(Number(event.target.value))} className="field" aria-label="Simulation seed" /></FieldLabel>
-          <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={onReplay} className="btn-secondary"><RotateCcw size={15} aria-hidden="true" /> Replay events</button><span className="text-xs text-slate-500">Replay {replayCount} · mock run</span></div>
         </div>
         <div className="space-y-4"><BluetoothCard /><WebhookCard /></div>
       </div>
