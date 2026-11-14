@@ -34,7 +34,7 @@ Device or file, then a source adapter, then the sanitizer (shape, units, ranges,
 
 - Baseline check-in: resting heart rate, sleep hours, mood, and stress.
 - Wellbeing check-in: mood, stress, sleep quality, and an optional note.
-- Movement check: repetitions, timing, balance, approximate joint-angle ranges, and pauses from the camera (body points are tracked on the device and never stored), plus how it felt.
+- Movement check (optional; for astronauts in space, with tasks that work in weightlessness, and for retired astronauts back on Earth, as reconditioning practice): repetitions, timing, balance, approximate joint-angle ranges, and pauses from the camera (body points are tracked on the device and never stored), plus how it felt. Not offered to Future travelers.
 
 ## Not assumed
 

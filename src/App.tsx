@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell, type ViewName } from "./components/AppShell";
+import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
 import { createBackendDashboardRepository, type DashboardSource } from "./lib/backendDashboardRepository";
@@ -10,6 +10,9 @@ import type { DashboardSnapshot } from "./lib/dashboardRepository";
 import { fetchRecentSolarEvents, type SolarEventResult } from "./lib/nasaDonki";
 import type { DataQualityState, LifeStage, SimulationScenario } from "./types/horizon";
 import { ensureAnonymousSession } from "./lib/anonymousAuth";
+import { createAccountRepository, type Account } from "./lib/accountRepository";
+import { AccountScreen } from "./components/AccountViews";
+import { missionDayFrom, type AstronautProfile } from "./domain/astronautAccount";
 import { createPreparationRepository } from "./lib/preparationRepository";
 import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
@@ -31,6 +34,10 @@ function HorizonApp() {
   const [profiles, setProfiles] = useState(mockProfiles);
   const [activeView, setActiveView] = useState<ViewName>("home");
   const [stage, setStage] = useState<LifeStage | null>(null);
+  const accounts = useMemo(() => createAccountRepository(supabase), []);
+  const [account, setAccount] = useState<Account | null>(null);
+  // The stage card the person clicked; its log in / create account screen shows until they are in.
+  const [accountStage, setAccountStage] = useState<LifeStage | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [cloudWarning, setCloudWarning] = useState<string | undefined>();
@@ -94,6 +101,10 @@ function HorizonApp() {
       const auth = await ensureAnonymousSession(supabase);
       if (cancelled) return;
       setUserId(auth.userId);
+      // A signed-in astronaut is remembered, but the start page still shows first (with "Continue").
+      const existing = await accounts.current();
+      if (cancelled) return;
+      setAccount(existing);
       setCloudWarning(auth.warning);
       if (auth.userId) {
         // The saved stage is kept in the cloud, but every visit starts on the stage picker.
@@ -104,7 +115,7 @@ function HorizonApp() {
       setAuthLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [setProfileId]);
+  }, [accounts, setProfileId]);
 
   const setStageAndProfile = (nextStage: LifeStage) => {
     const matchingProfile = profiles.find((candidate) => candidate.stage === nextStage) ?? profiles[0];
@@ -113,6 +124,40 @@ function HorizonApp() {
       setStage(nextStage);
       setProfileId(matchingProfile.id);
     });
+  };
+
+  const enterAccount = (next: Account) => {
+    setAccount(next);
+    setUserId(next.userId);
+    if (!next.profile) return; // the account screen asks for the profile details first
+    const matchingProfile = profiles.find((candidate) => candidate.stage === next.profile!.stage) ?? profiles[0];
+    setProfileId(matchingProfile.id);
+    void preparationRepository.saveTravelerPreferences(next.profile.stage, matchingProfile.id);
+    setAccountStage(null);
+    setStage(next.profile.stage);
+    setActiveView("home");
+  };
+  const logOut = async () => {
+    await accounts.signOut();
+    setAccount(null);
+    setStage(null);
+    setAccountStage(null);
+    setDevicePaired(false);
+    setActiveView("home");
+    const auth = await ensureAnonymousSession(supabase);
+    setUserId(auth.userId);
+  };
+  const saveOwnProfile = async (next: AstronautProfile) => {
+    if (!account) return "You are not logged in.";
+    const result = await accounts.saveProfile(account, next);
+    if (!result.account) return result.error ?? "Not saved.";
+    setAccount(result.account);
+    if (result.account.profile && result.account.profile.stage !== stage) {
+      const matchingProfile = profiles.find((candidate) => candidate.stage === result.account!.profile!.stage) ?? profiles[0];
+      setProfileId(matchingProfile.id);
+      setStage(result.account.profile.stage);
+    }
+    return undefined;
   };
 
   useEffect(() => {
@@ -168,26 +213,32 @@ function HorizonApp() {
   const replayEvents = () => setReplayCount((count) => count + 1);
 
   if (authLoading) return <StageSelectionView loading />;
-  if (!stage) return <StageSelectionView warning={cloudWarning} onSelect={setStageAndProfile} />;
+  if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} onLogOut={() => { void accounts.signOut().then(() => setAccount(null)); }} />;
+  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={setAccountStage} />;
+  // The astronaut's own name and mission day replace the sample traveler's on every page.
+  const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
+  const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
 
+  // A view that is not offered to this stage (Movement for Future travelers) falls back to Home.
+  const view: ViewName = viewAvailable(activeView, stage) ? activeView : "home";
   const content = (() => {
-    switch (activeView) {
+    switch (view) {
       case "trends":
         return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
-        return <WellbeingView stage={stage} />;
+        return <WellbeingView stage={stage} client={supabase} />;
       case "guidance":
         return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
       case "profile":
-        return <ProfileView profile={profile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} />;
+        return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
-        return <><HomeView profile={profile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /></>;
+        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /></>;
     }
   })();
 
   const chatContext: ChatContextSummary = { stage, dataQuality, source: viewSource, signals: liveMetrics.slice(0, 6).map((metric) => ({ label: metric.label, trend: metric.trend })) };
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
 }
