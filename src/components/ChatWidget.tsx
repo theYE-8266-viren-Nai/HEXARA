@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, CircleAlert, CircleHelp, Mic, Phone, Send, ShieldCheck, Sparkles, Square, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BookOpen, CheckCircle2, CircleAlert, CircleHelp, Mic, Phone, Send, ShieldCheck, Square, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LifeStage } from "../types/horizon";
@@ -164,7 +164,7 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
   return <>
     <button ref={launcher} type="button" className={`chat-launcher${open ? " is-open" : ""}`} data-pet-state={petState} aria-label={open ? "Close ORBIT assistant" : "Open ORBIT assistant"} aria-expanded={open} aria-controls="orbit-chat" onClick={() => open ? close() : setOpen(true)}>
       <span className="chat-launcher-label"><strong>{stage === "retired" ? "Talk with ORBIT" : "Ask NASA"}</strong><span>{stage === "retired" ? "A space to talk" : "Research with ORBIT"}</span></span>
-      <span className="chat-robot"><RobotAvatar imageSrc={avatarSrc} /><span className="chat-robot-badge">{open ? <X size={13} /> : <Sparkles size={13} />}</span></span>
+      <span className="chat-robot"><RobotAvatar imageSrc={avatarSrc} /></span>
     </button>
     {open ? <section id="orbit-chat" className="chat-panel" data-pet-state={petState} role="dialog" aria-modal="false" aria-labelledby="orbit-title" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }}>
       <header><RobotAvatar imageSrc={avatarSrc} /><div className="chat-heading"><p className="eyebrow">{privateMode ? "PRIVATE CONVERSATION" : "NASA RESEARCH ASSISTANT"}</p><h2 id="orbit-title">ORBIT <span>AI</span></h2><p className="chat-pet-status" role="status"><span aria-hidden="true" />{supportTopic ? "Showing urgent guidance" : busy ? "Searching NASA sources…" : privateMode ? "I'm listening" : "Ready for a NASA question"}</p></div><button type="button" className="icon-button" onClick={close} aria-label="Close chat"><X size={18} /></button></header>
