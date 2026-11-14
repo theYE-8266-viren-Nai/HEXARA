@@ -1292,3 +1292,16 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
   .wearable-connect { width: 100%; }
   .wearable-dropdown { position: static; width: 100%; margin-top: 8px; box-shadow: none; }
 }
+
+/* Connect wearables as one button (no switch); opens the device list every time. */
+.wearable-connect-button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px 0 6px; border: 1px solid var(--line-strong); border-radius: 99px; background: var(--surface); color: var(--text-primary); font-size: 13px; font-weight: 600; }
+.wearable-connect-button:hover { border-color: var(--accent); }
+.wearable-connect-button[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.wearable-connect-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); color: var(--muted); }
+.wearable-connect-button[data-connected] .wearable-connect-icon { background: #2fbf86; color: #ffffff; }
+.wearable-connect-chevron { color: var(--muted); transition: transform .2s; }
+.wearable-connect-button[aria-expanded="true"] .wearable-connect-chevron { transform: rotate(180deg); }
+.wearable-scanning { display: flex; align-items: center; gap: 10px; padding: 14px 8px; font-size: 13px; color: var(--text-secondary); }
+.wearable-scan-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: wearable-scan 1s ease-out infinite; }
+@keyframes wearable-scan { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) { .wearable-scan-dot { animation: none; } .wearable-connect-chevron { transition: none; } }

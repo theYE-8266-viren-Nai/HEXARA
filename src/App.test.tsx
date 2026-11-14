@@ -39,9 +39,7 @@ async function signInThroughStage(stage: keyof typeof labels) {
 /** Active astronauts pair through "Find devices" in the body overview; other stages use the wearable card. */
 async function pairWearable(stage: keyof typeof labels) {
   if (stage !== "active") { await userEvent.click(await screen.findByRole("button", { name: "Connect wearables" })); return; }
-  const toggle = await screen.findByRole("switch", { name: "Connect wearables" });
-  if (toggle.getAttribute("aria-checked") !== "true") await userEvent.click(toggle);
-  else if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(screen.getByRole("button", { name: /Connect wearables/ }));
+  if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(await screen.findByRole("button", { name: /^Connect wearables/ }));
   await userEvent.click(await screen.findByRole("button", { name: "Pair Astroskin shirt" }));
   await screen.findByRole("button", { name: "Disconnect Astroskin shirt" });
 }
@@ -57,6 +55,7 @@ async function openWorkspace(stage: keyof typeof labels = "active", { pair = sta
 describe("OrbitWell app shell", () => {
   beforeEach(() => {
     bodyDeviceTiming.pairMs = 10;
+    bodyDeviceTiming.scanMs = 10;
     window.localStorage.clear();
   });
 
@@ -646,16 +645,22 @@ describe("OrbitWell app shell", () => {
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
-  it("turning Connect wearables off disconnects every device and turns the body dots red", async () => {
+  it("Connect wearables is one button that opens the device list every time", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
-    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent("1/4");
-    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
-    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByRole("switch", { name: "Connect wearables" })).not.toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /^Connect wearables/ });
+    expect(button).toHaveTextContent("1/4");
+    await user.click(button);
     expect(screen.queryByRole("region", { name: "Available wearables" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
-    expect(screen.getByRole("button", { name: "Pair Astroskin shirt" })).toBeInTheDocument();
+    await user.click(button);
+    expect(await screen.findByRole("button", { name: "Pair Actiwatch" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Pair Actiwatch" }));
+    await screen.findByRole("button", { name: "Disconnect Actiwatch" });
+    await user.keyboard("{Escape}");
+    await user.click(button);
+    expect(await screen.findByRole("button", { name: "Pair Personal dosimeter" })).toBeInTheDocument();
+    expect(button).toHaveTextContent("2/4");
   });
 
   it("never connects the wearable until the person presses Pair, in any stage", async () => {
@@ -690,9 +695,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("No wearables connected")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Connected wearables" })).not.toBeInTheDocument();
 
-    const toggle = screen.getByRole("switch", { name: "Connect wearables" });
-    if (toggle.getAttribute("aria-checked") !== "true") await user.click(toggle);
-    else await user.click(screen.getByRole("button", { name: /Connect wearables/ }));
+    await user.click(screen.getByRole("button", { name: /^Connect wearables/ }));
     await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
     expect(await within(await screen.findByRole("list", { name: "Connected wearables" })).findByText("Actiwatch")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
