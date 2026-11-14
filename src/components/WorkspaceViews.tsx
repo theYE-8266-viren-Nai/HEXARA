@@ -32,7 +32,7 @@ import type { MonthlyHistorySummary } from "../domain/monthlyHistory";
 
 const panelClass = "tech-card p-5 sm:p-6";
 
-export function StageSelectionView({ loading, warning, onSelect }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void }) {
+export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDemo }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void; onOpenGroundDemo?: () => void }) {
   const options = [
     { stage: "future" as const, title: "Future traveler", label: "BEFORE THE MISSION", body: "Build your baseline. Find your rhythm. Prepare for what’s ahead.", Icon: Rocket },
     { stage: "active" as const, title: "Active astronaut", label: "DURING THE MISSION", body: "Your signals, wellbeing, and next steps. One clear view.", Icon: Orbit },
@@ -48,6 +48,7 @@ export function StageSelectionView({ loading, warning, onSelect }: { loading?: b
           <p className="journey-intro">A little clarity, wherever your journey takes you. Explore your health and wellbeing, one small step at a time.</p>
           <div className="journey-section-label"><h2>Choose your mission stage</h2><span>Log in or create an account</span></div>
           {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="journey-options">{options.map(({ stage, title, label, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={22} strokeWidth={1.4} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-kicker">{label}</span><h3>{title}</h3><span className="journey-description">{body}</span></span><span className="journey-arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></button>)}</div>}
+          {!loading && onOpenGroundDemo ? <button type="button" className="journey-ground-link" onClick={onOpenGroundDemo}><span className="journey-ground-icon"><HeartPulse size={20} aria-hidden="true" /></span><span><strong>Ground health team</strong><small>Open the synthetic mission dashboard</small></span><ArrowUpRight size={18} aria-hidden="true" /></button> : null}
           <p className="journey-footnote"><ShieldCheck size={14} aria-hidden="true" /> Each astronaut has their own private account.</p>
           {warning ? <details className="cloud-note"><summary>Exploring in demo mode · cloud save unavailable</summary><p>{warning} Accounts are saved only in this browser until the connection is available.</p></details> : null}
         </section>
@@ -67,7 +68,7 @@ export function StageSelectionView({ loading, warning, onSelect }: { loading?: b
   </main>;
 }
 
-export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void; pattern?: ReactNode }) {
+export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange, onOpenChat, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void; onOpenChat?: () => void; pattern?: ReactNode }) {
   const device = useDevice();
   const ingest = device?.ingest ?? null;
   const unreliable = ingest?.quality === "poor";
@@ -84,6 +85,33 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
   const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
+  if (stage === "retired" && device && !(device.status.hasPaired ?? device.status.paired)) return <div className="page retired-pair-page">
+    <section className="retired-pair-card tech-card" aria-labelledby="retired-pair-title">
+      <span className="retired-pair-icon" aria-hidden="true"><Watch size={28} /></span>
+      <p className="eyebrow">RETIRED ASTRONAUT · FIRST STEP</p>
+      <h1 id="retired-pair-title">Pair one wearable to begin</h1>
+      <p>Connect the simulated wearable to open your retired Home. This demo does not connect to real hardware.</p>
+      <button type="button" className="btn-primary" onClick={device.status.pair}><Watch size={17} aria-hidden="true" /> Pair simulated wearable</button>
+    </section>
+  </div>;
+
+  if (stage === "retired") return <div className="page retired-page">
+    <header className="page-header"><div><p className="page-kicker">{profile.name} · Retired astronaut</p><h1>Life after the mission</h1><p className="page-lede">A place to talk about what matters to you.</p></div></header>
+    <section className="retired-advisor tech-card" aria-labelledby="retired-advisor-title">
+      <span className="retired-advisor-icon" aria-hidden="true"><MessageCircleHeart size={30} /></span>
+      <p className="eyebrow">A SPACE TO TALK</p>
+      <h2 id="retired-advisor-title">Mental friend</h2>
+      <p>Talk with ORBIT about life after flight, the view of Earth, your relationships, or whatever is on your mind. Start anywhere, at your own pace.</p>
+      <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
+    </section>
+    <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
+    {pattern ? <div className="mt-6">{pattern}</div> : null}
+    <footer className="home-footer">
+      {loading ? null : <DataTrustStrip />}
+      <DataSourceStatus source={source} warning={warning} />
+    </footer>
+  </div>;
+
   return <div className="page">
     <header className="page-header">
       <div>
@@ -93,7 +121,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       </div>
       <div className="page-meta">{stage === "active" && device?.bodyDevices ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
-    {stage === 'active' || stage === 'retired' || stage === 'future' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={stage === 'active' ? alert : null} onViewChange={onViewChange} {...(stage === "active" && device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
+    {stage === 'active' || stage === 'future' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={stage === 'active' ? alert : null} onViewChange={onViewChange} {...(stage === "active" && device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
@@ -108,7 +136,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         </div>
       </section>
 
-      {stage === "retired" ? <RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /> : stage === "future" ? <section aria-labelledby="signals-title">
+      {stage === "future" ? <section aria-labelledby="signals-title">
         <div className="section-head">
           <div><h2 id="signals-title">Your signals</h2><p>Latest reading compared with your 30-day personal baseline.</p></div>
           <button type="button" onClick={() => onViewChange("trends")} className="btn-link">See all trends <ArrowRight size={14} aria-hidden="true" /></button>
@@ -366,11 +394,11 @@ function FuturePreparationView({ preparationRepository }: { preparationRepositor
   </div>;
 }
 
-export function GuidanceView({ stage, preparationRepository, onViewChange }: { stage: LifeStage; preparationRepository?: PreparationRepository; onViewChange: (view: ViewName) => void }) {
+export function GuidanceView({ stage, preparationRepository, onViewChange, onOpenChat }: { stage: LifeStage; preparationRepository?: PreparationRepository; onViewChange: (view: ViewName) => void; onOpenChat?: () => void }) {
   const [lessonComplete, setLessonComplete] = usePersistedState("horizon:trainee-lesson-complete", false);
   const [summaryFields, setSummaryFields] = usePersistedState("horizon:retired-summary-fields", { trends: true, wellbeing: false });
   if (stage === "future") return <FuturePreparationView preparationRepository={preparationRepository} />;
-  if (stage === "retired") return <RetiredGuidanceView summaryFields={summaryFields} setSummaryFields={setSummaryFields} onViewChange={onViewChange} />;
+  if (stage === "retired") return <RetiredGuidanceView summaryFields={summaryFields} setSummaryFields={setSummaryFields} onViewChange={onViewChange} onOpenChat={onOpenChat} />;
   return <ActiveGuidanceView onViewChange={onViewChange} />;
 }
 
@@ -406,26 +434,27 @@ const retiredEducationCards = [
   { group: "physical", title: "Sleep & recovery", subtitle: "Routine, rest, fatigue, and restorative sleep", Icon: Moon, points: ["Keep a regular sleep and wake schedule and build a consistent wind-down routine.", "Notice how exercise timing, screens, caffeine, alcohol, meals, and the sleep environment affect rest.", "Talk with a clinician when sleep problems persist or interfere with daytime life."], resources: [{ label: "NIH healthy sleep habits", href: "https://www.nia.nih.gov/health/sleep/6-healthy-sleep-habits-older-adults" }] },
   { group: "physical", title: "Nutrition & preventive care", subtitle: "Balanced eating, hydration, checkups, and sustainable habits", Icon: Apple, points: ["Use regular meals, hydration, and balanced food choices to support activity and recovery.", "Build habits that are sustainable and compatible with personal health needs and medications.", "Keep routine health checks, screenings, and vaccinations up to date with your care team."], resources: [{ label: "CDC healthy aging", href: "https://www.cdc.gov/healthy-aging/about/" }] },
   { group: "mental", title: "Emotional wellbeing", subtitle: "Stress, adjustment, changing roles, and early support", Icon: MessageCircleHeart, points: ["Notice persistent changes in mood, stress, sleep, concentration, or daily functioning.", "Make room for recovery, recreation, and adjustment to changes in identity or routine.", "Ask for support early when changes persist, worsen, or make daily life harder."], resources: [{ label: "NASA behavioral health", href: "https://www.nasa.gov/reference/jsc-behavioral-health/" }] },
+  { group: "mental", title: "The overview effect", subtitle: "Awe, perspective, and telling your own story", Icon: Orbit, points: ["Some astronauts describe awe and a changed sense of connection after seeing Earth; there is no single required reaction.", "People may need time and conversation to make sense of an experience that is hard to put into words.", "The overview effect is an experience, not a diagnosis. You can explore what it meant to you without being pushed toward a particular story."], resources: [{ label: "Overview effect research", href: "https://doi.org/10.1037/cns0000086" }, { label: "Astronaut interview analysis", href: "https://doi.org/10.1177/00218863221136289" }] },
   { group: "mental", title: "Social connection", subtitle: "Family, peers, friends, belonging, and community", Icon: Heart, points: ["Protect supportive relationships with family, peers, friends, and community.", "Choose regular, meaningful ways to stay connected rather than waiting until support is urgently needed.", "Talk with someone you trust when isolation or loneliness begins affecting daily life."], resources: [{ label: "CDC social connection", href: "https://www.cdc.gov/social-connectedness/about/index.html" }] },
   { group: "mental", title: "Purpose & daily routine", subtitle: "Meaningful activity, structure, learning, and rest", Icon: Compass, points: ["Build a routine that balances meaningful activity, movement, relationships, learning, and rest.", "Expect purpose and identity to change over time rather than requiring one immediate answer.", "Use the wellbeing check-in to notice which activities and connections are helping."], resources: [{ label: "CDC healthy aging", href: "https://www.cdc.gov/healthy-aging/about/" }] },
 ];
 
 function RetiredEducationCard({ card }: { card: (typeof retiredEducationCards)[number] }) {
   const { title, subtitle, Icon, points, resources } = card;
-  return <details className="group/topic rounded-xl border border-slate-800 bg-slate-950/30 p-4"><summary className="flex cursor-pointer list-none items-start justify-between gap-3"><span className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center text-cyan-200"><Icon size={20} /></span><span><span className="block font-semibold text-white">{title}</span><span className="mt-1 block text-sm leading-6 text-slate-400">{subtitle}</span></span></span><span className="shrink-0 text-sm font-semibold text-cyan-200 group-open/topic:hidden">Learn</span><span className="hidden shrink-0 text-sm font-semibold text-cyan-200 group-open/topic:inline">Close</span></summary><div className="mt-4 border-t border-slate-800 pt-4"><div className="space-y-3 text-sm leading-6 text-slate-300">{points.map((point) => <p key={point}>{point}</p>)}</div><div className="mt-4 border-t border-slate-800 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Supporting resources</p><div className="mt-3 flex flex-col items-start gap-2">{resources.map((resource) => <a key={resource.href} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 underline" href={resource.href} target="_blank" rel="noreferrer">{resource.label} <ArrowUpRight size={14} /></a>)}</div></div></div></details>;
+  return <details className="tech-card p-5 sm:p-7" open={title === "Emotional wellbeing"}><summary className="cursor-pointer text-base font-semibold text-white"><Icon className="mr-2 inline text-cyan-200" size={18} aria-hidden="true" />{title}</summary><p className="mt-3 text-sm leading-6 text-slate-400">{subtitle}</p><div className="mt-4 border-t border-slate-800 pt-4"><div className="space-y-3 text-sm leading-6 text-slate-300">{points.map((point) => <p key={point}>{point}</p>)}</div><div className="mt-4 border-t border-slate-800 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Supporting resources</p><div className="mt-3 flex flex-col items-start gap-2">{resources.map((resource) => <a key={resource.href} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 underline" href={resource.href} target="_blank" rel="noreferrer">{resource.label} <ArrowUpRight size={14} aria-hidden="true" /></a>)}</div></div></div></details>;
 }
 
 function formatSampleDate(value: string) {
   return new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`));
 }
 
-function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: {
+function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, onOpenChat }: {
   summaryFields: RetiredSummaryFields;
   setSummaryFields: Dispatch<SetStateAction<RetiredSummaryFields>>;
   onViewChange: (view: ViewName) => void;
+  onOpenChat?: () => void;
 }) {
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [educationGroup, setEducationGroup] = useState<"physical" | "mental" | null>(null);
   const [dxaRecord, setDxaRecord] = useState<SyntheticDxaRecord | null>(null);
   const [visionRecord, setVisionRecord] = useState<SyntheticVisionRecord | null>(null);
   const [appointment, setAppointment] = useState<SyntheticAppointment | null>(null);
@@ -435,32 +464,84 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: 
     appointment ? { label: "Bone health appointment", date: appointment.date } : dxaRecord ? { label: "Bone health follow-up due", date: dxaRecord.followUpDue } : null,
   ].filter((item): item is { label: string; date: string } => Boolean(item)).sort((a, b) => a.date.localeCompare(b.date));
   const nextFollowUp = nextFollowUpOptions[0] ? `${nextFollowUpOptions[0].label} · ${formatSampleDate(nextFollowUpOptions[0].date)}` : "No follow-up scheduled";
+  const workflow: Array<{ title: string; body: string; action: string; view?: ViewName; opensChat?: boolean; href?: string }> = [
+    { title: "Confirm your sources", body: "Check your profile and device connection. This workspace combines simulated wearable readings with any sample records you choose to import.", action: "Check Profile", view: "profile" },
+    { title: "Start with Home", body: "See your wearable summary and notice when a reading is unavailable or out of date. A device reading cannot tell you how you feel.", action: "Open Home", view: "home" },
+    { title: "Look at longer patterns", body: "Use Trends to compare readings over time. Treat changes as context for a conversation, not a diagnosis or target.", action: "Review Trends", view: "trends" },
+    { title: "Talk about life after flight", body: "Open ORBIT to reflect on the view of Earth, relationships, purpose, or anything else on your mind. Your experience does not need to fit one story.", action: "Talk with ORBIT", opensChat: true },
+    { title: "Add your own perspective", body: "Use Wellbeing for a private check-in about mood, sleep, and daily life. Skipping a question never means you are feeling well.", action: "Open Wellbeing", view: "wellbeing" },
+    { title: "Prepare for follow-up", body: "Review your imported sample records and choose the context to bring to a qualified professional. Nothing is booked or shared automatically.", action: "View follow-ups", href: "#retired-follow-ups" },
+  ];
 
   return <div className="space-y-7">
-    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-      <div><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Guidance · Retired astronaut</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Your long-term follow-up</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Review important health areas and prepare useful context for your next appointment.</p></div>
-      <a href="#retired-follow-ups" className="btn-square inline-flex items-center justify-center gap-2 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">View follow-ups <ArrowRight size={16} /></a>
+    <header>
+      <p className="eyebrow">Guidance · Retired astronaut</p>
+      <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Finding your rhythm after flight</h1>
+      <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">Use this guide to reflect on life after a mission, care for everyday wellbeing, and prepare for follow-up conversations.</p>
+      <nav aria-label="Retirement guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
+        <a href="#retired-workflow" className="mission-guide-button">Using OrbitWell</a>
+        <a href="#retired-routine" className="mission-guide-button">Everyday wellbeing</a>
+        <a href="#retired-follow-ups" className="mission-guide-button">Follow-ups</a>
+      </nav>
     </header>
 
-    <section className={`${panelClass} border-cyan-300/30`} aria-labelledby="next-follow-up-title">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200"><CalendarDays size={22} /></span><div><p className="text-sm font-semibold text-cyan-200">Next follow-up</p><h2 id="next-follow-up-title" className="mt-1 text-xl font-semibold text-white">{nextFollowUp}</h2><p className="mt-2 text-sm text-slate-400">Dates update from the imported report and locally created appointment. Nothing is booked or sent.</p></div></div>
-        <a href="#appointment-summary" className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">Prepare now <ArrowRight size={16} /></a>
+    <section id="retired-workflow" className="scroll-mt-6" aria-labelledby="retired-workflow-title">
+      <p className="eyebrow">01 / Know your tools</p>
+      <h2 id="retired-workflow-title" className="mt-2 text-2xl font-semibold text-white">Use OrbitWell from reflection to follow-up</h2>
+      <div className="mt-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {workflow.map((step, index) => <article key={step.title} className="tech-card flex h-full flex-col p-5 sm:p-7">
+          <span className="font-mono text-xs text-cyan-200">0{index + 1}</span>
+          <h3 className="mt-3 text-lg font-semibold text-white">{step.title}</h3>
+          <p className="mt-2 grow text-sm leading-6 text-slate-400">{step.body}</p>
+          {step.href ? <a href={step.href} className="mt-5 flex items-center gap-2 self-start text-sm font-semibold text-cyan-200 hover:underline">{step.action}<ArrowUpRight size={15} aria-hidden="true" /></a> : <button type="button" onClick={() => step.opensChat ? onOpenChat?.() : step.view && onViewChange(step.view)} className="mt-5 flex items-center gap-2 self-start text-sm font-semibold text-cyan-200 hover:underline">{step.action}<ArrowUpRight size={15} aria-hidden="true" /></button>}
+        </article>)}
       </div>
     </section>
 
-    <section aria-labelledby="retired-education-title">
-      <div><p className="text-sm text-slate-400">Education for long-term health</p><h2 id="retired-education-title" className="mt-1 text-2xl font-semibold text-white">Maintain physical and mental wellbeing</h2></div>
-      <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2">
-        <button type="button" aria-expanded={educationGroup === "physical"} onClick={() => setEducationGroup((current) => current === "physical" ? null : "physical")} className="tech-card h-full min-h-44 p-6 text-left transition hover:border-cyan-300/40 sm:p-7"><span className="flex items-start gap-4"><span className="grid size-12 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200"><Activity size={23} /></span><span className="min-w-0 flex-1"><span className="block text-lg font-semibold text-white">Physical health after spaceflight</span><span className="mt-2 block text-sm leading-6 text-slate-400">Long-term movement, bone, cardiovascular, sleep, nutrition, and preventive care.</span><span className="mt-4 inline-flex min-w-24 items-center justify-center rounded-xl border border-cyan-300/50 px-4 py-2 text-sm font-bold text-cyan-100">{educationGroup === "physical" ? "Close" : "Learn"}</span></span></span></button>
-        <button type="button" aria-expanded={educationGroup === "mental"} onClick={() => setEducationGroup((current) => current === "mental" ? null : "mental")} className="tech-card h-full min-h-44 p-6 text-left transition hover:border-cyan-300/40 sm:p-7"><span className="flex items-start gap-4"><span className="grid size-12 shrink-0 place-items-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200"><MessageCircleHeart size={23} /></span><span className="min-w-0 flex-1"><span className="block text-lg font-semibold text-white">Mental health after spaceflight</span><span className="mt-2 block text-sm leading-6 text-slate-400">Post-mission adjustment, emotional wellbeing, social connection, purpose, and daily routine.</span><span className="mt-4 inline-flex min-w-24 items-center justify-center rounded-xl border border-cyan-300/50 px-4 py-2 text-sm font-bold text-cyan-100">{educationGroup === "mental" ? "Close" : "Learn"}</span></span></span></button>
+    <section id="retired-routine" className="scroll-mt-6" aria-labelledby="retired-education-title">
+      <p className="eyebrow">02 / Support your routine</p>
+      <h2 id="retired-education-title" className="mt-2 text-2xl font-semibold text-white">Maintain physical and mental wellbeing</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Choose a topic to explore. These reminders support conversations with your care team and the people close to you.</p>
+      <div className="mt-5 grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-200">Mental health after spaceflight</h3>
+          {retiredEducationCards.filter((card) => card.group === "mental").map((card) => <RetiredEducationCard key={card.title} card={card} />)}
+          <h3 className="pt-3 text-sm font-semibold text-slate-200">Physical health after spaceflight</h3>
+          {retiredEducationCards.filter((card) => card.group === "physical").map((card) => <RetiredEducationCard key={card.title} card={card} />)}
+        </div>
+        <aside className="tech-card p-5 sm:p-7" aria-labelledby="retired-rhythm-title">
+          <Heart className="text-cyan-200" size={22} aria-hidden="true" />
+          <h3 id="retired-rhythm-title" className="mt-3 text-lg font-semibold text-white">A simple daily rhythm</h3>
+          <ol className="mt-4 space-y-5 text-sm leading-6 text-slate-400">
+            <li><strong className="block text-slate-200">Start of your day</strong>Notice how you feel and check the wearable source and sync status before interpreting its numbers.</li>
+            <li><strong className="block text-slate-200">Make room for connection</strong>Choose a manageable activity, reach out to someone, or talk with ORBIT if you want space to reflect.</li>
+            <li><strong className="block text-slate-200">Before rest</strong>Use a private check-in if it helps you remember what affected your mood, sleep, or energy.</li>
+          </ol>
+          <p className="mt-5 border-t border-slate-700 pt-4 text-xs leading-6 text-slate-400">A suggested way to use this demo, not a prescribed routine or a measure of wellbeing.</p>
+        </aside>
       </div>
-      {educationGroup ? <div className="tech-card mt-4 p-5 sm:p-7" role="tabpanel" aria-label={`${educationGroup === "physical" ? "Physical" : "Mental"} health education`}>
-        <div className="grid gap-3">{retiredEducationCards.filter((card) => card.group === educationGroup).map((card) => <RetiredEducationCard key={card.title} card={card} />)}</div>
-      </div> : null}
     </section>
 
-    <section id="retired-follow-ups" className={panelClass} aria-labelledby="health-areas-title">
+    <section id="retired-follow-ups" className="scroll-mt-6 space-y-5" aria-labelledby="retired-follow-ups-title">
+      <div><p className="eyebrow">03 / Check, prepare, follow up</p><h2 id="retired-follow-ups-title" className="mt-2 text-2xl font-semibold text-white">When something needs follow-up</h2></div>
+      <div className="tech-card p-5 sm:p-7">
+        <ol className="grid gap-5 md:grid-cols-2">
+          {[
+            ["Check the source", "Look at when a wearable reading was captured and whether the data is complete. A missing reading is not a reassuring result."],
+            ["Add your own context", "Notice symptoms, sleep, mood, activity, and what has changed in daily life. You can seek support even when a chart looks usual."],
+            ["Talk with the right person", "Bring new, persistent, or worsening concerns to a qualified professional. ORBIT can help you reflect but cannot contact anyone for you."],
+            ["Record the next step", "Use the dates and notes from your own records and care team. The sample appointment and reminder below stay in this demo."],
+          ].map(([title, body], index) => <li key={title} className="flex items-start gap-3"><span className="mt-0.5 font-mono text-sm text-cyan-200">0{index + 1}</span><div><h3 className="font-semibold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></li>)}
+        </ol>
+        <p className="mt-5 border-t border-slate-700 pt-4 text-sm leading-6 text-slate-400">Do not change treatment or activity limits based on a wearable value or AI reply.</p>
+      </div>
+      <div className={`${panelClass} border-cyan-300/30`} aria-labelledby="next-follow-up-title">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200"><CalendarDays size={22} /></span><div><p className="text-sm font-semibold text-cyan-200">Next follow-up</p><h3 id="next-follow-up-title" className="mt-1 text-xl font-semibold text-white">{nextFollowUp}</h3><p className="mt-2 text-sm text-slate-400">Dates update from imported sample records and the locally created appointment. Nothing is booked or sent.</p></div></div>
+          <a href="#appointment-summary" className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-300/40 px-4 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">Prepare now <ArrowRight size={16} /></a>
+        </div>
+      </div>
+    <section className={panelClass} aria-labelledby="health-areas-title">
       <h2 id="health-areas-title" className="text-xl font-semibold text-white">Long-term follow-up preview</h2>
       <div className="health-areas-grid mt-5 grid items-start gap-3">
         <details className="group rounded-xl border border-slate-800 bg-slate-950/20 p-5">
@@ -481,6 +562,7 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange }: 
       <div className="mt-5 grid gap-3 sm:grid-cols-2"><PrivacyToggle label="Wearable trend summary" checked={summaryFields.trends} onChange={() => setSummaryFields((current) => ({ ...current, trends: !current.trends }))} /><PrivacyToggle label="Wellbeing check-ins" checked={summaryFields.wellbeing} onChange={() => setSummaryFields((current) => ({ ...current, wellbeing: !current.wellbeing }))} /></div>
       <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" aria-expanded={summaryOpen} aria-controls="retired-summary-preview" onClick={() => setSummaryOpen((open) => !open)} className="btn-square bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">{summaryOpen ? "Hide summary" : "Preview summary"}</button><span className="text-xs text-slate-500">{selectedCount} of 2 sections selected · saved locally</span></div>
       {summaryOpen ? <div id="retired-summary-preview" className="mt-5 rounded-xl border border-slate-800 bg-slate-950/30 p-4" role="region" aria-label="Appointment summary preview"><p className="font-semibold text-white">Appointment conversation summary</p>{selectedCount ? <ul className="mt-3 space-y-2 text-sm text-slate-300">{summaryFields.trends ? <li>• Wearable trends and long-term context</li> : null}{summaryFields.wellbeing ? <li>• Locally saved wellbeing check-ins</li> : null}</ul> : <p className="mt-3 text-sm text-slate-400">Choose at least one section to include.</p>}<p className="mt-4 text-xs text-slate-500">Research demo. Not for diagnosis or emergency monitoring.</p></div> : null}
+    </section>
     </section>
   </div>;
 }

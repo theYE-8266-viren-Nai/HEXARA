@@ -153,12 +153,17 @@ export function checkInQuestions(stage: LifeStage): CheckInQuestion[] {
 
 /** Questions that apply given the answers so far (follow-ups appear only when relevant). */
 export function visibleQuestions(stage: LifeStage, answers: CheckInAnswers): CheckInQuestion[] {
-  return QUESTIONS[stage].filter((question) => {
+  const questions = QUESTIONS[stage].filter((question) => {
     if (!question.showWhen) return true;
     const parent = QUESTIONS[stage].find((candidate) => candidate.id === question.showWhen!.questionId);
     const option = parent?.options.find((candidate) => candidate.id === answers[question.showWhen!.questionId]);
     return Boolean(option && option.concern >= question.showWhen.minConcern);
   });
+  if (stage === "retired") {
+    const order = ["mood", "connection", "purpose", "sleep", "energy", "body", "followUp"];
+    return questions.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  }
+  return questions;
 }
 
 export type OverallState = "steady" | "watch" | "hard";
@@ -196,8 +201,8 @@ const SUGGESTIONS: Record<LifeStage, Partial<Record<WellbeingArea, { title: stri
     body: { title: "Keep moving safely", body: "Short daily walks and gentle strength or balance exercises help. Use support where you need it." },
     energy: { title: "Pace your week", body: "Spread demanding activities across the week and plan rest after busy days." },
     mood: { title: "Reach out to someone", body: "Call a friend, family member or former crewmate you trust, even just for a short chat." },
-    connection: { title: "Reconnect with your community", body: "Astronaut alumni events, outreach visits or a local group can bring back a sense of belonging." },
-    purpose: { title: "Find a new mission", body: "Mentoring, teaching or outreach can carry your experience forward. Pick one small step this week." },
+    connection: { title: "Choose one connection", body: "If you want company, consider a short call with someone you trust or a small activity with a group that feels welcoming." },
+    purpose: { title: "Explore what matters now", body: "There is no deadline for a new purpose. Notice one person, place, or activity you would like to make room for this week." },
     followUp: { title: "Book your follow-up", body: "Check which long-term health follow-ups are due and add the next one to your calendar." },
   },
 };

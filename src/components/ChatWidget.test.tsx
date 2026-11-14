@@ -109,4 +109,20 @@ describe("ORBIT NASA research assistant", () => {
     await act(async () => resolve({ data: reply }));
     expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
   });
+
+  it("opens from retired Home and keeps personal conversation out of cloud research", async () => {
+    const view = render(<ChatWidget {...props} stage="retired" openRequest={0} />);
+    view.rerender(<ChatWidget {...props} stage="retired" openRequest={1} />);
+    expect(await screen.findByRole("dialog", { name: "ORBIT AI" })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "I miss the view of Earth" }));
+    expect(screen.getByRole("log")).toHaveTextContent("What part of seeing Earth feels most present today?");
+    expect(mock.createConversation).not.toHaveBeenCalled();
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Explore NASA research" }));
+    expect(screen.getByText("NASA RESEARCH ASSISTANT")).toBeInTheDocument();
+    expect(screen.queryByText("What part of seeing Earth feels most present today?")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Return to private chat" }));
+    expect(screen.getByRole("log")).toHaveTextContent("What part of seeing Earth feels most present today?");
+  });
 });

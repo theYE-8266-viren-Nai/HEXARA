@@ -11,7 +11,7 @@ type SavedCheckIn = { answers: CheckInAnswers; note: string; completedAt: string
 const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> = {
   active: { kicker: "Wellbeing · In flight", title: "Daily check-in", lede: "A few quick questions about your last sleep period, your workload and life on board. Skip anything you'd rather not answer." },
   future: { kicker: "Wellbeing · Training", title: "Training check-in", lede: "A few quick questions about sleep, recovery and how training is going this week. Skip anything you'd rather not answer." },
-  retired: { kicker: "Wellbeing · After flight", title: "Weekly check-in", lede: "A few quick questions about how life after flying feels this week. Skip anything you'd rather not answer." },
+  retired: { kicker: "Wellbeing · After flight", title: "A moment for yourself", lede: "Start with your feelings and connections. The questions are optional, one at a time, and your answers stay on this device." },
 };
 
 export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: SupabaseClient | null }) {
