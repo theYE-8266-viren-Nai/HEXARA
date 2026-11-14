@@ -588,22 +588,28 @@ describe("OrbitWell app shell", () => {
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
-  it("shows only the Trends charts measured by the paired wearables", async () => {
+  it("keeps Trends locked until every wearable is paired", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    for (const name of ["Resting heart rate", "HRV", "SpO₂", "Skin temperature"]) expect(screen.getByRole("heading", { name })).toBeInTheDocument();
-    for (const name of ["Sleep", "Radiation dose"]) expect(screen.queryByRole("heading", { name })).not.toBeInTheDocument();
-    expect(screen.getByText(/Showing charts from: Astroskin shirt/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Complete device pairing to view trends" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Resting heart rate" })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    await user.click(screen.getByRole("button", { name: /^Connect wearables/ }));
-    await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
-    await screen.findByRole("button", { name: "Disconnect Actiwatch" });
+    const connect = screen.getByRole("button", { name: /^Connect wearables/ });
+    for (const [pairName, connectedName] of [["Pair Actiwatch", "Disconnect Actiwatch"], ["Pair Personal dosimeter", "Disconnect Personal dosimeter"], ["Pair Motion sensors", "Disconnect Motion sensors"]] as const) {
+      if (!screen.queryByRole("button", { name: connectedName })) {
+        if (!screen.queryByRole("region", { name: "Available wearables" })) await user.click(connect);
+        await user.click(await screen.findByRole("button", { name: pairName }));
+        await screen.findByRole("button", { name: connectedName });
+      }
+    }
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    for (const name of ["Resting heart rate", "HRV", "SpO₂", "Skin temperature"]) expect(screen.getByRole("heading", { name })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Sleep" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Radiation dose" })).toBeInTheDocument();
+    expect(screen.getByText(/Showing charts from: Astroskin shirt, Actiwatch, Personal dosimeter, Motion sensors/)).toBeInTheDocument();
   });
 
   it("collapses the sidebar to icons, remembers it, and no longer shows the demo label", async () => {
