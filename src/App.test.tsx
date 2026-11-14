@@ -18,11 +18,11 @@ async function waitForSignals() {
 let accountNumber = 0;
 const labels = { active: "Active astronaut", future: "Future astronaut", retired: "Retired astronaut" } as const;
 
-/** On a stage's account screen: continue a remembered account, or create a new one for that stage. */
+/** Select a stage, opening the workspace directly for a remembered account or the account form for a new one. */
 async function signInThroughStage(stage: keyof typeof labels) {
   await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
-  const remembered = screen.queryByRole("button", { name: /^Continue/ });
-  if (remembered) { await userEvent.click(remembered); await screen.findByRole("button", { name: "Log out" }); return; }
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Log out" }) ?? screen.queryByRole("button", { name: "Create an account" })).toBeTruthy());
+  if (screen.queryByRole("button", { name: "Log out" })) return;
   await userEvent.click(await screen.findByRole("button", { name: "Create an account" }));
   accountNumber += 1;
   await userEvent.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
@@ -148,17 +148,14 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByText(/Test Future astronaut · Future traveler/)).toBeInTheDocument();
   });
 
-  it("remembers a logged-in astronaut but still opens on the start page", async () => {
-    const user = userEvent.setup();
+  it("restores a logged-in astronaut directly in the saved workspace", async () => {
     const first = await openWorkspace("retired", { pair: false });
     first.unmount();
 
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
-    expect(screen.getByRole("heading", { name: /Welcome back, Test/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Continue/ }));
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Welcome back/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
   });
 
   it("stays dark across entry screens and ignores an old light preference", async () => {

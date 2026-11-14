@@ -183,10 +183,16 @@ function HorizonApp() {
       const auth = await ensureAnonymousSession(supabase);
       if (cancelled) return;
       setUserId(auth.userId);
-      // A signed-in astronaut is remembered, but the start page still shows first (with "Continue").
+      // Returning astronauts go straight to their saved workspace; the stage picker is for new or signed-out users.
       const existing = await accounts.current();
       if (cancelled) return;
       setAccount(existing);
+      if (existing?.profile) {
+        const matchingProfile = profiles.find((candidate) => candidate.stage === existing.profile!.stage) ?? profiles[0];
+        setProfileId(matchingProfile.id);
+        setStage(existing.profile.stage);
+        setActiveView("home");
+      }
       setCloudWarning(auth.warning);
       if (auth.userId) {
         // The saved stage is kept in the cloud, but every visit starts on the stage picker.
@@ -233,6 +239,14 @@ function HorizonApp() {
     setAccountStage(null);
     setStage(next.profile.stage);
     setActiveView("home");
+  };
+  const selectStage = (nextStage: LifeStage) => {
+    // The remembered account does not need a second confirmation page.
+    if (account?.profile?.stage === nextStage) {
+      enterAccount(account);
+      return;
+    }
+    setAccountStage(nextStage);
   };
   const logOut = async () => {
     await accounts.signOut();
@@ -329,8 +343,8 @@ function HorizonApp() {
 
   if (authLoading) return <StageSelectionView loading />;
   if (groundPreview) return <GroundTeamDashboard onExit={() => setGroundPreview(false)} />;
-  if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} onLogOut={() => { void accounts.signOut().then(() => setAccount(null)); }} />;
-  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={setAccountStage} onOpenGroundDemo={() => setGroundPreview(true)} />;
+  if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} />;
+  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={selectStage} onOpenGroundDemo={() => setGroundPreview(true)} />;
   // The astronaut's own name and mission day replace the sample traveler's on every page.
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
