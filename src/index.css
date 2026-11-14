@@ -215,12 +215,11 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .brand-name { color: var(--text-primary); font-size: 25px; font-weight: 600; line-height: 1.1; letter-spacing: -1.2px; }
 .brand-name span { color: var(--accent); }
 .brand-caption { color: var(--muted); font-size: 7px; letter-spacing: .19em; margin-top: 5px; }
-.research-badge, .scenario-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--glass-border); border-radius: 99px; padding: 7px 11px; font-size: 11px; color: #bdcbd6; background: rgba(184, 215, 235, .04); }
-.research-badge > span, .demo-label > span, .status-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(161, 229, 229, .3); }
+.scenario-pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--glass-border); border-radius: 99px; padding: 7px 11px; font-size: 11px; color: #bdcbd6; background: rgba(184, 215, 235, .04); }
+.demo-label > span, .status-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(161, 229, 229, .3); }
 .onboarding { padding: 0 36px 70px; }
 .onboarding-container { max-width: 1176px; margin: 0 auto; }
 .onboarding-topbar { min-height: 100px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 1px solid var(--border-soft); }
-.onboarding-topline { color: var(--muted); font-size: 11px; letter-spacing: .02em; margin-left: auto; margin-right: 20px; }
 .onboarding-grid { display: grid; grid-template-columns: 1fr 1.03fr; gap: clamp(32px, 5vw, 76px); align-items: center; padding: 47px 0 34px; }
 .journey-selection h1 { font-size: clamp(28px, 3.3vw, 43px); letter-spacing: -.045em; font-weight: 500; line-height: 1.22; margin-top: 18px; }
 .journey-selection h1 > span { color: var(--text-subtle); }
@@ -536,7 +535,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .orbital-visual { height: 570px; }
   .journey-selection h1 { font-size: 34px; }
   .journey-card { padding: 16px 18px; gap: 15px; }
-  .onboarding-topline { display: none; }
 }
 @media (max-width: 767px) {
   .chat-launcher { right: 9px; bottom: calc(96px + env(safe-area-inset-bottom)); }
@@ -564,7 +562,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .orbital-visual figcaption { left: 22px; right: 22px; bottom: 17px; }
   .orbital-marker { display: none; }
   .orbit-path { top: -10%; }
-  .research-badge { font-size: 9px; padding: 6px 9px; }
   .workspace-content { padding: 22px 18px 135px; }
   .workspace-content > .space-y-7 > :not(:last-child) { margin-bottom: 23px; }
   .app-topbar { padding-left: 18px; padding-right: 18px; }
@@ -612,14 +609,11 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .orbital-photo { left: -25%; top: -35%; }
 }
 
-.onboarding-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .orbital-visual .status-dot { background: var(--accent); }
 @media (max-width: 767px) {
   .workspace-breadcrumb { display: none; }
   .app-topbar, .onboarding-topbar { gap: 12px; }
-  .onboarding-actions { gap: 9px; }
 }
-@media (max-width: 374px) { .onboarding-actions .research-badge { display: none; } }
 
 /* Simulated wearable: connection loader, live badge, live dot */
 .device-connect-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: rgba(85,224,244,.12); color: var(--accent, #55e0f4); }
@@ -971,7 +965,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
   .account-chip-name { padding: 2px; }
 }
 .app-topbar .workspace-breadcrumb { margin-right: auto; }
-@media (max-width: 480px) { .onboarding-actions .research-badge { display: none; } }
 .account-stage { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 560px; }
 .account-stage-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
 .account-stage-body { font-size: 13px; color: var(--muted); }
