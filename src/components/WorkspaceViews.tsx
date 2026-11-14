@@ -16,6 +16,7 @@ import type { PreparationRepository } from "../lib/preparationRepository";
 import { useDevice } from "../lib/deviceContext";
 import { WellbeingCheckIn } from "./WellbeingCheckIn";
 import { WearableConnect } from "./WearableConnect";
+import { BODY_DEVICES } from "../domain/bodyDevices";
 import { astronautRecord, initials } from "../data/astronautProfiles";
 import { displayValue, initialsOf, profileGroups, validateProfile, type AstronautProfile } from "../domain/astronautAccount";
 import type { Account } from "../lib/accountRepository";
@@ -300,7 +301,7 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
     </div>
     <section className="tech-card panel" aria-labelledby="wearable-title">
       <div className="panel-head"><h2 id="wearable-title">Wearable</h2></div>
-      <div className="mt-3"><DeviceCard onResetScenario={() => onScenarioChange("usual")} /></div>
+      <div className="mt-3"><DeviceCard stage={stage} onResetScenario={() => onScenarioChange("usual")} /></div>
     </section>
     <details className="tech-card panel demo-controls">
       <summary><span>Demo controls</span><span className="demo-controls-hint">Switch scenario and data sources for the presentation</span></summary>
@@ -659,9 +660,26 @@ function BluetoothCard() {
   </div>;
 }
 
-function DeviceCard({ onResetScenario }: { onResetScenario: () => void }) {
-  const device = useDevice()?.status;
+function DeviceCard({ onResetScenario, stage }: { onResetScenario: () => void; stage?: LifeStage }) {
+  const context = useDevice();
+  const device = context?.status;
   if (!device) return null;
+  const wearables = stage === "active" ? context?.bodyDevices : undefined;
+  if (wearables) {
+    const connected = BODY_DEVICES.filter((item) => wearables.paired.has(item.id));
+    return <div className="profile-wearables" aria-labelledby="device-card-title">
+      <div className="profile-wearables-head">
+        <div><p id="device-card-title" className="profile-wearables-title">{connected.length ? `${connected.length} of ${BODY_DEVICES.length} wearables connected` : "No wearables connected"}</p>
+          <p className="profile-wearables-note">{connected.length ? "Simulated readings from these devices appear on the body in Home." : "Switch on Connect wearables to pair your devices."}</p></div>
+        <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
+      </div>
+      {connected.length ? <ul className="profile-wearable-list" aria-label="Connected wearables">{connected.map((item) => <li key={item.id} className="profile-wearable">
+        <span className="wearable-dot" aria-hidden="true" />
+        <div className="profile-wearable-text"><p className="profile-wearable-name">{item.name}<span className="body-device-badge">Connected</span></p><p className="profile-wearable-meta">{item.worn} · {item.measures}</p><p className="profile-wearable-meta">Body parts: {item.parts.join(", ")}</p></div>
+        <button type="button" className="btn-secondary" aria-label={`Disconnect ${item.name}`} onClick={() => wearables.unpair(item.id)}>Disconnect</button>
+      </li>)}</ul> : null}
+    </div>;
+  }
   const summary = device.phase === "streaming" ? "Connected · streaming simulated readings" : device.connecting ? "Connecting…" : device.phase === "signal_lost" ? "Signal lost" : device.phase === "offline" ? "Offline" : "Not connected";
   return <div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-4" aria-labelledby="device-card-title"><div className="flex items-center gap-2"><Watch size={16} className="text-cyan-200" aria-hidden="true" /><p id="device-card-title" className="text-sm text-slate-400">Simulated wearable</p></div><p className="mt-1 text-lg font-semibold text-white">{summary}</p><div className="mt-3 flex flex-wrap gap-3">{device.phase === "streaming" ? <button type="button" onClick={device.disconnect} className="rounded-xl border border-slate-500/50 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">Disconnect wearable</button> : device.connecting ? null : <button type="button" onClick={() => { onResetScenario(); device.reconnect(); }} className="rounded-xl border border-cyan-300/40 px-4 py-2 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10">{device.paired ? "Reconnect wearable" : "Pair simulated wearable"}</button>}</div></div>;
 }

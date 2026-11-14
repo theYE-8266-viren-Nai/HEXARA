@@ -703,15 +703,25 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 
-  it("lets the user disconnect and reconnect the wearable from Profile", async () => {
+  it("shows which wearables are connected on Profile, and lets the user disconnect and pair again there", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.click(await screen.findByRole("button", { name: "Disconnect wearable" }));
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(screen.queryByRole("heading", { name: "No device paired" })).not.toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.click(screen.getByRole("button", { name: /^(Reconnect wearable|Pair simulated wearable)$/ }));
+    expect(await screen.findByText("1 of 4 wearables connected")).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Connected wearables" });
+    expect(within(list).getByText("Astroskin shirt")).toBeInTheDocument();
+    expect(within(list).getByText(/Heart rate, HRV, SpO₂ and skin temperature/)).toBeInTheDocument();
+    expect(within(list).queryByText("Actiwatch")).not.toBeInTheDocument();
+
+    await user.click(within(list).getByRole("button", { name: "Disconnect Astroskin shirt" }));
+    expect(screen.getByText("No wearables connected")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Connected wearables" })).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("switch", { name: "Connect wearables" });
+    if (toggle.getAttribute("aria-checked") !== "true") await user.click(toggle);
+    else await user.click(screen.getByRole("button", { name: /Connect wearables/ }));
+    await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
+    expect(await within(await screen.findByRole("list", { name: "Connected wearables" })).findByText("Actiwatch")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
   });
