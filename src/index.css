@@ -1238,3 +1238,22 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .device-connect-card .btn-primary { min-height: 48px; padding: 0 22px; }
 
 .device-connect-card .wearable-connect-bar { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+
+/* Profile: which wearables are connected */
+.profile-wearables { display: grid; gap: 12px; }
+.profile-wearables-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.profile-wearables-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.profile-wearables-note { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.profile-wearable-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.profile-wearable { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--tone-normal) 45%, transparent); border-radius: 12px; background: var(--surface-2); }
+.profile-wearable .wearable-dot { background: #2fbf86; }
+.profile-wearable-text { flex: 1; min-width: 0; }
+.profile-wearable-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.profile-wearable-meta { margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.body-device-badge { padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: var(--tone-normal); background: var(--tone-normal-bg); }
+@media (max-width: 767px) { .profile-wearable-list { grid-template-columns: 1fr; } }
+/* Phones: the wearable list opens inline (pushing content down) so the chat button and bottom menu never cover it. */
+@media (max-width: 767px) {
+  .wearable-connect { width: 100%; }
+  .wearable-dropdown { position: static; width: 100%; margin-top: 8px; box-shadow: none; }
+}
