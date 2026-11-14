@@ -43,7 +43,7 @@ async function signInThroughStage(stage: keyof typeof labels) {
 
 /** Active astronauts pair through "Find devices" in the body overview; other stages use the wearable card. */
 async function pairWearable(stage: keyof typeof labels) {
-  if (stage !== "active") { await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" })); return; }
+  if (stage !== "active") { await userEvent.click(await screen.findByRole("button", { name: "Connect wearables" })); return; }
   const toggle = await screen.findByRole("switch", { name: "Connect wearables" });
   if (toggle.getAttribute("aria-checked") !== "true") await userEvent.click(toggle);
   else if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(screen.getByRole("button", { name: /Connect wearables/ }));
@@ -164,7 +164,7 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
     expect(screen.getByRole("heading", { name: /Welcome back, Test/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Continue/ }));
-    expect(await screen.findByRole("heading", { name: "Pair one wearable to begin" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 
   it("switches appearance on the landing page and keeps it across workspace navigation", async () => {
@@ -300,11 +300,11 @@ describe("OrbitWell app shell", () => {
     const user = userEvent.setup();
     await openWorkspace("retired", { pair: false });
     const main = screen.getByRole("main");
-    expect(within(main).getByRole("heading", { name: "Pair one wearable to begin" })).toBeInTheDocument();
+    expect(within(main).getByRole("heading", { name: "No device paired" })).toBeInTheDocument();
     expect(within(main).getAllByRole("button")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Open ORBIT companion" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "How are you feeling today?" })).not.toBeInTheDocument();
-    await user.click(within(main).getByRole("button", { name: "Pair simulated wearable" }));
+    await user.click(within(main).getByRole("button", { name: "Connect wearables" }));
     expect(await screen.findByRole("heading", { name: "Life after the mission" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Mental friend" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Chat with ORBIT" })).toBeInTheDocument();
@@ -323,7 +323,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
 
-  it.each(["future", "active", "retired"] as const)("opens %s Trends with the pattern summary", async (stage) => {
+  it.each(["future", "active", "retired"] as const)("opens %s Trends without the pattern summary", async (stage) => {
     const user = userEvent.setup();
     await openWorkspace(stage);
 
@@ -331,12 +331,12 @@ describe("OrbitWell app shell", () => {
 
     expect(screen.getByRole("heading", { name: stage === "retired" ? "Your wearable trends over time" : "Your signals over time" })).toBeInTheDocument();
     // The card is mounted for every stage; only Active has the local 30-day history to score here.
-    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
     if (stage === "active") {
-      expect(await screen.findByRole("button", { name: "Explain in plain English" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Explain in plain English" })).not.toBeInTheDocument();
     } else {
       // Demo-only profiles have no stored history yet, so the card says so instead of scoring.
-      expect(screen.getByText("Pattern view paused")).toBeInTheDocument();
+      expect(screen.queryByText("Pattern view paused")).not.toBeInTheDocument();
     }
   });
 
@@ -663,7 +663,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByText(/Mission day/)).not.toBeInTheDocument();
     expect(screen.getByText(/Pre-mission/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Pair simulated wearable" }));
+    await user.click(screen.getByRole("button", { name: "Connect wearables" }));
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
     expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
 
@@ -691,7 +691,7 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
-    expect(screen.getByText(/Switch on Connect wearables at the top right/)).toBeInTheDocument();
+    expect(screen.queryByText(/Switch on Connect wearables at the top right/)).not.toBeInTheDocument();
     await pairWearable("active");
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
     first.unmount();
@@ -709,8 +709,10 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.click(await screen.findByRole("button", { name: "Disconnect wearable" }));
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(screen.getByRole("heading", { name: "Device disconnected" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Reconnect wearable" }));
+    expect(screen.queryByRole("heading", { name: "No device paired" })).not.toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    await user.click(screen.getByRole("button", { name: /^(Reconnect wearable|Pair simulated wearable)$/ }));
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
   });
 
@@ -882,7 +884,7 @@ describe("OrbitWell app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("keeps the recovery alert on Home with the pattern card and no activity card", async () => {
+  it("keeps the recovery alert on Home without the pattern or activity cards", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
@@ -890,8 +892,8 @@ describe("OrbitWell app shell", () => {
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
-    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Explain in plain English" })).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Explain in plain English" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
