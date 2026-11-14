@@ -50,9 +50,6 @@ const JOURNEY: Record<LifeStage, { title: string; fields: ProfileField[] }> = {
     { key: "role", label: "Role", kind: "text", placeholder: "Flight engineer" },
     { key: "launchDate", label: "Launch date", kind: "date" },
     { key: "plannedReturn", label: "Planned return", kind: "date" },
-    { key: "previousFlights", label: "Previous flights", kind: "text", placeholder: "1 (166 days)" },
-    { key: "spacewalks", label: "Spacewalks", kind: "text", placeholder: "2 · 13 h 40 min" },
-    { key: "sleepPeriod", label: "Sleep period", kind: "text", placeholder: "21:30 – 06:00 GMT" },
     { key: "exercisePlan", label: "Exercise plan", kind: "text", placeholder: "2.5 h daily" },
   ] },
   retired: { title: "Career in space", fields: [
