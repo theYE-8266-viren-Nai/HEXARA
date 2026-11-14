@@ -1,8 +1,9 @@
-# Active Home interactive body viewer
+# Active and Retired Home interactive body viewer
 
-Active Home presents a large generic full-body model directly on the page,
+Active and Retired Home present a large generic full-body model directly on the page,
 without an enclosing card or rectangular canvas background. It remains visible
-before the wearable connection gate. Future and Retired Home are unchanged.
+before the wearable connection gate. Future Home remains unchanged and has no
+Movement layer.
 The standalone Active signal grid and radiation card are removed; readings open
 only after selecting a region, in a panel beside the figure on desktop and below
 it on narrower screens. Brain, Chest, Spine and Back muscle panels open to the
@@ -17,6 +18,12 @@ to open its panel; select it again, press Escape, or use Close to dismiss it.
 Only one panel opens at a time. A secondary region chooser supports touch,
 keyboard, and browsers without WebGL. Green denotes interactivity, never health.
 
+The `Signals` and `Movement` controls keep two separate marker layers. Active
+Movement exposes shoulder mobility and reach-and-return only. Retired Movement
+exposes exactly four practices: shoulder mobility, reach-and-return,
+sit-to-stand, and single-leg balance. Historical standing-posture records remain
+readable but cannot start a new session.
+
 | Region | Content |
 | --- | --- |
 | Heart | Current heart rate and HRV |
@@ -27,6 +34,22 @@ keyboard, and browsers without WebGL. Green denotes interactivity, never health.
 | Spine | No direct sensor; optional Movement route |
 | Back muscle | No direct sensor; optional Movement route |
 | Skin | Skin temperature and whole-body dosimeter context |
+
+| Movement region | Practice | Model mesh |
+| --- | --- | --- |
+| Shoulder | Shoulder mobility | `shoulder_muscles_l` |
+| Arm | Reach-and-return | `upper_arm_muscles_l` |
+| Hip | Sit-to-stand | `pelvis` |
+| Knee | Sit-to-stand | `patella_l` |
+| Ankle | Single-leg balance | `foot_l` |
+
+Selecting a Movement marker shows the newest cloud-saved derived summary for
+that task, or opens Movement with the task preselected. `Save and show on body`
+returns to Home only after Supabase confirms the write, then opens the mapped
+region. Failed writes remain on the result screen for retry. The panel never
+shows symptom notes and never interprets movement as strength, injury, stability,
+readiness, or diagnosis. Cyan means saved context exists; amber means partial
+capture or limited tracking quality, not a health warning.
 
 Spine/back-muscle dots appear on the back; rotate to either 180-degree limit to
 reach them. Front-only markers hide on the back to avoid showing through the body.
@@ -39,7 +62,7 @@ labelled, and insufficient-baseline readings omit the personal comparison.
 - Drag horizontally (mouse, touch, pen); vertical touch scrolling remains enabled.
 - Turn left/right in 15-degree steps, use the -180 to +180 slider, or reset Front view.
 - Focus the viewer and press Left/Right or Home. Rotation is clamped at both limits.
-- The Three.js scene loads only on Active Home. It renders on load, rotation,
+- The Three.js scene loads only on Active and Retired Home. It renders on load, rotation,
   and resize; there is no continuous animation loop or idle auto-rotation.
 - Pixel ratio is capped at 1.75. An orthographic camera fits the full body even
   in narrow containers. Geometry/materials, resize observers, canvas and WebGL
@@ -68,9 +91,10 @@ is not the user's body scan or a diagnostic view. Named structures (including
 ## Verification
 
 - Viewer tests cover pointer rotation, keyboard/slider controls, bounds, reset,
-  cleanup, and unsupported-WebGL retry using a mocked renderer.
+  cleanup, unsupported-WebGL retry, stage-specific Movement regions, task
+  routing, and saved-result rendering using a mocked renderer.
 - `node --import ./tests/register.mjs --test tests/body-model.test.mjs` decodes the actual bundled asset and
-  verifies integrity, full-body bounds, and all eight anchor mesh names.
+  verifies integrity, full-body bounds, and all signal and Movement anchor mesh names.
 - App tests check existing stage navigation; `npm run build` type-checks and bundles.
 - Real browser visual checks of materials, desktop/mobile framing, and GPU
   rendering are still needed when a browser connection is available.

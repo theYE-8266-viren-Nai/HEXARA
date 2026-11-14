@@ -16,7 +16,8 @@
     "setup:pose": "node scripts/setup-pose-assets.mjs",
     "nasa:sync": "node scripts/sync-nasa-corpus.mjs",
     "nasa:benchmark": "node scripts/benchmark-nasa-retrieval.mjs",
-    "test:nasa-rls": "node scripts/check-nasa-rls.mjs"
+    "test:nasa-rls": "node scripts/check-nasa-rls.mjs",
+    "test:visual-rls": "node scripts/check-visual-checks-rls.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

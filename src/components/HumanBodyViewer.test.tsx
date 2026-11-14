@@ -11,6 +11,17 @@ import { motionReadings } from '../domain/motionSensor';
 const ALL_DEVICES = new Set<BodyDeviceId>(['astroskin', 'actiwatch', 'dosimeter', 'motion']);
 const motion = motionReadings(42, 'active:test');
 const metrics = () => mockDashboardRepository.getSnapshot('usual', {seed:42, replayCount:0}).metrics;
+import { VISUAL_CHECK_DISCLAIMER, type VisualCheck } from '../domain/visualCheck';
+
+const savedCheck = (checkType: VisualCheck['checkType'], overrides: Partial<VisualCheck> = {}): VisualCheck => ({
+  checkId: `${checkType}-1`, ownerKey: 'retired:p1', stage: 'retired', checkType,
+  startedAt: '2026-11-14T00:00:00.000Z', duration: 20, cameraConsent: false, completionStatus: 'completed',
+  observedFeatures: { repetitionCount: 7, movementDurationSeconds: 20, leftRightBalance: 0.46, balanceDeviation: 1.2, pauseCount: 1, cameraQuality: 'good', qualityNotes: [], method: 'pose', jointAngleRanges: { left_knee: { min: 72, max: 154 } } },
+  userReportedSymptoms: { discomfort: 'none', symptoms: '' },
+  comparisonSummary: { trend: 'similar', statements: ['Repetition count was similar to your previous sessions.'], priorSessionsUsed: 2 },
+  observationSummary: [], supportRecommendation: 'Personal context only.', disclaimer: VISUAL_CHECK_DISCLAIMER, isSynthetic: true,
+  ...overrides,
+});
 
 const engine = vi.hoisted(() => ({ rotate: vi.fn(), dispose: vi.fn(), fail: false }));
 vi.mock('../lib/bodyScene', () => ({
@@ -35,15 +46,15 @@ describe('Human body viewer', () => {
     fireEvent.change(slider, {target:{value:'180'}});
     expect(engine.rotate).toHaveBeenLastCalledWith(180);
     expect(screen.getByRole('button', {name:'Turn right'})).toBeDisabled();
-    fireEvent.keyDown(screen.getByRole('group'), {key:'ArrowRight'});
+    fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'ArrowRight'});
     expect(engine.rotate).toHaveBeenLastCalledWith(180);
     fireEvent.change(slider, {target:{value:'-180'}});
     expect(screen.getByRole('button', {name:'Turn left'})).toBeDisabled();
     await user.click(screen.getByRole('button', {name:'Front view'}));
     expect(slider).toHaveValue('0');
-    fireEvent.keyDown(screen.getByRole('group'), {key:'ArrowLeft'});
+    fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'ArrowLeft'});
     expect(slider).toHaveValue('-15');
-    fireEvent.keyDown(screen.getByRole('group'), {key:'Home'});
+    fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'Home'});
     expect(slider).toHaveValue('0');
     expect(clampBodyRotation(999)).toBe(180);
     expect(clampBodyRotation(-999)).toBe(-180);
@@ -53,7 +64,7 @@ describe('Human body viewer', () => {
   it('supports horizontal pointer drag and stops on release', async () => {
     render(<HumanBodyViewer />);
     await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
-    const stage = screen.getByRole('group');
+    const stage = screen.getByRole('group', {name:'Rotatable 3D human figure'});
     stage.setPointerCapture = vi.fn();
     const pointer = (type: string, x: number) => {
       const event = new Event(type, {bubbles:true});
@@ -126,7 +137,7 @@ describe('Human body viewer', () => {
       expect(panel).toHaveAttribute('data-side', ['Brain','Chest'].includes(label) ? 'left' : 'right');
       for (const text of readings.has) expect(panel).toHaveTextContent(text);
       for (const text of readings.not) expect(panel).not.toHaveTextContent(text);
-      fireEvent.keyDown(screen.getByRole('group'), {key:'Escape'});
+      fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'Escape'});
       expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
     }
   });
@@ -134,7 +145,7 @@ describe('Human body viewer', () => {
   it('always shows every dot: red and not connected until its device is paired, then green with readings', async () => {
     const user = userEvent.setup();
     const onPair = vi.fn();
-    const view = render(<HumanBodyViewer metrics={metrics()} onPairDevice={onPair} motion={motion} />);
+    const view = render(<HumanBodyViewer metrics={metrics()} pairedDevices={new Set<BodyDeviceId>()} onPairDevice={onPair} motion={motion} />);
     await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
     for (const name of ['Heart','Brain','Lungs','Chest','Legs','Skin']) {
       const dot = screen.getByRole('button', {name:`${name}, not connected`});
@@ -162,5 +173,33 @@ describe('Human body viewer', () => {
     const panel = screen.getByRole('complementary', {name:'Heart signals'});
     expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
     expect(within(panel).getByRole('status')).toHaveTextContent(signalState === 'loading' ? 'Waiting' : signalState === 'unpaired' ? 'No device paired' : 'Readings unavailable');
+  });
+
+  it('shows only in-flight movement regions for Active and opens the mapped task', async () => {
+    const user = userEvent.setup();
+    const onStartMovement = vi.fn();
+    render(<HumanBodyViewer stage="active" onStartMovement={onStartMovement} />);
+    await user.click(screen.getByRole('button', {name:'Movement'}));
+    expect(await screen.findByRole('button', {name:'Shoulder'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name:'Arm'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name:'Hip'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name:'Knee'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name:'Ankle'})).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name:'Shoulder'}));
+    await user.click(screen.getByRole('button', {name:'Open Shoulder mobility'}));
+    expect(onStartMovement).toHaveBeenCalledWith('shoulder_mobility');
+  });
+
+  it('shows all four Retired tasks and displays only derived saved context', async () => {
+    const user = userEvent.setup();
+    render(<HumanBodyViewer stage="retired" movementChecks={[savedCheck('sit_to_stand')]} initialLayer="movement" initialRegion="knee" />);
+    for (const region of ['Shoulder','Arm','Hip','Knee','Ankle']) expect(await screen.findByRole('button', {name:region})).toBeInTheDocument();
+    const panel = screen.getByRole('complementary', {name:'Knee movement'});
+    expect(panel).toHaveTextContent('Sit-to-stand');
+    expect(panel).toHaveTextContent('Repetitions7');
+    expect(panel).toHaveTextContent('Tracking qualitygood');
+    expect(panel).toHaveTextContent('Synthetic demo');
+    expect(panel).toHaveTextContent('Repetition count was similar');
+    expect(panel).not.toHaveTextContent('symptom');
   });
 });

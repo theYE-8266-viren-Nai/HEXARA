@@ -274,15 +274,21 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
 
-  it.each(["future", "active", "retired"] as const)("opens %s Trends without the pattern summary", async (stage) => {
+  it.each(["future", "active", "retired"] as const)("opens %s Trends with the pattern summary", async (stage) => {
     const user = userEvent.setup();
     await openWorkspace(stage);
 
     await user.click(screen.getAllByRole("button", { name: /Trends/ })[0]);
 
     expect(screen.getByRole("heading", { name: stage === "retired" ? "Your wearable trends over time" : "Your signals over time" })).toBeInTheDocument();
-    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
+    // The card is mounted for every stage; only Active has the local 30-day history to score here.
+    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    if (stage === "active") {
+      expect(await screen.findByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
+    } else {
+      // Demo-only profiles have no stored history yet, so the card says so instead of scoring.
+      expect(screen.getByText("Pattern view paused")).toBeInTheDocument();
+    }
   });
 
   it("explains a recovery concern in plain language", async () => {
@@ -559,7 +565,8 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
     expect(screen.getByRole("heading", { name: "Track your reconditioning practice" })).toBeInTheDocument();
     expect(screen.getByText(/not a rehab programme: follow the plan from your own rehab or medical team/)).toBeInTheDocument();
-    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Standing posture/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Standing posture/ })).not.toBeInTheDocument();
     // The how-to line (including the stop-if-unsteady safety line) shows for the selected task.
     await user.click(screen.getByRole("radio", { name: /Single-leg balance/ }));
     expect(screen.getByText(/Stop if you feel unsteady/)).toBeInTheDocument();
@@ -818,7 +825,7 @@ describe("OrbitWell app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("keeps the recovery alert on Home without the pattern and activity cards", async () => {
+  it("keeps the recovery alert on Home with the pattern card and no activity card", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
@@ -826,8 +833,8 @@ describe("OrbitWell app shell", () => {
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
-    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
+    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
