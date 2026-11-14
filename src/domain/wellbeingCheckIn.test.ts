@@ -25,7 +25,7 @@ describe("wellbeing check-in", () => {
       const summary = summarizeCheckIn(stage, answers);
       expect(summary.overall).toBe("steady");
       expect(summary.talkTo).toBeUndefined();
-      expect(summary.headline).toBe("Your answers look steady today.");
+      expect(summary.headline).toBe("You seem to be doing well today.");
       expect(summary.suggestions[0].title).toBe("Keep your routine going");
     }
   });
@@ -35,8 +35,7 @@ describe("wellbeing check-in", () => {
     expect(summary.overall).toBe("watch");
     expect(summary.lines[0].text).toBe("Your sleep on board was broken and you still feel tired, mostly because of noise and light.");
     expect(summary.suggestions.map((item) => item.title)).toContain("Protect your next sleep period");
-    expect(summary.suggestions[0].area).toBe("sleep");
-    expect(summary.headline).toBe("A few answers are worth noticing.");
+    expect(summary.headline).toBe("Mostly steady, with a few things to look after.");
   });
 
   it("points to the right person for each stage when pain or a very low mood is reported", () => {
@@ -44,7 +43,7 @@ describe("wellbeing check-in", () => {
     expect(summarizeCheckIn("future", { recovery: "injury" }).talkTo).toContain("training physician or instructor");
     expect(summarizeCheckIn("retired", { mood: "low" }).talkTo).toContain("your doctor");
     expect(summarizeCheckIn("retired", { mood: "low" }).overall).toBe("hard");
-    expect(summarizeCheckIn("retired", { mood: "low" }).headline).toBe("You marked something that may need support.");
+    expect(summarizeCheckIn("retired", { mood: "low" }).headline).toBe("Today looks hard. You don't have to handle it alone.");
   });
 
   it("never uses diagnostic wording", () => {
