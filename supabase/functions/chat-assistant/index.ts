@@ -1,7 +1,7 @@
 // Authenticated NASA-grounded research chat. OpenRouter sees only retrieved NASA passages and research questions.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { extractText, extractUpstreamMessage } from "../_shared/providers.ts";
+import { extractText, extractUpstreamMessage, isFreeModel } from "../_shared/providers.ts";
 import { isAllowedChatOutput } from "../_shared/chatSafety.ts";
 import { getUrgentSupport, type EmergencyTopic } from "../_shared/emergencySupport.ts";
 import { NO_EVIDENCE_TEXT, parseGroundedAnswer, sanitizedNasaQuery, type NasaCitation } from "../_shared/nasaGrounding.ts";
@@ -38,6 +38,8 @@ Deno.serve(async (request) => {
   if (!openRouterKey) return json(503, { error: "not_configured" });
   if (!model) return json(503, { error: "model_missing" });
   if (model.includes(",") || /embed/i.test(model)) return json(503, { error: "model_invalid", detail: "Configure one chat-capable OpenRouter model or openrouter/free; embedding models are not accepted for grounded answers." });
+  // Free models only: a paid model in the secret is refused before any request is sent, so credit can never be spent here. The owner can lift this with ALLOW_PAID_MODELS=true.
+  if (!isFreeModel(model) && clean(Deno.env.get("ALLOW_PAID_MODELS")).toLowerCase() !== "true") return json(503, { error: "paid_model_blocked" });
 
   const authHeader = request.headers.get("authorization") ?? "";
   const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });

@@ -209,6 +209,10 @@ describe("free models only (never spends credit)", () => {
     const names = usingChooser.map(([path]) => path.split("/").slice(-2)[0]);
     expect(names).toEqual(expect.arrayContaining(["explain-pattern", "wellbeing-feedback"]));
     for (const [path, code] of usingChooser.filter(([path]) => !path.includes("chat-assistant"))) expect(code, path).toContain('ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS")');
+    // The ORBIT chat function has its own model route, so it must apply the same free-only check itself.
+    const chat = Object.entries(sources).find(([path]) => path.includes("chat-assistant"))?.[1] ?? "";
+    expect(chat).toContain("isFreeModel(model)");
+    expect(chat).toContain("paid_model_blocked");
     // Without the switch the chooser blocks paid models, so a function that does not pass it is strict by default.
     for (const [path, code] of usingChooser) expect(code, path).not.toMatch(/ALLOW_PAID_MODELS:\s*["'`]true/);
   });
