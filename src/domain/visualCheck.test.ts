@@ -143,13 +143,14 @@ describe("which Movement tasks each stage is offered", () => {
     expect(tasksForStage("retired")).not.toContainEqual(expect.objectContaining({ type: "standing_posture" }));
   });
 
-  it("offers Future travelers nothing", () => {
-    expect(tasksForStage("future")).toEqual([]);
+  it("offers Future travelers the land-based practice set", () => {
+    expect(tasksForStage("future").map((task) => task.type)).toEqual(["sit_to_stand", "shoulder_mobility", "single_leg_balance", "reach_and_return"]);
   });
 
   it("adds the anchoring reminder only in space, and keeps the balance task's own safety line on Earth", () => {
     for (const task of tasksForStage("active")) expect(taskInstructions(task, "active")).toBe(`${ANCHOR_NOTE} ${task.instructions}`);
     for (const task of tasksForStage("retired")) expect(taskInstructions(task, "retired")).toBe(task.instructions);
+    for (const task of tasksForStage("future")) expect(taskInstructions(task, "future")).toBe(task.instructions);
     expect(taskInstructions(taskFor("single_leg_balance"), "retired")).toMatch(/near a support you can hold. Stop if you feel unsteady/);
     expect(isNonDiagnostic(ANCHOR_NOTE)).toBe(true);
   });

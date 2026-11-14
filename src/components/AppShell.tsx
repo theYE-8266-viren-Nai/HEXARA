@@ -9,8 +9,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ViewName = "home" | "trends" | "movement" | "wellbeing" | "guidance" | "profile";
 
-/** Movement checks are for astronauts in space and for retired astronauts doing reconditioning, not for Future travelers. */
-export const viewAvailable = (view: ViewName, stage: LifeStage) => view !== "movement" || stage !== "future";
+/** Movement checks are available as practice context before, during, and after flight. */
+export const viewAvailable = (_view: ViewName, _stage: LifeStage) => true;
 const navigation: Array<{ id: ViewName; label: string; icon: typeof Activity }> = [
   { id: "home", label: "Home", icon: Activity },
   { id: "trends", label: "Trends", icon: ChartNoAxesCombined },

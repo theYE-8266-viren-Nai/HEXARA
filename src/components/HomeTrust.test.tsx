@@ -16,17 +16,13 @@ function renderHome(ingest: IngestSummary, stage: 'active' | 'future' | 'retired
 }
 
 describe("Home data trust", () => {
-  it.each(['active', 'future', 'retired'] as const)('shows the body overview for Active and Retired Home only (%s)', async stage => {
+  it.each(['active', 'future', 'retired'] as const)('shows the body overview across stages (%s)', async stage => {
     renderHome({ sourceLabel: 'Simulated wearable', quality: 'good', notes: [], accepted: 40, rejected: 0, flagged: 0 }, stage);
     expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
-    if (stage === 'active' || stage === 'retired') {
-      expect(await screen.findByRole('group', {name:'Rotatable 3D human figure'})).toBeInTheDocument();
-      expect(screen.queryByRole('heading', {name:'Your signals'})).not.toBeInTheDocument();
-      if (stage === 'active') expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
-    } else {
-      expect(screen.queryByRole('group', {name:'Rotatable 3D human figure'})).not.toBeInTheDocument();
-    }
+    expect(await screen.findByRole('group', {name:'Rotatable 3D human figure'})).toBeInTheDocument();
+    if (stage !== 'future') expect(screen.queryByRole('heading', {name:'Your signals'})).not.toBeInTheDocument();
+    if (stage === 'active') expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
   });
   it("shows the alert when data quality is good", () => {
     renderHome({ sourceLabel: "Simulated wearable", quality: "good", notes: [], accepted: 40, rejected: 2, flagged: 0 });

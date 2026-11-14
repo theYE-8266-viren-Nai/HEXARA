@@ -331,7 +331,7 @@ function HorizonApp() {
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
 
-  // A view that is not offered to this stage (Movement for Future travelers) falls back to Home.
+  // A view that is not offered to this stage falls back to Home.
   const view: ViewName = viewAvailable(activeView, stage) ? activeView : "home";
   const content = (() => {
     switch (view) {
