@@ -11,6 +11,8 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const stages = new Set(["future", "active", "retired"]);
 const topics = new Set<EmergencyTopic>(["breathing", "chest", "stroke", "bleeding", "allergy", "seizure", "unresponsive", "poisoning", "burn", "injury", "temperature", "glucose", "mission", "distress", "illness", "general", "check_in", "medication"]);
+const categories = new Set(["health_human_spaceflight", "future_preparation", "active_mission_support", "retired_follow_up", "missions_engineering", "astronomy", "planetary_science", "earth_science", "aeronautics", "standards_osdr", "unclassified"]);
+const classify = (question: string) => /bone|muscle|sleep|radiation|vestibular|motion sickness|cardiovascular|vision|fluid shift|microgravity.*body|health/i.test(question) ? "health_human_spaceflight" : /first.?time|prepare|baseline|adaptation|before launch|training/i.test(question) ? "future_preparation" : /crew|mission control|in orbit|daily exercise|long.?duration|space station routine/i.test(question) ? "active_mission_support" : /after landing|retir|long.?term|post.?flight|life after|follow.?up/i.test(question) ? "retired_follow_up" : /iss|spacecraft|docking|spacesuit|life support|gyroscope|communication delay|engineering/i.test(question) ? "missions_engineering" : /galaxy|galaxies|star|black hole|cosmos|telescope|astrophysics|universe/i.test(question) ? "astronomy" : /mars|moon|lunar|planet|asteroid|comet|jupiter|saturn|planetary/i.test(question) ? "planetary_science" : /earth observation|climate|weather|ocean|ice sheet|earth science|satellite.*earth/i.test(question) ? "earth_science" : /aircraft|aviation|aeronautics|flight test|sonic boom|air traffic/i.test(question) ? "aeronautics" : /osdr|open data|technical standard|standards|dataset|research data/i.test(question) ? "standards_osdr" : "unclassified";
 const getUserId = (request: Request) => { try { const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""); const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(atob(part)).sub as string; } catch { return ""; } };
 const clean = (value: string | undefined) => (value ?? "").trim();
 
@@ -28,6 +30,8 @@ Deno.serve(async (request) => {
   const stage = typeof body.stage === "string" ? body.stage : "";
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
+  const category = typeof body.category === "string" && categories.has(body.category) ? body.category : classify(message);
+  const inputMode = body.inputMode === "voice" ? "voice" : "text";
   const sanitizedFromTopic = typeof body.sanitizedFromTopic === "string" && topics.has(body.sanitizedFromTopic as EmergencyTopic) ? body.sanitizedFromTopic as EmergencyTopic : undefined;
   if (!stages.has(stage) || !conversationId || message.length < 1 || message.length > 2_000) return json(400, { error: "invalid_request" });
   if (sanitizedFromTopic && message !== sanitizedNasaQuery(sanitizedFromTopic)) return json(400, { error: "invalid_sanitized_query" });
@@ -66,11 +70,11 @@ Deno.serve(async (request) => {
   if (search.error) return json(503, { error: "nasa_index_unavailable", detail: search.error.message });
   const rows = (search.data ?? []) as SearchRow[];
   const requestId = typeof body.requestId === "string" ? body.requestId.slice(0, 80) : null;
-  const inserted = await userClient.from("chat_messages").insert({ conversation_id: conversationId, user_id: userId, role: "user", content: message, request_id: requestId, sanitized_query: sanitizedFromTopic ? message : null }).select("id").single();
+  const inserted = await userClient.from("chat_messages").insert({ conversation_id: conversationId, user_id: userId, role: "user", content: message, request_id: requestId, sanitized_query: sanitizedFromTopic ? message : null, category, input_mode: inputMode }).select("id").single();
   if (inserted.error) return json(409, { error: "message_not_saved" });
 
   const saveAssistant = async (content: string, answerKind: "nasa_grounded" | "no_evidence", citations: NasaCitation[]) => {
-    const saved = await userClient.from("chat_messages").insert({ conversation_id: conversationId, user_id: userId, role: "assistant", content, status: "complete", answer_kind: answerKind, citations }).select("id,role,content,created_at,status,answer_kind,citations,sanitized_query").single();
+    const saved = await userClient.from("chat_messages").insert({ conversation_id: conversationId, user_id: userId, role: "assistant", content, status: "complete", answer_kind: answerKind, citations, category, input_mode: inputMode }).select("id,role,content,created_at,status,answer_kind,citations,sanitized_query,category,input_mode").single();
     await userClient.from("chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", userId);
     return saved;
   };
