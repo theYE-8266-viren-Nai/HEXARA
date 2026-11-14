@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000">
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#0b1117"/><stop offset="1" stop-color="#101922"/></linearGradient>
+    <linearGradient id="card" x2="0" y2="1"><stop stop-color="#fff9ed"/><stop offset="1" stop-color="#f5dfb7"/></linearGradient>
+    <radialGradient id="flower" cx="50%" cy="45%" r="60%"><stop stop-color="#fff3b7"/><stop offset=".45" stop-color="#f4c957"/><stop offset="1" stop-color="#dd9b2c"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000" flood-opacity=".32"/></filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1440" height="1000" fill="url(#bg)"/>
+  <circle cx="708" cy="470" r="380" fill="#eaa83b" opacity=".09" filter="url(#glow)"/>
+  <text x="80" y="62" fill="#8fa3b2" font-family="Arial, sans-serif" font-size="15" letter-spacing="3">ORBITWELL  /  DAILY WELLBEING</text>
+  <text x="1360" y="62" text-anchor="end" fill="#78d9dc" font-family="Arial, sans-serif" font-size="13" letter-spacing="2">DESIGN CONCEPT 01</text>
+  <rect x="447" y="99" width="546" height="835" rx="34" fill="url(#card)" filter="url(#shadow)"/>
+  <rect x="448" y="100" width="544" height="833" rx="33" fill="none" stroke="#fff" stroke-opacity=".8"/>
+  <circle cx="495" cy="147" r="22" fill="#fff6e1" stroke="#e9d6af"/>
+  <path d="M500 138l-9 9 9 9" fill="none" stroke="#645337" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="720" y="152" text-anchor="middle" fill="#725a35" font-family="Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="1.5">DAILY CHECK-IN</text>
+  <circle cx="945" cy="147" r="22" fill="#fff6e1" stroke="#e9d6af"/>
+  <path d="M939 141l12 12m0-12l-12 12" stroke="#645337" stroke-width="2" stroke-linecap="round"/>
+  <text x="720" y="220" text-anchor="middle" fill="#503f27" font-family="Arial, sans-serif" font-size="31" font-weight="700">How are you feeling</text>
+  <text x="720" y="258" text-anchor="middle" fill="#503f27" font-family="Arial, sans-serif" font-size="31" font-weight="700">overall today?</text>
+  <text x="720" y="294" text-anchor="middle" fill="#886e48" font-family="Arial, sans-serif" font-size="14">Take a moment to check in with yourself.</text>
+  <circle cx="720" cy="498" r="126" fill="#edbd55" opacity=".22" filter="url(#glow)"/>
+  <g fill="url(#flower)" stroke="#d99c31" stroke-width="2.5">
+    <path d="M720 375 C680 375 667 421 691 450 C650 431 614 462 631 500 C645 532 685 526 704 508 C686 546 707 581 738 575 C771 569 777 534 755 505 C793 524 829 503 816 471 C805 440 768 438 746 456 C767 420 752 377 720 375Z"/>
+    <path d="M720 403 C692 403 683 434 700 454 C672 443 649 464 660 487 C670 508 696 504 709 492 C697 517 711 538 732 534 C753 530 757 507 743 488 C769 500 791 486 782 465 C774 445 750 444 735 456 C750 432 740 404 720 403Z" fill="#ffdf78" stroke="#f6d36e" stroke-width="2"/>
+    <path d="M720 435 C702 435 698 455 709 466 C692 460 678 472 685 487 C692 501 708 497 716 489 C710 505 720 517 732 512 C745 507 744 493 736 483 C752 490 766 479 759 467 C753 455 738 456 729 464 C739 448 733 435 720 435Z" fill="#f1b83d" stroke="#e6a82d" stroke-width="2"/>
+  </g>
+  <path d="M720 375 C680 375 667 421 691 450 C650 431 614 462 631 500 C645 532 685 526 704 508 C686 546 707 581 738 575 C771 569 777 534 755 505 C793 524 829 503 816 471 C805 440 768 438 746 456 C767 420 752 377 720 375Z" fill="none" stroke="#fff9e7" stroke-opacity=".72" stroke-width="5"/>
+  <path d="M720 435 C702 435 698 455 709 466 C692 460 678 472 685 487 C692 501 708 497 716 489 C710 505 720 517 732 512 C745 507 744 493 736 483 C752 490 766 479 759 467 C753 455 738 456 729 464 C739 448 733 435 720 435Z" fill="none" stroke="#ffe9a3" stroke-width="2"/>
+  <path d="M720 488l3.1 6.3 7 .9-5 4.8 1.2 6.9-6.3-3.3-6.2 3.3 1.2-6.9-5.1-4.8 7-.9z" fill="#fff7d6"/>
+  <text x="720" y="672" text-anchor="middle" fill="#57452e" font-family="Arial, sans-serif" font-size="27" font-weight="700">Very pleasant</text>
+  <rect x="519" y="719" width="402" height="18" rx="9" fill="#dfc99f"/>
+  <rect x="519" y="719" width="402" height="18" rx="9" fill="#efa32e" opacity=".33"/>
+  <circle cx="897" cy="728" r="19" fill="#fff" stroke="#e9d5af" stroke-width="2"/>
+  <text x="519" y="768" fill="#866f4d" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">VERY UNPLEASANT</text>
+  <text x="921" y="768" text-anchor="end" fill="#866f4d" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1">VERY PLEASANT</text>
+  <rect x="519" y="801" width="402" height="60" rx="18" fill="#e9922f"/>
+  <text x="720" y="838" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif" font-size="17" font-weight="700">Continue to check-in</text>
+  <text x="720" y="891" text-anchor="middle" fill="#927a57" font-family="Arial, sans-serif" font-size="12">Your response stays private on this device.</text>
+  <text x="720" y="970" text-anchor="middle" fill="#7c8c96" font-family="Arial, sans-serif" font-size="12" letter-spacing="1">MOOD FIRST  ·  THEN YOUR DAILY QUESTIONS</text>
+</svg>

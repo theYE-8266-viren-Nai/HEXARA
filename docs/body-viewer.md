@@ -1,10 +1,10 @@
-# Active and Retired Home interactive body viewer
+# Home interactive body viewer
 
-Active and Retired Home present a large generic full-body model directly on the page,
+Future, Active, and Retired Home present a large generic full-body model directly on the page,
 without an enclosing card or rectangular canvas background. It remains visible
-before the wearable connection gate. Future Home remains unchanged and has no
+before the wearable connection gate. Each stage exposes its stage-appropriate
 Movement layer.
-The standalone Active signal grid and radiation card are removed; readings open
+The standalone Future and Active signal grids are removed; readings open
 only after selecting a region, in a panel beside the figure on desktop and below
 it on narrower screens. All body-region signal panels open to the right. Existing alert
 decisions and thresholds are unchanged.
