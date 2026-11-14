@@ -200,10 +200,11 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Sleep duration")).toBeInTheDocument();
     expect(screen.getByText("Mobility")).toBeInTheDocument();
     expect(screen.getByText("Walking steadiness · Simulated · Updated today")).toBeInTheDocument();
-    expect(screen.getByText("Estimated stress level")).toBeInTheDocument();
-    expect(screen.getByText("Moderate")).toBeInTheDocument();
-    expect(screen.getByText("HRV + resting heart rate · Estimated · Latest daily estimate")).toBeInTheDocument();
+    expect(screen.queryByText("Estimated stress level")).not.toBeInTheDocument();
     expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
+    expect(screen.getByText(/Usual: .* h/)).toBeInTheDocument();
+    expect(screen.getByText("Usual: 90% walking steadiness")).toBeInTheDocument();
+    expect(screen.getByText("Usual: 25 min")).toBeInTheDocument();
     expect(screen.getByText("Connected measurements")).toBeInTheDocument();
     expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
     expect(screen.getByText("Usual: 62 bpm")).toBeInTheDocument();
@@ -235,13 +236,16 @@ describe("OrbitWell app shell", () => {
     expect(screen.getAllByText(/Retired astronaut/).length).toBeGreaterThan(0);
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
-  it("changes the active view from the navigation", async () => {
+
+  it.each(["future", "active", "retired"] as const)("opens %s Trends without the pattern summary", async (stage) => {
     const user = userEvent.setup();
-    await openWorkspace();
+    await openWorkspace(stage);
 
     await user.click(screen.getAllByRole("button", { name: /Trends/ })[0]);
 
-    expect(screen.getByRole("heading", { name: "Your signals over time" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: stage === "retired" ? "Your wearable trends over time" : "Your signals over time" })).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
   });
 
   it("explains a recovery concern in plain language", async () => {
@@ -425,7 +429,7 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     expect(screen.getByRole("heading", { name: "Your long-term follow-up" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Maintain physical and mental wellbeing" })).toBeInTheDocument();
-    await user.click(screen.getByText("Physical health"));
+    await user.click(screen.getByText("Physical health after spaceflight"));
     expect(screen.getByText("Movement & strength")).toBeInTheDocument();
     expect(screen.getByText("Bone & balance")).toBeInTheDocument();
     expect(screen.getByText("Heart & circulation")).toBeInTheDocument();
@@ -433,7 +437,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Nutrition & preventive care")).toBeInTheDocument();
     await user.click(screen.getByText("Movement & strength"));
     expect(screen.getByRole("link", { name: /NASA strength, conditioning and rehabilitation/ })).toHaveAttribute("href", expect.stringContaining("nasa.gov"));
-    await user.click(screen.getByText("Mental health"));
+    await user.click(screen.getByText("Mental health after spaceflight"));
     expect(screen.getByText("Emotional wellbeing")).toBeInTheDocument();
     expect(screen.getByText("Social connection")).toBeInTheDocument();
     expect(screen.getByText("Purpose & daily routine")).toBeInTheDocument();
@@ -447,44 +451,35 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("region", { name: "Appointment summary preview" })).toHaveTextContent("Locally saved wellbeing check-ins");
   });
 
-  it("imports a synthetic DXA report and creates a local sample reminder", async () => {
+  it("imports a synthetic DXA report and creates a local reminder", async () => {
     const user = userEvent.setup();
     await openWorkspace("retired");
 
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     await user.click(screen.getByText("Bone-density trend over years"));
-    await user.click(screen.getByRole("button", { name: "Import sample DXA report" }));
+    await user.click(screen.getByRole("button", { name: "Import DXA report" }));
 
-    expect(screen.getByText("Synthetic sample · not a real medical record")).toBeInTheDocument();
-    expect(screen.getByText("OrbitWell displays the supplied note; it does not calculate a diagnosis.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Bone health follow-up due · May 12, 2027/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create sample appointment" }));
+    await user.click(screen.getByRole("button", { name: "Create appointment" }));
     await user.click(screen.getByRole("checkbox", { name: "Create local reminder" }));
 
     expect(screen.getByRole("heading", { name: /Bone health appointment · May 18, 2027/ })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("No external calendar or clinic was contacted");
-    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-dxa") ?? "null")).toMatchObject({ id: "sample-dxa-2026-05" });
-    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-appointment") ?? "null")).toMatchObject({ reminder: true });
   });
 
-  it("imports sample vision guidance and routes heart and wellbeing actions", async () => {
+  it("imports vision guidance and routes the wellbeing action", async () => {
     const user = userEvent.setup();
     await openWorkspace("retired");
 
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
-    expect(screen.getByRole("heading", { name: "No sample follow-up scheduled" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No follow-up scheduled" })).toBeInTheDocument();
 
     await user.click(screen.getByText("Vision and cardiovascular trend"));
-    await user.click(screen.getByRole("button", { name: "Import sample eye-exam record" }));
-    expect(screen.getByText("Synthetic sample · not a real eye exam")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Import eye-exam record" }));
+    expect(screen.getByRole("button", { name: "Remove record" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Vision follow-up · December 15, 2026/ })).toBeInTheDocument();
-    expect(JSON.parse(window.localStorage.getItem("horizon:retired-sample-vision") ?? "null")).toMatchObject({ id: "sample-vision-2026-08" });
 
-    await user.click(screen.getByRole("button", { name: "Review wearable trends" }));
-    expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     await user.click(screen.getByText("Sleep and mood context"));
     await user.click(screen.getByRole("button", { name: "Complete wellbeing check-in" }));
     expect(screen.getByRole("heading", { name: "Weekly check-in" })).toBeInTheDocument();
@@ -742,7 +737,7 @@ describe("OrbitWell app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("shows the pattern card on Home and Trends and changes it for Recovery concern, leaving alerts alone", async () => {
+  it("shows the pattern card on Home and changes it for Recovery concern, leaving alerts alone", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await waitForSignals();
@@ -760,7 +755,8 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
+    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
+    expect(screen.queryByRole("meter", { name: "Pattern score" })).not.toBeInTheDocument();
   });
 
   it("pauses the pattern view when the sensor is disconnected", async () => {
