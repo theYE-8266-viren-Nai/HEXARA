@@ -3,7 +3,7 @@ import { chatSafetyReply } from "../../supabase/functions/_shared/chatSafety";
 import type { EmergencyTopic, SupportResource } from "../../supabase/functions/_shared/emergencySupport";
 
 export type ChatRole = "user" | "assistant";
-export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; resources?: SupportResource[] };
+export type ChatMessage = { id: string; role: ChatRole; content: string; createdAt: string; status: "complete" | "failed"; source?: "built-in" | "cloud"; supportTopic?: EmergencyTopic; details?: string; resources?: SupportResource[] };
 export type ChatConversation = { id: string; stage: LifeStage; title: string; updatedAt: string };
 export type ChatContextSummary = { stage: LifeStage; dataQuality?: string; source?: string; signals: Array<{ label: string; trend: string }> };
 export type ChatSendResult = { data?: ChatMessage; warning?: string; error?: string };
@@ -11,10 +11,15 @@ export type ChatSendResult = { data?: ChatMessage; warning?: string; error?: str
 export const stageName = (stage: LifeStage) => stage === "future" ? "Future traveler" : stage === "retired" ? "Retired astronaut" : "Active astronaut";
 
 export function offlineChatReply(stage: LifeStage | null, message: string): string {
-  const label = stage ? stageName(stage) : "space traveler";
   const safetyReply = chatSafetyReply(message);
   if (safetyReply) return safetyReply;
-  if (/^(hi|hey|hello|good morning|good evening)[!. ]*$/i.test(message.trim())) return "Hi, I'm ORBIT, your little OrbitWell companion. How are you feeling today? I can listen, explain the demo, or help you prepare a question for your crew medic. This is a built-in reply; cloud AI is unavailable right now.";
-  if (/\b(stress\w*|anxious|worried|lonely|overwhelmed)\b/i.test(message)) return "That sounds like a lot to carry. I'm here to listen. Would you like to tell me what's been difficult, or open your optional Wellbeing check-in? You can also reach out to a trusted crewmate or mission support. This is a built-in reply; cloud AI is unavailable right now.";
-  return `${label} guidance is available for preparation, daily routines, space adaptation, and wellbeing. Cloud chat is unavailable right now, so this is a demo response. Please use qualified mission and medical teams for personal decisions.`;
+  if (stage === "retired") {
+    if (/\b(earth|overview effect|orbit|planet|the view)\b/i.test(message)) return "That view can stay with you in many ways. What part of seeing Earth feels most present today?\nBuilt-in reply; cloud AI unavailable.";
+    if (/\b(mission|spaceflight|retir\w*|different|purpose|identity)\b/i.test(message)) return "A mission can remain part of your story as daily life changes. What feels different for you lately?\nBuilt-in reply; cloud AI unavailable.";
+    if (/\b(reconnect|lonel\w*|isolat\w*|miss (?:my )?(?:crew|friends|family)|people)\b/i.test(message)) return "Missing connection can feel heavy. Is there a person you would like to reach out to today?\nBuilt-in reply; cloud AI unavailable.";
+    return "I'm here to listen. You can tell me about a memory, a change, or how today feels. What would you like to share?\nBuilt-in reply; cloud AI unavailable.";
+  }
+  if (/^(hi|hey|hello|good morning|good evening)[!. ]*$/i.test(message.trim())) return "Hi! How are you feeling?\nCloud AI unavailable.";
+  if (/\b(stress\w*|anxious|worried|lonely|overwhelmed)\b/i.test(message)) return "What's worrying you?\nTry Wellbeing or talk to a crewmate.\nCloud AI unavailable.";
+  return "Ask about routines or wellbeing.\nHealth concern? Contact your crew medic.\nBuilt-in reply; cloud AI unavailable.";
 }

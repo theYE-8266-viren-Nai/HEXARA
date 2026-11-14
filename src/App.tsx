@@ -28,6 +28,7 @@ import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
 import type { ChatContextSummary } from "./domain/chat";
+import { GroundTeamDashboard } from "./components/GroundTeamDashboard";
 
 export default function App() {
   return <ThemeProvider><HorizonApp /></ThemeProvider>;
@@ -37,6 +38,8 @@ function HorizonApp() {
   const mockProfiles = mockDashboardRepository.getProfiles();
   const [profiles, setProfiles] = useState(mockProfiles);
   const [activeView, setActiveView] = useState<ViewName>("home");
+  const [groundPreview, setGroundPreview] = useState(false);
+  const [chatOpenRequest, setChatOpenRequest] = useState(0);
   const [stage, setStage] = useState<LifeStage | null>(null);
   const accounts = useMemo(() => createAccountRepository(supabase), []);
   const [account, setAccount] = useState<Account | null>(null);
@@ -221,8 +224,9 @@ function HorizonApp() {
   const replayEvents = () => setReplayCount((count) => count + 1);
 
   if (authLoading) return <StageSelectionView loading />;
+  if (groundPreview) return <GroundTeamDashboard onExit={() => setGroundPreview(false)} />;
   if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} onLogOut={() => { void accounts.signOut().then(() => setAccount(null)); }} />;
-  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={setAccountStage} />;
+  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={setAccountStage} onOpenGroundDemo={() => setGroundPreview(true)} />;
   // The astronaut's own name and mission day replace the sample traveler's on every page.
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
@@ -236,15 +240,15 @@ function HorizonApp() {
       case "wellbeing":
         return <WellbeingView stage={stage} />;
       case "guidance":
-        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
+        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} />;
       case "profile":
         return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
-        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
+        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} onOpenChat={() => setChatOpenRequest((count) => count + 1)} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
     }
   })();
 
   const chatContext: ChatContextSummary = { stage, dataQuality, source: viewSource, signals: liveMetrics.slice(0, 6).map((metric) => ({ label: metric.label, trend: metric.trend })) };
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && activeView === "home" && !devicePaired ? undefined : { client: supabase, userId, context: chatContext, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
 }

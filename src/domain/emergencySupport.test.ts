@@ -18,10 +18,10 @@ const examples: Array<[string, EmergencyTopic, string]> = [
   ["Someone got an electric shock", "burn", "contact with electricity"],
   ["I hit my head", "injury", "head or neck"],
   ["I have a broken arm", "injury", "unnecessary movement"],
-  ["I think it's heatstroke", "temperature", "temperature injury"],
+  ["I think it's heatstroke", "temperature", "heat/cold exposure"],
   ["I'm loosing blood sugar", "glucose", "do not use it to treat suspected low blood sugar"],
   ["I'm losing blood sugar", "glucose", "do not use it to treat suspected low blood sugar"],
-  ["My glucose is high", "glucose", "determine whether it is high or low"],
+  ["My glucose is high", "glucose", "does not measure blood glucose"],
   ["The cabin pressure alarm went off", "mission", "specific onboard emergency checklist"],
   ["There's an oxygen leak", "mission", "equipment actions"],
   ["Radiation alarm", "mission", "exposure dose"],
@@ -29,17 +29,20 @@ const examples: Array<[string, EmergencyTopic, string]> = [
   ["I've been vomiting", "illness", "when they began"],
   ["I'm not feeling well", "check_in", "when did it start"],
   ["Which medication dose should I take?", "medication", "cannot prescribe"],
-  ["Unfamiliar emergency condition", "general", "any situation"],
+  ["Unfamiliar emergency condition", "general", "what happened"],
 ];
 
 describe("conversational support across emergency concerns", () => {
   it.each(examples)("routes %s without diagnosis or model generation", (message, topic, detail) => {
     const reply = getEmergencySupport(message);
+    const completeGuidance = `${reply?.content}\n${reply?.details}`;
     expect(reply?.topic).toBe(topic);
-    expect(reply?.content).toContain(detail);
-    expect(reply?.content).toMatch(/crew medic|medical support/);
-    expect(reply?.content).toMatch(/no one has been contacted/i);
+    expect(completeGuidance).toContain(detail);
+    expect(reply?.content).toMatch(/crew medic|medical support/i);
+    expect(completeGuidance).toMatch(/no one has been contacted/i);
     expect(reply?.content).not.toMatch(/(?:^|[.!?]\s+)you have (?:a|an)|inject \d|take \d/i);
+    expect(reply!.content.trim().split(/\s+/).length).toBeLessThanOrEqual(30);
+    expect(reply!.content.split("\n").length).toBeLessThanOrEqual(3);
   });
   it("offers broad support without claiming exhaustive coverage", () => {
     expect(SUPPORT_TOPICS).toHaveLength(18);
@@ -48,10 +51,10 @@ describe("conversational support across emergency concerns", () => {
     expect(getEmergencySupport("Hello friend")).toBeUndefined();
   });
   it("remembers an urgent conversation for ambiguous follow-ups", () => {
-    expect(getEmergencySupport("I'm alone", "bleeding")?.content).toContain("backup mission emergency channel");
+    expect(getEmergencySupport("I'm alone", "bleeding")?.details).toContain("backup mission emergency channel");
     expect(getEmergencySupport("No", "burn")?.topic).toBe("burn");
-    expect(getEmergencySupport("It started ten minutes ago", "chest")?.content).toContain("share that update with your crew medic");
-    expect(getEmergencySupport("What should I tell the medic?", "seizure")?.content).toContain("do not use OrbitWell's simulated values");
+    expect(getEmergencySupport("It started ten minutes ago", "chest")?.content).toContain("Tell your crew medic what changed");
+    expect(getEmergencySupport("What should I tell the medic?", "seizure")?.content).toContain("Never use simulated values");
   });
   it("prioritises a new red flag over the previous symptom conversation", () => {
     expect(getEmergencySupport("Now I can't breathe", "check_in")?.topic).toBe("breathing");
@@ -59,8 +62,8 @@ describe("conversational support across emergency concerns", () => {
     expect(getEmergencySupport("He is unconscious and bleeding", "bleeding")?.topic).toBe("unresponsive");
   });
   it("does not treat reaching a medic or improvement as clearance", () => {
-    expect(getEmergencySupport("A medic is with me", "chest")?.content).toContain("cannot confirm that the situation is safe");
-    expect(getEmergencySupport("I feel better", "chest")?.content).toContain("cannot judge whether things are improving");
+    expect(getEmergencySupport("A medic is with me", "chest")?.content).toContain("cannot confirm safety");
+    expect(getEmergencySupport("I feel better", "chest")?.details).toContain("cannot judge whether things are improving");
   });
   it("keeps general guidance independent of the glucose-specific correction", () => {
     expect(getEmergencySupport("I'm bleeding")?.content).not.toContain("Insulin");

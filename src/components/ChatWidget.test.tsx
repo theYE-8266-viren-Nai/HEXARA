@@ -53,7 +53,12 @@ describe("ORBIT floating companion", () => {
     const user = await open();
     await user.type(screen.getByRole("textbox"), "My blood sugar is low. Should I inject insulin?");
     await user.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent("ORBIT · Built-in guidance");
+    expect(screen.getByRole("log")).toHaveTextContent("Built-in");
+    const assistantMessage = screen.getByRole("log").querySelector(".chat-message.assistant")!;
+    expect(assistantMessage.querySelector(":scope > p")!.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(30);
+    expect(assistantMessage.querySelector("details")).not.toHaveAttribute("open");
+    await user.click(within(assistantMessage as HTMLElement).getByText("More guidance"));
+    expect(assistantMessage.querySelector("details")).toHaveAttribute("open");
     expect(screen.getByRole("log")).toHaveTextContent("does not measure blood glucose");
     await user.click(screen.getByRole("button", { name: "Close chat" }));
     await open();
@@ -66,8 +71,20 @@ describe("ORBIT floating companion", () => {
     render(<ChatWidget {...props} />);
     const user = await open();
     await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
-    expect(await screen.findByText(/Cloud chat is unavailable right now, so this is a demo response/)).toBeInTheDocument();
+    expect(await screen.findByText(/Built-in reply; cloud AI unavailable/)).toBeInTheDocument();
     expect(screen.getByText("Not saved remotely.")).toBeInTheDocument();
+  });
+
+  it("opens from retired Home and offers an honest Earth-view conversation offline", async () => {
+    const view = render(<ChatWidget {...props} stage="retired" openRequest={0} />);
+    view.rerender(<ChatWidget {...props} stage="retired" openRequest={1} />);
+    const user = userEvent.setup();
+    expect(await screen.findByRole("dialog", { name: "ORBIT AI" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Loading saved conversation…")).not.toBeInTheDocument());
+    expect(screen.getByText("There's room for your story here.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "I miss the view of Earth" }));
+    expect(await screen.findByText(/What part of seeing Earth feels most present today/)).toBeInTheDocument();
+    expect(mock.sendMessage).not.toHaveBeenCalled();
   });
 
   it("sends regular questions with dashboard sharing off by default and recovers from rejection", async () => {
@@ -79,7 +96,7 @@ describe("ORBIT floating companion", () => {
     expect(screen.getByRole("checkbox")).not.toBeChecked();
     await user.type(screen.getByRole("textbox"), "How do I build a routine?");
     await user.click(screen.getByRole("button", { name: "Send question" }));
-    await screen.findByText(/This reply is built in and has not been saved remotely/);
+    await screen.findByText(/Built-in reply; not saved remotely/);
     expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "How do I build a routine?", false, { stage: "active", signals: [] });
     expect(screen.queryByText("ORBIT is thinking…")).not.toBeInTheDocument();
   });
@@ -135,7 +152,7 @@ describe("ORBIT floating companion", () => {
   ])("responds conversationally to %s", async (message, detail) => {
     render(<ChatWidget {...props} />);
     const user = await open();
-    await user.type(screen.getByRole("textbox"), message);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: message } });
     await user.click(screen.getByRole("button", { name: "Send question" }));
     expect(screen.getByRole("log")).toHaveTextContent(detail);
     expect(screen.getByRole("dialog")).toHaveAttribute("data-pet-state", "support");
@@ -155,7 +172,7 @@ describe("ORBIT floating companion", () => {
     await user.type(screen.getByRole("textbox"), "No");
     await user.click(screen.getByRole("button", { name: "Send question" }));
     await user.click(screen.getByRole("button", { name: "What should I tell the medic?" }));
-    expect(screen.getByRole("log")).toHaveTextContent("do not use OrbitWell's simulated values");
+    expect(screen.getByRole("log")).toHaveTextContent("Do not use OrbitWell's simulated values");
     expect(mock.createConversation).not.toHaveBeenCalled();
     expect(mock.sendMessage).not.toHaveBeenCalled();
   });

@@ -26,7 +26,7 @@ export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
   return <div className={`safety-disclaimer ${landing ? "landing-disclaimer" : ""}`}><ShieldCheck size={13} aria-hidden="true" /><span>Simulated data. Not medical advice. Not diagnostic.</span></div>;
 }
 
-export function AppShell({ activeView, onViewChange, stage, onStageChange, children, chat, account, onLogOut }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode; account?: Account | null; onLogOut?: () => void; chat?: { client: SupabaseClient | null; userId: string | null; context?: ChatContextSummary } }) {
+export function AppShell({ activeView, onViewChange, stage, onStageChange, children, chat, account, onLogOut }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode; account?: Account | null; onLogOut?: () => void; chat?: { client: SupabaseClient | null; userId: string | null; context?: ChatContextSummary; openRequest?: number } }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const workspaceLabel = stage === "future" ? "Preparation workspace" : stage === "retired" ? "Post-mission workspace" : "Active monitoring workspace";
   const chooseView = (view: ViewName) => { onViewChange(view); setMobileOpen(false); };
@@ -50,7 +50,7 @@ export function AppShell({ activeView, onViewChange, stage, onStageChange, child
     </div>
     <nav aria-label="Mobile navigation" className="mobile-bottom-nav">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => chooseView(id)} aria-current={activeView === id ? "page" : undefined}><Icon size={18} aria-hidden="true" />{label}</button>)}</nav>
     <SafetyDisclaimer />
-    {chat ? <ChatWidget stage={stage} client={chat.client} userId={chat.userId} context={chat.context} /> : null}
+    {chat ? <ChatWidget stage={stage} client={chat.client} userId={chat.userId} context={chat.context} openRequest={chat.openRequest} /> : null}
   </div>;
 }
 
