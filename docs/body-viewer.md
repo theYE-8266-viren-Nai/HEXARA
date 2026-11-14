@@ -6,8 +6,7 @@ before the wearable connection gate. Future Home remains unchanged and has no
 Movement layer.
 The standalone Active signal grid and radiation card are removed; readings open
 only after selecting a region, in a panel beside the figure on desktop and below
-it on narrower screens. Brain, Chest, Spine and Back muscle panels open to the
-left; Heart, Lungs, Leg muscle and Skin panels open to the right. Existing alert
+it on narrower screens. All body-region signal panels open to the right. Existing alert
 decisions and thresholds are unchanged.
 
 ## Region selection
@@ -60,7 +59,7 @@ labelled, and insufficient-baseline readings omit the personal comparison.
 ## Controls and rendering
 
 - Drag horizontally (mouse, touch, pen); vertical touch scrolling remains enabled.
-- Turn left/right in 15-degree steps, use the -180 to +180 slider, or reset Front view.
+- Use the -180 to +180 slider below the figure. The filled Choose a body region button sits below the view indicator and opens a vertical list beside the figure. The list stays open through selection and is hidden only by toggling the chooser button. Keyboard arrows rotate in 15-degree steps; Home resets to front. Rotation buttons and the inline anatomy credit line are removed; attribution remains bundled in the model credit files.
 - Focus the viewer and press Left/Right or Home. Rotation is clamped at both limits.
 - The Three.js scene loads only on Active and Retired Home. It renders on load, rotation,
   and resize; there is no continuous animation loop or idle auto-rotation.

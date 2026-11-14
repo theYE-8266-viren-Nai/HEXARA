@@ -157,9 +157,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .movement-comparison { display: grid; gap: 5px; color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
 .movement-comparison strong { color: var(--text-primary); }
 .movement-related-regions { color: var(--text-subtle); font-size: 11px; line-height: 1.7; }
-.body-region-menu { max-width: 600px; margin: 20px auto 0; text-align: center; font-size: 12px; color: var(--text-secondary); }
-.body-region-menu > button { cursor: pointer; width: fit-content; margin: 0 auto; text-decoration: underline; text-underline-offset: 4px; }
-.body-region-menu > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
+.body-region-menu { position: absolute; top: 60px; left: 16px; z-index: 6; max-width: min(235px, calc(100% - 32px)); text-align: left; color: var(--text-secondary); }
+.body-region-menu > button { cursor: pointer; min-height: 42px; font-family: inherit; font-size: 14px; font-weight: 600; }
+.body-region-menu > div { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: 10px; padding: 10px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px #0003; }
+.body-region-menu > div > button { text-align: left; justify-content: flex-start; }
+@media (max-width: 480px) { .body-viewer-range { gap: 5px; } }
 .body-region-menu button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-text); }
 .body-region-picker { margin-top: 14px; }
 .body-region-picker > button { min-height: 46px; padding: 11px 20px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--surface-inset); color: var(--text-primary); font-size: 13px; font-weight: 600; text-decoration: none; }
@@ -426,6 +428,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .chat-empty .chat-stage-label { margin-top: 9px; font-size: 10px; color: var(--text-secondary); }
 .chat-empty button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--surface-inset); color: var(--text-primary); text-align: left; font-size: 11px; }
 .chat-empty button > svg { flex-shrink: 0; color: var(--muted); }
+.orbit-faq-grid { display: grid; gap: 7px; }
+.orbit-faq-grid button { min-width: 0; }
+.orbit-faq-grid button span { display: grid; gap: 3px; min-width: 0; }
+.orbit-faq-grid button strong { color: var(--text-primary); font-size: 11px; font-weight: 600; }
+.orbit-faq-grid button small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.chat-voice-button { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); padding: 5px 0; font-size: 10px; }
+.chat-voice-button:disabled { cursor: not-allowed; opacity: .55; }
 .chat-transcript { display: flex; flex-direction: column; gap: 14px; }
 .chat-message { display: flex; flex-direction: column; max-width: 94%; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .chat-message small { margin: 0 2px 4px; color: var(--muted); font-size: 9px; }
@@ -1252,3 +1261,13 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .bt-switch-thumb { top: 3px; left: 3px; width: 16px; height: 16px; }
 .bt-switch[aria-checked="true"] .bt-switch-thumb { transform: translateX(16px); }
 .wearable-dropdown { top: calc(100% + 6px); }
+
+.device-connect-card { display: flex; align-items: flex-start; gap: 18px; max-width: 740px; }
+.device-connect-card > svg { flex-shrink: 0; margin-top: 3px; color: var(--text-secondary); }
+.device-connect-card h2 { margin: 0 0 18px; font-size: 20px; font-weight: 600; }
+.device-connect-card .btn-primary { min-height: 48px; padding: 0 22px; }
+
+.home-device-meta { flex-direction: column; align-items: flex-end; }
+.home-device-meta .device-connect-card { padding: 20px; width: max-content; max-width: 100%; text-align: left; }
+.home-device-meta .device-connect-card h2 { font-size: 18px; margin-bottom: 14px; }
+@media (max-width: 640px) { .home-device-meta { align-items: flex-start; } }

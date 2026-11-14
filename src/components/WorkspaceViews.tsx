@@ -68,7 +68,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   </main>;
 }
 
-export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange, onOpenChat, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void; onOpenChat?: () => void; pattern?: ReactNode }) {
+export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange, onOpenChat }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void; onOpenChat?: () => void }) {
   const device = useDevice();
   const ingest = device?.ingest ?? null;
   const unreliable = ingest?.quality === "poor";
@@ -89,9 +89,8 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
     <section className="retired-pair-card tech-card" aria-labelledby="retired-pair-title">
       <span className="retired-pair-icon" aria-hidden="true"><Watch size={28} /></span>
       <p className="eyebrow">RETIRED ASTRONAUT · FIRST STEP</p>
-      <h1 id="retired-pair-title">Pair one wearable to begin</h1>
-      <p>Connect the simulated wearable to open your retired Home. This demo does not connect to real hardware.</p>
-      <button type="button" className="btn-primary" onClick={device.status.pair}><Watch size={17} aria-hidden="true" /> Pair simulated wearable</button>
+      <h1 id="retired-pair-title">No device paired</h1>
+      <button type="button" className="btn-primary" onClick={device.status.pair}><Watch size={17} aria-hidden="true" /> Connect wearables</button>
     </section>
   </div>;
 
@@ -105,7 +104,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
     </section>
     <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
-    {pattern ? <div className="mt-6">{pattern}</div> : null}
+
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
       <DataSourceStatus source={source} warning={warning} />
@@ -119,11 +118,11 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         <h1>{stageContent.title}</h1>
         <p className="page-lede" id={stage === "active" ? "body-viewer-instructions" : undefined}>{stageContent.description}</p>
       </div>
-      <div className="page-meta">{stage === "active" && device?.bodyDevices ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
+      <div className="page-meta home-device-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
     {stage === 'active' || stage === 'future' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={stage === 'active' ? alert : null} onViewChange={onViewChange} {...(stage === "active" && device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
-    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
+    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage} hidePrompt={stage === "active" && Boolean(device?.bodyDevices)}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
         <div className="status-card-main">
           <StatusChip severity={status} />
@@ -146,7 +145,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
 
       {radiation ? <RadiationPanel metric={radiation} solarEvents={solarEvents} /> : null}
     </></DeviceIdleGate>}
-    {pattern ? <div className="mt-6">{pattern}</div> : null}
+
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
       <DataSourceStatus source={source} warning={warning} />
@@ -239,7 +238,7 @@ function formatTrendValue(metric: MetricCardData | RetiredActivityTrend, value: 
   return formatMetricValue(metric.metric, value, metric.unit);
 }
 
-export function TrendsView({ stage = "active", metrics, alert, dataQuality, loading, source, warning, pattern, monthlyHistory = [], monthlyHistoryNote }: { stage?: LifeStage; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; pattern?: ReactNode; monthlyHistory?: MonthlyHistorySummary[]; monthlyHistoryNote?: string }) {
+export function TrendsView({ stage = "active", metrics, alert, dataQuality, loading, source, warning, monthlyHistory = [], monthlyHistoryNote }: { stage?: LifeStage; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; monthlyHistory?: MonthlyHistorySummary[]; monthlyHistoryNote?: string }) {
   const dataUnavailable = dataQuality === "disconnected" || dataQuality === "offline";
   const stale = dataQuality === "stale";
   const [alertOpen, setAlertOpen] = useState(false);
@@ -247,7 +246,7 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : metrics;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{pattern ? <div>{pattern}</div> : null}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
 }
 
 const MONTHLY_LABELS: Record<string, string> = { heart_rate: "Resting heart rate", hrv: "HRV", spo2: "SpO₂", sleep_hours: "Sleep", skin_temperature: "Skin temperature", radiation_dose: "Radiation dose" };
@@ -593,13 +592,19 @@ function LoadingPanel() {
 }
 
 /** Shows the pair/reconnect prompt instead of readings when no device is connected. */
-function DeviceIdleGate({ stage, children }: { stage: LifeStage; children: ReactNode }) {
-  const device = useDevice()?.status;
-  if (device && device.phase === "idle") {
-    // Active astronauts pair their wearables with "Find devices" in the body overview above.
-    if (stage === "active" && !device.hasPaired) return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">No device paired</h2><p className="mt-2 text-sm leading-6 text-slate-400">Switch on Connect wearables at the top right to pair your Astroskin shirt, Actiwatch, personal dosimeter or motion sensors.</p></div></section>;
-    const first = !device.hasPaired;
-    return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">{first ? "No device paired" : "Device disconnected"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{first ? "Pair the simulated wearable to see live heart rate, HRV, SpO₂, temperature and radiation context. You can also build a baseline by hand in Guidance." : "Live readings have stopped. Reconnect the simulated wearable to continue."}</p><button type="button" onClick={device.pair} className="btn-square mt-4 inline-flex items-center gap-2 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950"><Watch size={16} aria-hidden="true" />{first ? "Pair simulated wearable" : "Reconnect wearable"}</button></div></section>;
+function DeviceIdleGate({ stage, children, hidePrompt = false }: { stage: LifeStage; children: ReactNode; hidePrompt?: boolean }) {
+  const context = useDevice();
+  const device = context?.status;
+  const wearables = stage === "active" ? context?.bodyDevices : undefined;
+  const connected = wearables ? wearables.paired.size > 0 : context?.bluetooth?.phase === "streaming";
+  if (device && device.phase === "idle" && !connected) {
+    if (hidePrompt) return null;
+    return <section className={`${panelClass} device-connect-card`} aria-labelledby="no-device-title">
+      <Watch size={26} aria-hidden="true" /><div><h2 id="no-device-title">No device paired</h2>
+      {wearables ? <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
+        : <button type="button" onClick={device.pair} className="btn-primary"><Bluetooth size={18} aria-hidden="true" />{device.hasPaired ? "Reconnect wearable" : "Connect wearables"}</button>}
+      </div>
+    </section>;
   }
   return <>{children}</>;
 }
