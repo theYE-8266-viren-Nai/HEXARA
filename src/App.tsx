@@ -21,8 +21,12 @@ import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
 import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
 import { useWebhookSource } from "./lib/useWebhookSource";
+import { useAssessment } from "./lib/useAssessment";
 import { analyzeLiveReadings } from "./lib/liveAnalysis";
 import { hasCompletedDay } from "./lib/dayCoverage";
+import { PatternCard } from "./components/PatternCard";
+import { createExplainRepository } from "./lib/explainRepository";
+import { buildExplainRequest } from "./domain/explainTypes";
 
 
 export default function App() {
@@ -76,6 +80,10 @@ function HorizonApp() {
   const webhookAlert = useMemo(() => (webhookScored && webhookHistory ? analyzeLiveReadings(webhookHistory, webhook.completed!.readings) : null), [webhookScored, webhookHistory, webhook.completed]);
   const liveAlert = liveIngest?.quality === "poor" ? null : webhookAlert ?? (device.alert !== undefined ? device.alert : dashboard.alert);
   const alertBasis = webhookScored ? "webhook" as const : device.alert !== undefined ? "device" as const : "scenario" as const;
+  // Pattern context (adds to alerts, never changes them): completed days only, from the source in use.
+  const pattern = useAssessment({ history: scenario === "usual" ? backendSnapshot?.history : undefined, scenario, seed, personId: profile.id, dataQuality, ingestQuality: liveIngest?.quality, webhook: webhook.completed, webhookActive });
+  const explainRepository = useMemo(() => createExplainRepository(supabase), []);
+  const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, explainRepository]);
   const deviceStatus = useMemo(() => ({
     ...device.status,
     hasPaired: devicePaired,
@@ -224,7 +232,7 @@ function HorizonApp() {
   const content = (() => {
     switch (view) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} pattern={<PatternCard view={pattern} explain={explain} />} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
@@ -235,7 +243,7 @@ function HorizonApp() {
         return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
-        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /></>;
+        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} pattern={<PatternCard view={pattern} explain={explain} />} /></>;
     }
   })();
 
