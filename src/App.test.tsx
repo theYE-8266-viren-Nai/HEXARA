@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { deviceTiming } from "./lib/useDeviceStream";
+import { bodyDeviceTiming } from "./domain/bodyDevices";
 import { bluetoothTiming } from "./lib/useBluetoothHeartRate";
 import { bluetoothAccess } from "./lib/adapters/webBluetoothHeartRate";
 import { createFakeBluetooth, hrBytes } from "./test/fakeBluetooth";
@@ -40,16 +41,27 @@ async function signInThroughStage(stage: keyof typeof labels) {
   await screen.findByRole("button", { name: "Log out" });
 }
 
+/** Active astronauts pair through "Find devices" in the body overview; other stages use the wearable card. */
+async function pairWearable(stage: keyof typeof labels) {
+  if (stage !== "active") { await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" })); return; }
+  const toggle = await screen.findByRole("switch", { name: "Connect wearables" });
+  if (toggle.getAttribute("aria-checked") !== "true") await userEvent.click(toggle);
+  else if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(screen.getByRole("button", { name: /Connect wearables/ }));
+  await userEvent.click(await screen.findByRole("button", { name: "Pair Astroskin shirt" }));
+  await screen.findByRole("button", { name: "Disconnect Astroskin shirt" });
+}
+
 /** Enters a workspace through its stage card (an account is required). The wearable never connects by itself, so pair it unless a test says not to. */
 async function openWorkspace(stage: keyof typeof labels = "active", { pair = stage !== "future" }: { pair?: boolean } = {}) {
   const view = render(<App />);
   await signInThroughStage(stage);
-  if (pair) await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" }));
+  if (pair) await pairWearable(stage);
   return view;
 }
 
 describe("OrbitWell app shell", () => {
   beforeEach(() => {
+    bodyDeviceTiming.pairMs = 10;
     window.localStorage.clear();
   });
 
@@ -473,7 +485,7 @@ describe("OrbitWell app shell", () => {
     const user = userEvent.setup();
     await openWorkspace();
 
-    expect(screen.getByRole("heading", { name: "How are you doing today?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Explore your signals" })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
@@ -661,13 +673,26 @@ describe("OrbitWell app shell", () => {
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
+  it("turning Connect wearables off disconnects every device and turns the body dots red", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent("1/4");
+    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
+    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByRole("region", { name: "Available wearables" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
+    expect(screen.getByRole("button", { name: "Pair Astroskin shirt" })).toBeInTheDocument();
+  });
+
   it("never connects the wearable until the person presses Pair, in any stage", async () => {
     const user = userEvent.setup();
     const first = await openWorkspace("active", { pair: false });
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Pair simulated wearable" }));
+    expect(screen.getByText(/Switch on Connect wearables at the top right/)).toBeInTheDocument();
+    await pairWearable("active");
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
     first.unmount();
 
