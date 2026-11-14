@@ -29,8 +29,32 @@ import { hasCompletedDay } from "./lib/dayCoverage";
 import { PatternCard } from "./components/PatternCard";
 import { createExplainRepository } from "./lib/explainRepository";
 import { buildExplainRequest } from "./domain/explainTypes";
-import { summarizeMonthlyHistory } from "./domain/monthlyHistory";
+import { summarizeMonthlyHistory, type MonthlyHistoryWindow } from "./domain/monthlyHistory";
 import { generateSyntheticData } from "./data/synthetic";
+
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function monthlyHistoryWindow(account: Account | null): MonthlyHistoryWindow {
+  const profile = account?.profile;
+  const journey = profile?.journey;
+  if (!profile || !journey) return {};
+  if (profile.stage === "active") {
+    const launch = journey.launchDate;
+    const plannedReturn = journey.plannedReturn;
+    if (launch && plannedReturn) return { from: launch, to: plannedReturn, note: "Showing months inside your launch-to-return mission window." };
+    if (launch) return { from: launch, to: addDays(launch, 179), note: "No planned return was entered, so this demo assumes a 180-day mission from launch." };
+    if (plannedReturn) return { from: addDays(plannedReturn, -179), to: plannedReturn, note: "No launch date was entered, so this demo assumes the 180 days before planned return." };
+    return { note: "No mission dates were entered, so all available synthetic readings are shown." };
+  }
+  if (profile.stage === "retired" && journey.lastLanding) {
+    return { from: addDays(journey.lastLanding, -179), to: journey.lastLanding, note: "Showing the assumed 180-day window ending at your last landing." };
+  }
+  return { note: profile.stage === "future" ? "Future travelers have no flight history yet; only available synthetic practice readings are shown." : "No follow-up date was entered, so all available synthetic readings are shown." };
+}
 
 
 export default function App() {
@@ -97,7 +121,8 @@ function HorizonApp() {
     const personId = generated.people.some((person) => person.id === profile.id) ? profile.id : generated.people[0].id;
     return generated.observations.filter((observation) => observation.person_id === personId);
   }, [backendSnapshot?.history, profile.id, scenario, seed]);
-  const monthlyHistory = useMemo(() => summarizeMonthlyHistory(patternHistory), [patternHistory]);
+  const monthlyWindow = useMemo(() => monthlyHistoryWindow(account), [account]);
+  const monthlyHistory = useMemo(() => summarizeMonthlyHistory(patternHistory, monthlyWindow), [patternHistory, monthlyWindow]);
   const explainRepository = useMemo(() => createExplainRepository(supabase), []);
   const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const, monthlyHistory }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, monthlyHistory, explainRepository]);
   const deviceStatus = useMemo(() => ({
@@ -278,7 +303,7 @@ function HorizonApp() {
   const content = (() => {
     switch (view) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} pattern={<PatternCard view={pattern} explain={explain} />} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} monthlyHistoryNote={monthlyWindow.note} pattern={<PatternCard view={pattern} explain={explain} />} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}:${movementLaunch?.nonce ?? "nav"}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} initialTask={movementLaunch?.task} onSavedToBody={showSavedMovementOnBody} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
