@@ -2,7 +2,7 @@
 
 <!-- Generated from src/domain/deviceAssumptions.ts. Do not edit by hand; regenerate with: npm run docs:assumptions -->
 
-Simulated data only. Not medical advice. Not diagnostic.
+Research-demo data only.
 
 OrbitWell analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.
 

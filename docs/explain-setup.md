@@ -1,6 +1,6 @@
 # "Explain this pattern" setup
 
-Simulated data only. Not medical advice. Not diagnostic.
+Research-demo data only.
 
 The button works **without any setup**: it shows a built-in explanation. The steps below add an optional
 cloud AI wording. OrbitWell never puts an API key in the browser. Keys live only in Supabase secrets.

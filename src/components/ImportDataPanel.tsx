@@ -62,7 +62,7 @@ export function ImportDataPanel({ personKey }: { personKey: string }) {
         <p className="text-sm font-semibold text-white">What OrbitWell sees</p>
         <p className="mt-1 text-sm leading-6 text-slate-300">{outcome.analysis.message}</p>
         {outcome.analysis.alerts.length ? <ul className="mt-2 space-y-1 text-sm text-amber-100">{outcome.analysis.alerts.map((alert) => <li key={alert.id}>{alert.explanation}</li>)}</ul> : null}
-        <p className="mt-2 text-xs text-slate-500">Context only. Simulated data. Not medical advice. Not diagnostic.</p>
+        <p className="mt-2 text-xs text-slate-500">Processed on this device only. Nothing is uploaded or saved.</p>
       </div>
       {issues.length ? <div><h3 className="text-sm font-semibold text-white">Rejected rows</h3>
         <ul className="mt-2">{issues.slice(0, MAX_LISTED).map((issue, index) => <li key={`${issue.row}-${index}`} className="stream-row">Row {issue.row}: {issue.reason}</li>)}</ul>

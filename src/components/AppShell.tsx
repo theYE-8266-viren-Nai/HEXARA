@@ -1,4 +1,4 @@
-import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserRound, X } from "lucide-react";
+import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from "lucide-react";
 import { usePersistedState } from "../lib/usePersistedState";
 import { useState, type ReactNode } from "react";
 import type { LifeStage } from "../types/horizon";
@@ -25,7 +25,7 @@ export function Brand() {
 }
 
 export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
-  return <div className={`safety-disclaimer ${landing ? "landing-disclaimer" : ""}`}><ShieldCheck size={13} aria-hidden="true" /><span>Simulated data. Not medical advice. Not diagnostic.</span></div>;
+  return <div className={`safety-disclaimer ${landing ? "landing-disclaimer" : ""}`}><span>Research demo · Synthetic data</span></div>;
 }
 
 export function AppShell({ activeView, onViewChange, stage, onStageChange, children, chat, account, onLogOut }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode; account?: Account | null; onLogOut?: () => void; chat?: { client: SupabaseClient | null; userId: string | null; openRequest?: number } }) {

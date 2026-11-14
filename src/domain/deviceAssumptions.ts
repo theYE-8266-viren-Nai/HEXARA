@@ -7,7 +7,7 @@
  * assumption. The docs page and the in-app panel are both generated from it, and a test
  * keeps units and ranges identical to the sanitizer's (domain/ingest.ts).
  *
- * Simulated data only. Not medical advice. Not diagnostic.
+ * Research-demo data only.
  */
 import { PLAUSIBLE_RANGE } from "./ingest";
 import { metricUnits, type MetricName } from "./types";
@@ -70,7 +70,7 @@ export function renderAssumptionsMarkdown(): string {
     "",
     "<!-- Generated from src/domain/deviceAssumptions.ts. Do not edit by hand; regenerate with: npm run docs:assumptions -->",
     "",
-    "Simulated data only. Not medical advice. Not diagnostic.",
+    "Research-demo data only.",
     "",
     "OrbitWell analyzes readings; it does not measure anything. Real hardware cannot be tested in this research demo, so every signal is **assumed** to arrive from an imagined crew wearable plus a personal dosimeter.",
     "",
