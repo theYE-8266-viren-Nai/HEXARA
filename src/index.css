@@ -1043,3 +1043,18 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .wearable-item { height: 64px; min-height: 0; }
 .wearable-name, .wearable-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wearable-list { max-height: 134px; }
+
+/* Connect wearables stays in the top-right corner of the Active Home header, at a smaller size */
+@media (min-width: 768px) {
+  .page-header:has(.wearable-connect) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 24px; }
+  .page-header:has(.wearable-connect) > div:first-child { max-width: 680px; }
+  .page-meta:has(.wearable-connect) { justify-self: end; }
+}
+.wearable-connect-bar { gap: 8px; padding: 4px 5px 4px 10px; }
+.wearable-connect-label { gap: 6px; font-size: 13px; }
+.wearable-connect-label svg { width: 14px; height: 14px; }
+.wearable-connect-count { padding: 0 7px; font-size: 11px; }
+.bt-switch { width: 38px; height: 22px; }
+.bt-switch-thumb { top: 3px; left: 3px; width: 16px; height: 16px; }
+.bt-switch[aria-checked="true"] .bt-switch-thumb { transform: translateX(16px); }
+.wearable-dropdown { top: calc(100% + 6px); }
