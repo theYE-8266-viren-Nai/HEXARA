@@ -361,6 +361,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .chat-controls form button { display: grid; place-items: center; width: 42px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); flex-shrink: 0; }
 .chat-controls form button:disabled { opacity: .45; }
 .chat-warning { margin: 0 0 8px; color: var(--text-secondary); font-size: 10px; line-height: 1.5; }
+.checkin-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.checkin-section-head .panel-note { margin: 0; }
+.ai-feedback { margin: 14px 0; padding: 16px; border: 1px solid rgba(85,224,244,.35); border-radius: 14px; background: rgba(85,224,244,.07); }
+.ai-feedback-label { margin: 0 0 8px; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.ai-feedback p:not(.ai-feedback-label) { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+.ai-feedback small { display: block; margin-top: 12px; color: var(--muted); }
+@media (max-width: 600px) { .checkin-section-head { flex-direction: column; } }
 @keyframes orbit-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .chat-robot > .orbit-avatar { animation: none; } }
 @media (max-height: 580px) { .chat-panel { top: 8px; bottom: 8px; height: auto; } .chat-panel header { padding: 6px 12px; } .chat-pet-intro { display: none; } }
