@@ -25,6 +25,7 @@ import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { formatMetricValue } from "../lib/formatMetricValue";
+import { SpaceLoader } from "./SpaceLoader";
 import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
 import type { MovementBodyRegionId } from "../domain/movementBody";
 import type { MonthlyHistorySummary } from "../domain/monthlyHistory";
@@ -46,7 +47,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
           <h1 id="journey-title">A universe to explore.<br /><span>A moment for you.</span></h1>
           <p className="journey-intro">A little clarity, wherever your journey takes you. Explore your health and wellbeing, one small step at a time.</p>
           <div className="journey-section-label"><h2>Choose your mission stage</h2><span>Log in or create an account</span></div>
-          {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="journey-options">{options.map(({ stage, title, label, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={22} strokeWidth={1.4} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-kicker">{label}</span><h3>{title}</h3><span className="journey-description">{body}</span></span><span className="journey-arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></button>)}</div>}
+          {loading ? <div className="tech-card journey-loading"><SpaceLoader message="Preparing your private workspace…" /></div> : <div className="journey-options">{options.map(({ stage, title, label, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={22} strokeWidth={1.4} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-kicker">{label}</span><h3>{title}</h3><span className="journey-description">{body}</span></span><span className="journey-arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></button>)}</div>}
           {!loading && onOpenGroundDemo ? <button type="button" className="journey-ground-link" onClick={onOpenGroundDemo}><span className="journey-ground-icon"><HeartPulse size={20} aria-hidden="true" /></span><span><strong>Ground health team</strong><small>Open the synthetic mission dashboard</small></span><ArrowUpRight size={18} aria-hidden="true" /></button> : null}
           <p className="journey-footnote"><ShieldCheck size={14} aria-hidden="true" /> Each astronaut has their own private account.</p>
           {warning ? <details className="cloud-note"><summary>Exploring in demo mode · cloud save unavailable</summary><p>{warning} Accounts are saved only in this browser until the connection is available.</p></details> : null}
@@ -555,10 +556,8 @@ function LoadingPanel() {
   const connecting = Boolean(device?.connecting);
   return <section className={`${panelClass} device-connect`} role="status" aria-live="polite" aria-busy="true">
     <div className="flex items-start gap-3">
-      <span className={`device-connect-icon ${connecting ? "is-active" : ""}`} aria-hidden="true"><Watch size={20} /></span>
+      <SpaceLoader message={connecting ? device!.label : "Loading simulated signals…"} detail={connecting ? device!.detail : "Preparing the selected scenario and personal comparison."} />
       <div className="min-w-0 flex-1">
-        <h2 className="font-semibold text-white">{connecting ? device!.label : "Loading simulated signals…"}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{connecting ? device!.detail : "Preparing the selected scenario and personal comparison."}</p>
         {connecting ? <>
           <div className="device-progress" role="progressbar" aria-label="Wearable connection progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(device!.progress * 100)}><span style={{ width: `${Math.round(device!.progress * 100)}%` }} /></div>
           <ol className="device-steps" aria-label="Connection steps">{CONNECT_PHASES.map((step) => <li key={step.phase} data-state={step.phase === device!.phase ? "current" : CONNECT_PHASES.findIndex((item) => item.phase === device!.phase) > CONNECT_PHASES.findIndex((item) => item.phase === step.phase) ? "done" : "todo"}>{step.phase === "searching" ? "Find device" : step.phase === "pairing" ? "Pair" : "Sync data"}</li>)}</ol>
