@@ -42,7 +42,6 @@ export function AppShell({ activeView, onViewChange, stage, onStageChange, child
       <header className="app-topbar">
         <button type="button" className="mobile-menu icon-button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="mobile-menu" onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={19} /> : <Menu size={19} />}</button>
         <div className="workspace-breadcrumb"><p>{workspaceLabel}</p></div>
-        {account?.profile && account.profile.stage === stage ? null : <label className="stage-control">Stage<select aria-label="Life stage" value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)}><option value="future">Future</option><option value="active">Active</option><option value="retired">Retired</option></select></label>}
         <ThemeToggle />
         {account ? <div className="account-chip"><button type="button" className="account-chip-name" onClick={() => onViewChange("profile")} title={account.email}><span className="account-chip-avatar" aria-hidden="true">{initialsOf(account.profile?.fullName ?? account.email)}</span><span className="account-chip-label">{account.profile?.fullName ?? account.email}</span></button><button type="button" className="btn-secondary" aria-label="Log out" onClick={onLogOut}><LogOut size={15} aria-hidden="true" /><span className="account-chip-label" aria-hidden="true">Log out</span></button></div> : null}
       </header>

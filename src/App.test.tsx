@@ -19,12 +19,29 @@ async function waitForSignals() {
   });
 }
 
-/** Enters a workspace from the stage picker. The wearable never connects by itself, so pair it unless a test says not to. */
-async function openWorkspace(stage: "active" | "future" | "retired" = "active", { pair = stage !== "future" }: { pair?: boolean } = {}) {
-  const view = render(<App />);
-  const labels = { active: "Active astronaut", future: "Future traveler", retired: "Retired astronaut" };
+let accountNumber = 0;
+const labels = { active: "Active astronaut", future: "Future traveler", retired: "Retired astronaut" } as const;
+
+/** On a stage's account screen: continue a remembered account, or create a new one for that stage. */
+async function signInThroughStage(stage: keyof typeof labels) {
   await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
-  await screen.findByRole("combobox", { name: "Life stage" });
+  const remembered = screen.queryByRole("button", { name: /^Continue/ });
+  if (remembered) { await userEvent.click(remembered); await screen.findByRole("button", { name: "Log out" }); return; }
+  await userEvent.click(await screen.findByRole("button", { name: "Create an account" }));
+  accountNumber += 1;
+  await userEvent.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
+  await userEvent.type(screen.getByLabelText(/^Password/), "test-password");
+  await userEvent.type(screen.getByLabelText("Confirm password"), "test-password");
+  await userEvent.click(screen.getByRole("button", { name: /Continue/ }));
+  await userEvent.type(screen.getByLabelText(/Full name/), `Test ${labels[stage]}`);
+  await userEvent.click(screen.getByRole("button", { name: /Create account/ }));
+  await screen.findByRole("button", { name: "Log out" });
+}
+
+/** Enters a workspace through its stage card (an account is required). The wearable never connects by itself, so pair it unless a test says not to. */
+async function openWorkspace(stage: keyof typeof labels = "active", { pair = stage !== "future" }: { pair?: boolean } = {}) {
+  const view = render(<App />);
+  await signInThroughStage(stage);
   if (pair) await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" }));
   return view;
 }
@@ -34,21 +51,27 @@ describe("OrbitWell app shell", () => {
     window.localStorage.clear();
   });
 
-  it("creates an astronaut account with a stage and personal details, edits it, logs out and logs back in", async () => {
+  it("opens a stage's own account screen from its card and requires an account before the website", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole("button", { name: /Create your astronaut account/ }));
-    expect(screen.getByRole("note")).toHaveTextContent("saved only in this browser");
+    expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Create your astronaut account/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Log in" })).not.toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Active astronaut" }));
+    expect(screen.getByRole("heading", { name: "Log in" })).toBeInTheDocument();
+    expect(screen.getByText("Log in to your Active astronaut account to continue.")).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("saved only in this browser");
+    expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Create an account" }));
     await user.type(screen.getByLabelText("Email"), "maya@example.com");
     await user.type(screen.getByLabelText(/^Password/), "station-life");
+    await user.type(screen.getByLabelText("Confirm password"), "different");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByRole("alert")).toHaveTextContent("The passwords don't match.");
+    await user.clear(screen.getByLabelText("Confirm password"));
     await user.type(screen.getByLabelText("Confirm password"), "station-life");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-
-    expect(screen.getByRole("heading", { name: "Where are you in your journey?" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Choose the stage that describes you.");
-    await user.click(screen.getByRole("radio", { name: /Active astronaut/ }));
     await user.click(screen.getByRole("button", { name: /Continue/ }));
 
     expect(screen.getByRole("heading", { name: "Your personal details" })).toBeInTheDocument();
@@ -56,54 +79,55 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getByRole("button", { name: /Create account/ }));
     expect(screen.getByText("Enter your full name.")).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Full name/), "Maya Chen");
-    await user.type(screen.getByLabelText("Call sign"), "MAYA");
     await user.type(screen.getByLabelText("Mission"), "Expedition 12");
     await user.click(screen.getByRole("button", { name: /Create account/ }));
 
     expect(await screen.findByText(/Maya Chen · Active astronaut/)).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Life stage" })).not.toBeInTheDocument();
-
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     expect(screen.getByRole("heading", { name: "Maya Chen" })).toBeInTheDocument();
-    expect(screen.getByText("Expedition 12")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Create an account/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Edit profile/ }));
     await user.type(screen.getByLabelText("Agency"), "ESA");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText("ESA")).toBeInTheDocument();
+  });
 
+  it("only lets an account log in through its own stage card", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("future", { pair: false });
     await user.click(screen.getByRole("button", { name: "Log out" }));
-    expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Log in" })[0]);
-    await user.type(screen.getByLabelText("Email"), "maya@example.com");
+
+    await user.click(await screen.findByRole("button", { name: "Active astronaut" }));
+    await user.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
+    await user.type(screen.getByLabelText("Password"), "test-password");
+    await user.click(screen.getByRole("button", { name: "Log in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This account is registered as a Future traveler. Go back and choose the Future traveler card");
+    expect(screen.queryByRole("button", { name: "Home" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Choose a different stage/ }));
+    await user.click(screen.getByRole("button", { name: "Future traveler" }));
+    await user.type(screen.getByLabelText("Email"), `astronaut${accountNumber}@example.com`);
     await user.type(screen.getByLabelText("Password"), "wrong-password");
     await user.click(screen.getByRole("button", { name: "Log in" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("don't match");
     await user.clear(screen.getByLabelText("Password"));
-    await user.type(screen.getByLabelText("Password"), "station-life");
+    await user.type(screen.getByLabelText("Password"), "test-password");
     await user.click(screen.getByRole("button", { name: "Log in" }));
-    expect(await screen.findByText(/Maya Chen · Active astronaut/)).toBeInTheDocument();
+    expect(await screen.findByText(/Test Future traveler · Future traveler/)).toBeInTheDocument();
   });
 
-  it("remembers a signed-in astronaut but still opens on the start page", async () => {
+  it("remembers a logged-in astronaut but still opens on the start page", async () => {
     const user = userEvent.setup();
-    const first = render(<App />);
-    await user.click(await screen.findByRole("button", { name: /Create your astronaut account/ }));
-    await user.type(screen.getByLabelText("Email"), "elena@example.com");
-    await user.type(screen.getByLabelText(/^Password/), "after-flight");
-    await user.type(screen.getByLabelText("Confirm password"), "after-flight");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByRole("radio", { name: /Retired astronaut/ }));
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.type(screen.getByLabelText(/Full name/), "Elena Ruiz");
-    await user.click(screen.getByRole("button", { name: /Create account/ }));
-    await screen.findByText(/Elena Ruiz · Retired astronaut/);
+    const first = await openWorkspace("retired", { pair: false });
     first.unmount();
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    expect(screen.getByText("Signed in · Retired astronaut")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Continue to my workspace/ }));
-    expect(await screen.findByText(/Elena Ruiz · Retired astronaut/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
+    expect(screen.getByRole("heading", { name: /Welcome back, Test/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Continue/ }));
+    expect(await screen.findByText(/Test Retired astronaut · Retired astronaut/)).toBeInTheDocument();
   });
 
   it("switches appearance on the landing page and keeps it across workspace navigation", async () => {
@@ -112,7 +136,8 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
     expect(document.documentElement).toHaveAttribute("data-theme", "light");
     expect(window.localStorage.getItem("horizon:theme")).toBe('"light"');
-    await user.click(await screen.findByRole("button", { name: "Active astronaut" }));
+    await signInThroughStage("active");
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     expect(document.documentElement).toHaveAttribute("data-theme", "light");
     await user.click(screen.getByRole("button", { name: "Switch to dark mode" }));
@@ -162,7 +187,7 @@ describe("OrbitWell app shell", () => {
     ["retired", "Keep the long view"],
   ] as const)("enters the %s workspace from its stage card", async (stage, heading) => {
     await openWorkspace(stage);
-    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue(stage);
+    expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });
 
@@ -199,20 +224,17 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("img", { name: "Exercise minutes trend chart" })).toBeInTheDocument();
   });
 
-  it("renders the safety disclaimer and switches the life stage", async () => {
+  it("renders the safety disclaimer and switches stage by logging out and choosing another card", async () => {
     const user = userEvent.setup();
     await openWorkspace();
 
     expect(screen.getByText("Simulated data. Not medical advice. Not diagnostic.")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("active");
-
-    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
-
-    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("retired");
-    expect(screen.getByText(/Retired astronaut/)).toBeInTheDocument();
+    expect(screen.getByText("Active monitoring workspace")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Log out" }));
+    await signInThroughStage("retired");
+    expect(screen.getAllByText(/Retired astronaut/).length).toBeGreaterThan(0);
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
-
   it("changes the active view from the navigation", async () => {
     const user = userEvent.setup();
     await openWorkspace();
@@ -387,7 +409,6 @@ describe("OrbitWell app shell", () => {
     const user = userEvent.setup();
     await openWorkspace("future");
 
-    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("future");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     expect(screen.getByText(/never flight clearance or certification/)).toBeInTheDocument();
     const practice = screen.getByRole("button", { name: /Equipment-free mobility/ });
@@ -399,9 +420,8 @@ describe("OrbitWell app shell", () => {
 
   it("persists retired summary field choices locally", async () => {
     const user = userEvent.setup();
-    await openWorkspace();
+    await openWorkspace("retired");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     expect(screen.getByRole("heading", { name: "Your long-term follow-up" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Maintain physical and mental wellbeing" })).toBeInTheDocument();
@@ -429,9 +449,8 @@ describe("OrbitWell app shell", () => {
 
   it("imports a synthetic DXA report and creates a local sample reminder", async () => {
     const user = userEvent.setup();
-    await openWorkspace();
+    await openWorkspace("retired");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     await user.click(screen.getByText("Bone-density trend over years"));
     await user.click(screen.getByRole("button", { name: "Import sample DXA report" }));
@@ -451,9 +470,8 @@ describe("OrbitWell app shell", () => {
 
   it("imports sample vision guidance and routes heart and wellbeing actions", async () => {
     const user = userEvent.setup();
-    await openWorkspace();
+    await openWorkspace("retired");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
     await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
     expect(screen.getByRole("heading", { name: "No sample follow-up scheduled" })).toBeInTheDocument();
 
@@ -474,8 +492,7 @@ describe("OrbitWell app shell", () => {
 
   it("restores the last check-in summary after reselecting a workspace on refresh", async () => {
     const user = userEvent.setup();
-    const first = await openWorkspace();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Life stage" }), "retired");
+    const first = await openWorkspace("retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     await user.click(screen.getByRole("button", { name: "Slept through and woke up rested" }));
     for (let i = 0; i < 6; i += 1) await user.click(screen.getByRole("button", { name: "Skip this question" }));
@@ -483,7 +500,7 @@ describe("OrbitWell app shell", () => {
     first.unmount();
 
     await openWorkspace("retired");
-    expect(screen.getByRole("combobox", { name: "Life stage" })).toHaveValue("retired");
+    expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByText("You slept well and woke up rested.")).toBeInTheDocument();
   });
@@ -544,7 +561,7 @@ describe("OrbitWell app shell", () => {
     // A new visit starts unpaired again and on the stage picker.
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
+    await signInThroughStage("active");
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 

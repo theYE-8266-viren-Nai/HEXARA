@@ -864,15 +864,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .form-section > :not(legend) { clear: both; }
 .field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
 
-.landing-login { min-height: 36px; }
-.landing-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 22px; }
-.landing-cta p { font-size: 13px; color: var(--muted); }
-.landing-account { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 16px; margin-top: 22px; padding: 16px 18px; }
-.landing-account .profile-avatar { width: 46px; height: 46px; font-size: 16px; }
-.landing-account > div:nth-child(2) { flex: 1 1 160px; min-width: 0; }
-.landing-account-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-.landing-account-meta { font-size: 13px; color: var(--muted); }
-.landing-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
 .account-chip { display: flex; align-items: center; gap: 8px; }
 .account-chip-name { display: inline-flex; align-items: center; gap: 8px; max-width: 220px; padding: 4px 10px 4px 4px; border-radius: 99px; font-size: 13px; font-weight: 600; color: var(--text-primary); }
@@ -880,7 +871,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .account-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-chip-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #1d3a4a, #0c1a24 72%); color: #a1e5e5; font-size: 12px; font-weight: 600; }
 .profile-edit { align-self: flex-start; }
-.account-callout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 
 @media (max-width: 900px) { .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) {
@@ -892,3 +882,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .app-topbar .workspace-breadcrumb { margin-right: auto; }
 .journey-section-label > span { font-family: inherit; font-size: 12px; letter-spacing: 0; }
 @media (max-width: 480px) { .onboarding-actions .research-badge { display: none; } }
+.account-stage { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 560px; }
+.account-stage-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.account-stage-body { font-size: 13px; color: var(--muted); }

@@ -40,7 +40,8 @@ function HorizonApp() {
   const [stage, setStage] = useState<LifeStage | null>(null);
   const accounts = useMemo(() => createAccountRepository(supabase), []);
   const [account, setAccount] = useState<Account | null>(null);
-  const [accountScreen, setAccountScreen] = useState<"login" | "signup" | "complete" | null>(null);
+  // The stage card the person clicked; its log in / create account screen shows until they are in.
+  const [accountStage, setAccountStage] = useState<LifeStage | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [cloudWarning, setCloudWarning] = useState<string | undefined>();
@@ -136,10 +137,11 @@ function HorizonApp() {
   const enterAccount = (next: Account) => {
     setAccount(next);
     setUserId(next.userId);
-    setAccountScreen(null);
-    if (!next.profile) { setAccountScreen("complete"); return; }
+    if (!next.profile) return; // the account screen asks for the profile details first
     const matchingProfile = profiles.find((candidate) => candidate.stage === next.profile!.stage) ?? profiles[0];
     setProfileId(matchingProfile.id);
+    void preparationRepository.saveTravelerPreferences(next.profile.stage, matchingProfile.id);
+    setAccountStage(null);
     setStage(next.profile.stage);
     setActiveView("home");
   };
@@ -147,6 +149,7 @@ function HorizonApp() {
     await accounts.signOut();
     setAccount(null);
     setStage(null);
+    setAccountStage(null);
     setDevicePaired(false);
     setActiveView("home");
     const auth = await ensureAnonymousSession(supabase);
@@ -218,8 +221,8 @@ function HorizonApp() {
   const replayEvents = () => setReplayCount((count) => count + 1);
 
   if (authLoading) return <StageSelectionView loading />;
-  if (accountScreen) return <AccountScreen mode={accountScreen} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountScreen(null)} />;
-  if (!stage) return <StageSelectionView warning={cloudWarning} onSelect={setStageAndProfile} account={account} onLogin={() => setAccountScreen("login")} onSignup={() => setAccountScreen("signup")} onContinue={() => account && enterAccount(account)} onLogout={() => void logOut()} />;
+  if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} onLogOut={() => { void accounts.signOut().then(() => setAccount(null)); }} />;
+  if (!stage || !account?.profile) return <StageSelectionView warning={cloudWarning} onSelect={setAccountStage} />;
   // The astronaut's own name and mission day replace the sample traveler's on every page.
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
@@ -235,7 +238,7 @@ function HorizonApp() {
       case "guidance":
         return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
       case "profile":
-        return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} onCreateAccount={account ? undefined : () => { setStage(null); setAccountScreen("signup"); }} />;
+        return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
         return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} pattern={<PatternCard view={pattern} explain={explain} />} /></>;

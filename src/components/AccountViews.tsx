@@ -10,23 +10,37 @@ const STAGE_ICONS: Record<LifeStage, typeof Rocket> = { future: Rocket, active: 
 
 type Mode = "login" | "signup" | "complete";
 
-/** Full-page account screen: log in, create an account (3 steps), or finish a profile for an account without one. */
-export function AccountScreen({ mode: initialMode, repository, account, onDone, onBack }: { mode: Mode; repository: AccountRepository; account?: Account | null; onDone: (account: Account) => void; onBack: () => void }) {
-  const [mode, setMode] = useState<Mode>(initialMode);
+/**
+ * The account screen for one stage, opened from its card on the start page. People log in or create an
+ * account for that stage before they can use the website. An account only opens the stage it belongs to.
+ */
+export function AccountScreen({ stage, repository, account, onDone, onBack, onLogOut }: { stage: LifeStage; repository: AccountRepository; account?: Account | null; onDone: (account: Account) => void; onBack: () => void; onLogOut: () => void }) {
+  const remembered = account && account.profile?.stage === stage ? account : null;
+  const needsProfile = account && !account.profile ? account : null;
+  const [mode, setMode] = useState<Mode>(needsProfile ? "complete" : "login");
+  const choice = STAGE_CHOICES.find((item) => item.stage === stage)!;
+  const Icon = STAGE_ICONS[stage];
   return <main className="star-field onboarding account-page">
     <div className="onboarding-container">
       <header className="onboarding-topbar"><Brand /><div className="onboarding-actions"><ThemeToggle /></div></header>
       <div className="account-layout">
-        <button type="button" className="btn-link account-back" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" /> Back to start</button>
-        {repository.mode === "local" ? <p className="account-local-note" role="note">Cloud accounts are unavailable here, so this account is saved only in this browser.</p> : null}
-        {mode === "login" ? <LoginForm repository={repository} onDone={onDone} onSignup={() => setMode("signup")} /> : <SignupFlow repository={repository} account={mode === "complete" ? account ?? null : null} onDone={onDone} onLogin={() => setMode("login")} />}
+        <button type="button" className="btn-link account-back" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" /> Choose a different stage</button>
+        <div className="account-stage"><span className="stage-choice-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.5} /></span><div><p className="account-stage-title">{choice.title}</p><p className="account-stage-body">{choice.body}</p></div></div>
+        {repository.mode === "local" ? <p className="account-local-note" role="note">Cloud accounts are unavailable here, so accounts are saved only in this browser.</p> : null}
+        {remembered && mode === "login" ? <section className="tech-card account-card" aria-labelledby="continue-title">
+          <h1 id="continue-title">Welcome back, {remembered.profile!.fullName.split(" ")[0]}</h1>
+          <p className="page-lede">You're logged in as {remembered.email}.</p>
+          <div className="account-nav"><button type="button" className="btn-link" onClick={onLogOut}>Log out</button><button type="button" className="btn-primary" onClick={() => onDone(remembered)}>Continue <ArrowRight size={15} aria-hidden="true" /></button></div>
+        </section> : null}
+        {!remembered && mode === "login" ? <LoginForm stage={stage} repository={repository} onDone={onDone} onSignup={() => setMode("signup")} /> : null}
+        {mode !== "login" ? <SignupFlow stage={stage} repository={repository} account={mode === "complete" ? needsProfile : null} onDone={onDone} onLogin={() => setMode("login")} /> : null}
       </div>
     </div>
     <SafetyDisclaimer landing />
   </main>;
 }
 
-function LoginForm({ repository, onDone, onSignup }: { repository: AccountRepository; onDone: (account: Account) => void; onSignup: () => void }) {
+function LoginForm({ stage, repository, onDone, onSignup }: { stage: LifeStage; repository: AccountRepository; onDone: (account: Account) => void; onSignup: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
@@ -35,31 +49,45 @@ function LoginForm({ repository, onDone, onSignup }: { repository: AccountReposi
     event.preventDefault();
     setBusy(true); setError(undefined);
     const result = await repository.signIn(email, password);
+    if (result.account?.profile && result.account.profile.stage !== stage) {
+      // Each stage only opens its own accounts.
+      await repository.signOut();
+      setBusy(false);
+      setError(`This account is registered as ${withArticle(stageName(result.account.profile.stage))}. Go back and choose the ${stageName(result.account.profile.stage)} card to log in.`);
+      return;
+    }
     setBusy(false);
     if (result.account) onDone(result.account); else setError(result.error ?? "Log in failed.");
   };
   return <section className="tech-card account-card" aria-labelledby="login-title">
     <h1 id="login-title">Log in</h1>
-    <p className="page-lede">Welcome back. Log in to see your own profile and workspace.</p>
+    <p className="page-lede">Log in to your {stageName(stage)} account to continue.</p>
     <form className="account-form" onSubmit={submit} noValidate>
       <TextField id="login-email" label="Email" type="email" autoComplete="email" value={email} onChange={setEmail} />
       <TextField id="login-password" label="Password" type="password" autoComplete="current-password" value={password} onChange={setPassword} />
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button type="submit" className="btn-primary" disabled={busy}><LogIn size={16} aria-hidden="true" />{busy ? "Logging in…" : "Log in"}</button>
     </form>
-    <p className="account-switch">New astronaut? <button type="button" className="btn-link" onClick={onSignup}>Create an account</button></p>
+    <p className="account-switch">New here? <button type="button" className="btn-link" onClick={onSignup}>Create an account</button></p>
   </section>;
 }
 
-function SignupFlow({ repository, account, onDone, onLogin }: { repository: AccountRepository; account: Account | null; onDone: (account: Account) => void; onLogin: () => void }) {
+function withArticle(name: string): string {
+  return `${/^[AEIOU]/i.test(name) ? "an" : "a"} ${name}`;
+}
+
+function stageName(stage: LifeStage): string {
+  return STAGE_CHOICES.find((item) => item.stage === stage)!.title;
+}
+
+function SignupFlow({ stage, repository, account, onDone, onLogin }: { stage: LifeStage; repository: AccountRepository; account: Account | null; onDone: (account: Account) => void; onLogin: () => void }) {
   const completing = Boolean(account);
-  const steps = completing ? ["stage", "details"] as const : ["account", "stage", "details"] as const;
+  const steps = completing ? ["details"] as const : ["account", "details"] as const;
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [profile, setProfile] = useState<AstronautProfile>(emptyProfile("active"));
-  const [stageChosen, setStageChosen] = useState(false);
+  const [profile, setProfile] = useState<AstronautProfile>(emptyProfile(stage));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
@@ -68,11 +96,8 @@ function SignupFlow({ repository, account, onDone, onLogin }: { repository: Acco
 
   const next = () => {
     setError(undefined);
-    if (current === "account") {
-      const invalid = checkCredentials(email, password) ?? (password !== confirm ? "The passwords don't match." : undefined);
-      if (invalid) { setError(invalid); return; }
-    }
-    if (current === "stage" && !stageChosen) { setError("Choose the stage that describes you."); return; }
+    const invalid = checkCredentials(email, password) ?? (password !== confirm ? "The passwords don't match." : undefined);
+    if (invalid) { setError(invalid); return; }
     setStep((value) => value + 1);
   };
   const submit = async (event: FormEvent) => {
@@ -91,17 +116,15 @@ function SignupFlow({ repository, account, onDone, onLogin }: { repository: Acco
   if (notice) return <section className="tech-card account-card" role="status"><h1>Almost there</h1><p className="page-lede">{notice}</p><button type="button" className="btn-primary" onClick={onLogin}>Go to log in</button></section>;
 
   return <section className="tech-card account-card account-card-wide" aria-labelledby="signup-title">
-    <p className="checkin-count">Step {step + 1} of {steps.length}</p>
-    <h1 id="signup-title">{current === "account" ? "Create your account" : current === "stage" ? "Where are you in your journey?" : "Your personal details"}</h1>
-    <p className="page-lede">{current === "account" ? "Each astronaut has their own account and private profile." : current === "stage" ? "This decides which workspace, check-in questions and profile details you see. You can change it later." : "These appear on your Profile page. Only your name is required, and you can edit everything later."}</p>
+    {steps.length > 1 ? <p className="checkin-count">Step {step + 1} of {steps.length}</p> : null}
+    <h1 id="signup-title">{current === "account" ? "Create your account" : "Your personal details"}</h1>
+    <p className="page-lede">{current === "account" ? `Each ${stageName(stage).toLowerCase()} has their own account and private profile.` : "These appear on your Profile page. Only your name is required, and you can edit everything later."}</p>
     <form className="account-form" onSubmit={current === "details" ? submit : (event) => { event.preventDefault(); next(); }} noValidate>
       {current === "account" ? <>
         <TextField id="signup-email" label="Email" type="email" autoComplete="email" value={email} onChange={setEmail} />
         <TextField id="signup-password" label="Password" type="password" autoComplete="new-password" hint="At least 8 characters" value={password} onChange={setPassword} />
         <TextField id="signup-confirm" label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={setConfirm} />
-      </> : null}
-      {current === "stage" ? <StagePicker value={stageChosen ? profile.stage : null} onChange={(stage) => { setStageChosen(true); setProfile((value) => ({ ...value, stage })); }} /> : null}
-      {current === "details" ? <ProfileFields profile={profile} onChange={setProfile} errors={errors} /> : null}
+      </> : <ProfileFields profile={profile} onChange={setProfile} errors={errors} />}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <div className="account-nav">
         {step > 0 ? <button type="button" className="btn-secondary" onClick={() => { setError(undefined); setStep((value) => value - 1); }}><ArrowLeft size={15} aria-hidden="true" /> Back</button> : <span />}
