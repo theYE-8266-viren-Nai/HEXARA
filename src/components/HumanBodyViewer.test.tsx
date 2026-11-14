@@ -140,7 +140,6 @@ describe('Human body viewer', () => {
       const dot = screen.getByRole('button', {name:`${name}, not connected`});
       expect(dot).toHaveAttribute('data-connected', 'false');
     }
-    expect(screen.getByText('No devices paired')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', {name:'Heart, not connected'}));
     const panel = screen.getByRole('complementary', {name:'Heart signals'});
@@ -154,29 +153,6 @@ describe('Human body viewer', () => {
     expect(screen.getByRole('complementary', {name:'Heart signals'})).toHaveTextContent('Resting heart rate');
     for (const name of ['Lungs','Skin']) expect(screen.getByRole('button', {name})).toHaveAttribute('data-connected', 'true');
     for (const name of ['Brain','Chest','Legs']) expect(screen.getByRole('button', {name:`${name}, not connected`})).toBeInTheDocument();
-    expect(screen.getByText('1 of 4 devices paired')).toBeInTheDocument();
-  });
-
-  it('lists the devices below the body-region menu', async () => {
-    const user = userEvent.setup();
-    render(<HumanBodyViewer metrics={metrics()} motion={motion} />);
-    const menu = screen.getByRole('button', {name:'Choose a body region'});
-    const find = screen.getByRole('button', {name:'Find devices'});
-    expect(menu.compareDocumentPosition(find) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    await user.click(find);
-    const list = screen.getByRole('list', {name:'Available devices'});
-    for (const name of ['Astroskin shirt','Actiwatch','Personal dosimeter','Motion sensors']) expect(within(list).getByText(name)).toBeInTheDocument();
-  });
-
-  it('shows "Pairing…" while a device connects and offers Disconnect once paired', async () => {
-    const user = userEvent.setup();
-    const onUnpair = vi.fn();
-    render(<HumanBodyViewer pairedDevices={new Set<BodyDeviceId>(['dosimeter'])} pairingDevice="motion" onUnpairDevice={onUnpair} />);
-    await user.click(screen.getByRole('button', {name:'Find devices'}));
-    expect(screen.getByRole('button', {name:'Pair Motion sensors'})).toHaveTextContent('Pairing…');
-    expect(screen.getByRole('button', {name:'Pair Astroskin shirt'})).toBeDisabled();
-    await user.click(screen.getByRole('button', {name:'Disconnect Personal dosimeter'}));
-    expect(onUnpair).toHaveBeenCalledWith('dosimeter');
   });
 
   it.each(['unpaired','unavailable','loading'] as const)('withholds numbers for a %s source', async signalState => {

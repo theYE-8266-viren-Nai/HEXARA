@@ -16,7 +16,6 @@ interface BodyViewerProps { metrics?: MetricCardData[]; alert?: Alert | null; si
 const NO_DEVICES: ReadonlySet<BodyDeviceId> = new Set();
 
 export default function HumanBodyViewer({ metrics = [], alert = null, signalState = 'ready', onViewChange, pairedDevices = NO_DEVICES, pairingDevice = null, onPairDevice, onUnpairDevice, motion }: BodyViewerProps) {
-  const [findOpen, setFindOpen] = useState(false);
   const enabled = enabledRegions(pairedDevices);
   const enabledIds = new Set<string>(enabled.map(item => item.id));
   const host = useRef<HTMLDivElement>(null);
@@ -116,19 +115,6 @@ export default function HumanBodyViewer({ metrics = [], alert = null, signalStat
       <label className="body-viewer-range"><span>Left 180°</span><span className="sr-only">Body rotation</span><input type="range" min="-180" max="180" step="1" value={angle} disabled={state !== 'ready'} onChange={event => turn(Number(event.target.value))} aria-label="Body rotation" aria-valuetext={`${Math.abs(angle)} degrees ${angle < 0 ? 'left' : angle > 0 ? 'right' : 'front'}`} /><span>180° Right</span></label>
     </div>
     <div className="body-region-menu"><button type="button" aria-expanded={menuOpen} aria-controls="body-region-options" onClick={() => setMenuOpen(open => !open)}>Choose a body region</button>{menuOpen ? <div id="body-region-options">{bodyRegions.map(item => <button type="button" className="body-control body-region-option" data-connected={enabledIds.has(item.id) ? "true" : "false"} key={item.id} aria-pressed={selected === item.id} onClick={() => toggle(item.id)}><span className="body-region-dot" aria-hidden="true" />{item.label}<span className="sr-only">{enabledIds.has(item.id) ? '' : ', not connected'}</span></button>)}</div> : null}</div>
-    <div className="body-devices">
-      <button type="button" className="btn-primary body-devices-toggle" aria-expanded={findOpen} aria-controls="body-device-list" onClick={() => setFindOpen(open => !open)}>{findOpen ? 'Hide devices' : 'Find devices'}</button>
-      <p className="body-devices-summary" role="status">{pairedDevices.size ? `${pairedDevices.size} of ${BODY_DEVICES.length} devices paired` : 'No devices paired'}</p>
-      {findOpen ? <ul id="body-device-list" className="body-device-list" aria-label="Available devices">{BODY_DEVICES.map(device => {
-        const paired = pairedDevices.has(device.id);
-        const pairing = pairingDevice === device.id;
-        return <li key={device.id} className="body-device" data-paired={paired || undefined}>
-          <div className="body-device-text"><p className="body-device-name">{device.name}{paired ? <span className="body-device-badge">Paired</span> : null}</p><p className="body-device-meta">{device.worn} · {device.measures}</p><p className="body-device-parts">Body parts: {device.parts.join(', ')}</p></div>
-          {paired ? <button type="button" className="btn-secondary" aria-label={`Disconnect ${device.name}`} onClick={() => onUnpairDevice?.(device.id)}>Disconnect</button>
-            : <button type="button" className="btn-secondary" aria-label={`Pair ${device.name}`} disabled={pairing || Boolean(pairingDevice)} onClick={() => onPairDevice?.(device.id)}>{pairing ? 'Pairing…' : 'Pair'}</button>}
-        </li>;
-      })}</ul> : null}
-    </div>
     <footer className="body-viewer-footer"><p>Turn to the back for the Back marker. Green dots have a paired device; red dots do not. Colors show connection, not health status. Illustrative anatomy, not a scan of you.</p><p>Anatomy: BodyParts3D © DBCLS; adapted by <a href="https://github.com/MervinR07/open-anatomy-3d" target="_blank" rel="noreferrer">open-anatomy-3d</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>. Display colors adjusted. <a href={`${import.meta.env.BASE_URL}models/human/ATTRIBUTION.md`} target="_blank" rel="noreferrer">Full credits</a></p></footer>
   </section>;
 }

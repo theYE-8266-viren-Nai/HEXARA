@@ -996,17 +996,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 @media (max-width: 767px) { .account-card-step .field-grid { grid-template-columns: 1fr; } }
 
 /* Body overview: Find devices */
-.body-devices { display: grid; justify-items: center; gap: 10px; margin: 6px auto 4px; width: 100%; max-width: 760px; }
-.body-devices-summary { font-size: 13px; color: var(--muted); }
-.body-device-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; margin: 4px 0 0; padding: 0; list-style: none; }
-.body-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); text-align: left; }
-.body-device[data-paired] { border-color: color-mix(in srgb, var(--tone-normal) 55%, transparent); }
-.body-device-text { min-width: 0; }
-.body-device-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
-.body-device-badge { padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: var(--tone-normal); background: var(--tone-normal-bg); }
-.body-device-meta, .body-device-parts { margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.body-device .btn-secondary { flex-shrink: 0; }
-@media (max-width: 767px) { .body-device-list { grid-template-columns: 1fr; } }
 
 /* Body dots: green when the device for that part is paired, red when it is not */
 .body-hotspot[data-connected="false"] .body-hotspot-light { background: #ff7b7b; border-color: #ffd6d6; box-shadow: 0 0 0 6px #ff4d4d26, 0 0 18px 6px #ff555566; }
@@ -1016,4 +1005,41 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .body-region-dot { width: 9px; height: 9px; border-radius: 50%; background: #e05a5a; }
 .body-region-option[data-connected="true"] .body-region-dot { background: #2fbf86; }
 .body-unpaired { display: grid; justify-items: start; gap: 10px; }
-.body-devices { margin-top: 14px; }
+
+/* Connect wearables: Bluetooth-style switch with a dropdown (two devices visible, the rest scroll) */
+.page-header:has(.wearable-connect) { align-items: flex-start; }
+.page-meta:has(.wearable-connect) { flex-direction: column; align-items: flex-end; gap: 10px; }
+.page-meta:has(.wearable-connect) > :not(.wearable-connect) { align-self: flex-end; }
+.wearable-connect { position: relative; z-index: 15; }
+.wearable-connect-bar { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border: 1px solid var(--line-strong); border-radius: 99px; background: var(--surface); }
+.wearable-connect-label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.wearable-connect-label:disabled { cursor: default; opacity: 1; }
+.wearable-connect-label svg { color: var(--accent-text); }
+.wearable-connect-count { padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--tone-normal); background: var(--tone-normal-bg); }
+.bt-switch { position: relative; width: 46px; height: 28px; flex-shrink: 0; border-radius: 99px; background: var(--line-strong); transition: background .2s; }
+.bt-switch[aria-checked="true"] { background: #2fbf86; }
+.bt-switch-thumb { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s; }
+.bt-switch[aria-checked="true"] .bt-switch-thumb { transform: translateX(18px); }
+.bt-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.wearable-dropdown { position: absolute; top: calc(100% + 8px); right: 0; width: min(360px, calc(100vw - 32px)); padding: 10px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); box-shadow: 0 18px 44px rgba(10, 20, 30, .18); }
+.wearable-dropdown-title { padding: 2px 6px 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.wearable-list { display: grid; gap: 6px; max-height: 142px; margin: 0; padding: 0 2px 0 0; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
+.wearable-item { display: flex; align-items: center; gap: 10px; min-height: 66px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.wearable-dot { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; background: #e05a5a; }
+.wearable-item[data-paired] .wearable-dot { background: #2fbf86; }
+.wearable-text { flex: 1; min-width: 0; }
+.wearable-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.wearable-meta { margin-top: 1px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.wearable-action { flex-shrink: 0; min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--tone-normal); }
+.wearable-action:hover { background: var(--tone-normal-bg); }
+.wearable-action-pair { border: 1px solid var(--line-strong); color: var(--text-primary); }
+.wearable-action-pair:hover { background: var(--surface); }
+@media (max-width: 767px) {
+  .page-meta:has(.wearable-connect) { align-items: flex-start; }
+  .page-meta:has(.wearable-connect) > :not(.wearable-connect) { align-self: flex-start; }
+  .wearable-dropdown { left: 0; right: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .bt-switch, .bt-switch-thumb { transition: none; } }
+.wearable-item { height: 64px; min-height: 0; }
+.wearable-name, .wearable-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wearable-list { max-height: 134px; }
