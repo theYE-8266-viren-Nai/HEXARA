@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   tasksForStage, taskInstructions, ANCHOR_NOTE, IN_ORBIT_TASK_TYPES,
   VISUAL_CHECK_DISCLAIMER, VISUAL_CHECK_TASKS, assessCameraQuality, buildVisualCheck, combinedContextNote, compareWithPersonalHistory, composeCrewSummary, extractMovementFeatures,
-  frameStats, generateSyntheticFeatures, isNonDiagnostic, ownerKeyFor, supportRecommendationFor, taskFor, type MotionSample, type ObservedFeatures, type UserReportedContext, type VisualCheck,
+  frameStats, generateSyntheticFeatures, isNonDiagnostic, movementStatusFor, ownerKeyFor, supportRecommendationFor, taskFor, type MotionSample, type ObservedFeatures, type UserReportedContext, type VisualCheck,
 } from "./visualCheck";
 import { toVisualCheckRow } from "../lib/visualCheckRepository";
 
@@ -90,6 +90,18 @@ describe("personal comparison", () => {
 });
 
 describe("support and safety language", () => {
+  it("derives a movement status from safety answers before camera quality", () => {
+    expect(movementStatusFor({ ...generateSyntheticFeatures(squat, 1), cameraQuality: "good" }, { ...ctx, discomfort: "pain" }).status).toBe("stop_and_check_in");
+    expect(movementStatusFor({ ...generateSyntheticFeatures(squat, 1), cameraQuality: "good" }, { ...ctx, dizziness: "dizzy" }).title).toBe("Stop and check in");
+  });
+  it("uses limited capture for tracking problems, not a health warning", () => {
+    const features = { ...generateSyntheticFeatures(squat, 1), cameraQuality: "limited" as const, leftRightBalance: 0.9 };
+    expect(movementStatusFor(features, ctx)).toMatchObject({ status: "limited_capture", title: "Limited capture", actionLabel: "Try again" });
+    expect(movementStatusFor({ ...features, cameraQuality: "good", qualityNotes: [] }, ctx).status).toBe("complete");
+  });
+  it("reports a clear capture as practice-ready without making a health claim", () => {
+    expect(movementStatusFor({ ...generateSyntheticFeatures(squat, 1), cameraQuality: "good" }, ctx)).toMatchObject({ status: "complete", title: "Movement was captured clearly", actionLabel: "Save and show on body" });
+  });
   it("directs pain and severe symptoms to the crew medic without interpreting video", () => {
     const comparison = { trend: "similar" as const, statements: [], priorSessionsUsed: 1 };
     expect(supportRecommendationFor({ ...ctx, discomfort: "severe_or_worsening" }, comparison)).toMatch(/contact the crew medic now/);

@@ -20,13 +20,9 @@ describe("Home data trust", () => {
     renderHome({ sourceLabel: 'Simulated wearable', quality: 'good', notes: [], accepted: 40, rejected: 0, flagged: 0 }, stage);
     expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
-    if (stage === 'future') {
-      expect(screen.getByRole('heading', {name:'Your signals'})).toBeInTheDocument();
-    } else {
-      expect(await screen.findByRole('group', {name:'Rotatable 3D human figure'})).toBeInTheDocument();
-    }
-    if (stage !== 'future') expect(screen.queryByRole('heading', {name:'Your signals'})).not.toBeInTheDocument();
-    if (stage === 'active') expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
+    expect(await screen.findByRole('group', {name:'Rotatable 3D human figure'})).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name:'Your signals'})).not.toBeInTheDocument();
+    if (stage === 'active' || stage === 'future') expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
   });
   it("shows the alert when data quality is good", () => {
     renderHome({ sourceLabel: "Simulated wearable", quality: "good", notes: [], accepted: 40, rejected: 2, flagged: 0 });

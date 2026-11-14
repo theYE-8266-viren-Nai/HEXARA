@@ -1,6 +1,6 @@
 # OrbitWell backend foundation
 
-Synthetic data only. Simulated data. Not medical advice. Not diagnostic.
+Synthetic research-demo data only.
 
 ## Database
 

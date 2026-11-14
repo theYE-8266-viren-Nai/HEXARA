@@ -13,8 +13,7 @@ type Mode = "login" | "signup" | "complete";
  * The account screen for one stage, opened from its card on the start page. People log in or create an
  * account for that stage before they can use the website. An account only opens the stage it belongs to.
  */
-export function AccountScreen({ stage, repository, account, onDone, onBack, onLogOut }: { stage: LifeStage; repository: AccountRepository; account?: Account | null; onDone: (account: Account) => void; onBack: () => void; onLogOut: () => void }) {
-  const remembered = account && account.profile?.stage === stage ? account : null;
+export function AccountScreen({ stage, repository, account, onDone, onBack }: { stage: LifeStage; repository: AccountRepository; account?: Account | null; onDone: (account: Account) => void; onBack: () => void }) {
   const needsProfile = account && !account.profile ? account : null;
   const [mode, setMode] = useState<Mode>(needsProfile ? "complete" : "login");
   const choice = STAGE_CHOICES.find((item) => item.stage === stage)!;
@@ -26,12 +25,7 @@ export function AccountScreen({ stage, repository, account, onDone, onBack, onLo
         <button type="button" className="btn-link account-back" onClick={onBack}><ArrowLeft size={15} aria-hidden="true" /> Choose a different stage</button>
         <div className="account-stage"><span className="stage-choice-icon" aria-hidden="true"><Icon size={20} strokeWidth={1.5} /></span><div><p className="account-stage-title">{choice.title}</p><p className="account-stage-body">{choice.body}</p></div></div>
         {repository.mode === "local" ? <p className="account-local-note" role="note">Cloud accounts are unavailable here, so accounts are saved only in this browser.</p> : null}
-        {remembered && mode === "login" ? <section className="tech-card account-card" aria-labelledby="continue-title">
-          <h1 id="continue-title">Welcome back, {remembered.profile!.fullName.split(" ")[0]}</h1>
-          <p className="page-lede">You're logged in as {remembered.email}.</p>
-          <div className="account-nav"><button type="button" className="btn-link" onClick={onLogOut}>Log out</button><button type="button" className="btn-primary" onClick={() => onDone(remembered)}>Continue <ArrowRight size={15} aria-hidden="true" /></button></div>
-        </section> : null}
-        {!remembered && mode === "login" ? <LoginForm stage={stage} repository={repository} onDone={onDone} onSignup={() => setMode("signup")} /> : null}
+        {mode === "login" ? <LoginForm stage={stage} repository={repository} onDone={onDone} onSignup={() => setMode("signup")} /> : null}
         {mode !== "login" ? <SignupFlow stage={stage} repository={repository} account={mode === "complete" ? needsProfile : null} onDone={onDone} onLogin={() => setMode("login")} /> : null}
       </div>
     </div>

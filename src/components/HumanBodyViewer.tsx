@@ -40,7 +40,7 @@ interface BodyViewerProps {
 
 const jointLabel = (name: string) => name.replace('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
 const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-const completionLabel: Record<VisualCheck['completionStatus'], string> = { completed: 'Completed', partial: 'Partial capture', not_assessable: 'Not assessable' };
+const completionLabel: Record<Exclude<VisualCheck['completionStatus'], 'not_assessable'>, string> = { completed: 'Completed', partial: 'Partial capture' };
 
 export default function HumanBodyViewer({ stage = 'active', metrics = [], alert = null, signalState = 'ready', movementChecks = [], movementWarning, initialLayer = 'signals', initialRegion, initialRegions, initialFocusKey, onInitialFocusHandled, onStartMovement, onViewChange, pairedDevices, pairingDevice = null, onPairDevice, motion }: BodyViewerProps) {
   // With paired devices supplied (Active Home), a Signals part works only once its wearable is paired.
@@ -204,7 +204,7 @@ function MovementRegionPanel({ region, taskType, check, warning, onStart }: { re
     <button type="button" className="body-control" onClick={onStart}>Open {task.label}</button>
   </>;
   return <div className="movement-result">
-    <div className="movement-result-head"><div><strong>{task.label}</strong><span>{dateLabel(check.startedAt)}</span></div><span data-quality={check.completionStatus === 'completed' && check.observedFeatures.cameraQuality === 'good' ? 'good' : 'limited'}>{completionLabel[check.completionStatus]}</span></div>
+    <div className="movement-result-head"><div><strong>{task.label}</strong><span>{dateLabel(check.startedAt)}</span></div>{check.completionStatus !== 'not_assessable' ? <span data-quality={check.completionStatus === 'completed' && check.observedFeatures.cameraQuality === 'good' ? 'good' : 'limited'}>{completionLabel[check.completionStatus]}</span> : null}</div>
     <dl>
       {check.observedFeatures.repetitionCount !== undefined ? <><dt>Repetitions</dt><dd>{check.observedFeatures.repetitionCount}</dd></> : null}
       {ranges.length ? <><dt>Joint ranges</dt><dd>{ranges.slice(0, 4).map(([name, range]) => `${jointLabel(name)} ${Math.round(range.max - range.min)}°`).join(' · ')}</dd></> : null}

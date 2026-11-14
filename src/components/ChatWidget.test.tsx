@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatWidget } from "./ChatWidget";
@@ -8,7 +8,7 @@ const mock = vi.hoisted(() => ({ listConversations: vi.fn(), createConversation:
 vi.mock("../lib/chatRepository", () => ({ createChatRepository: () => mock }));
 const props = { stage: "active" as const, client: null, userId: null };
 const citation = { id: "nasa-human-body-space", title: "The Human Body in Space", url: "https://www.nasa.gov/humans-in-space/the-human-body-in-space/", collection: "NASA Human Research", excerpt: "Microgravity changes balance and orientation." };
-const reply = { id: "reply", role: "assistant" as const, content: "Microgravity changes vestibular inputs and orientation. [1]", createdAt: "2026-11-14", status: "complete" as const, source: "cloud" as const, answerKind: "nasa_grounded" as const, citations: [citation] };
+const reply = { id: "reply", role: "assistant" as const, content: "Microgravity changes vestibular inputs and orientation. [1]", createdAt: "2026-11-14", status: "complete" as const, source: "cloud" as const, answerKind: "nasa_grounded" as const, citations: [citation], category: "health_human_spaceflight" as const, confidence: "high" as const, keyPoints: ["NASA studies vestibular adaptation. [1]"], nextSteps: ["Review the cited NASA source."], warnings: ["This is educational context, not a personal assessment."], questionsToExplore: ["Would you like a simpler explanation?"] };
 
 async function open() {
   const user = userEvent.setup();
@@ -45,6 +45,31 @@ describe("ORBIT NASA research assistant", () => {
     expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "Why does the ISS use control moment gyroscopes?", { category: "missions_engineering", inputMode: "text", sanitizedFromTopic: undefined });
   });
 
+  it("keeps suggested questions available after the first question, without repeating it", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /Mission support/i }));
+    await screen.findByText(/Microgravity changes vestibular inputs/);
+    const suggestions = screen.getByRole("group", { name: "Suggested questions" });
+    expect(suggestions).toBeInTheDocument();
+    expect(within(suggestions).queryByRole("button", { name: /Mission support/i })).not.toBeInTheDocument();
+    await user.click(within(suggestions).getByRole("button", { name: /Health in space/i }));
+    expect(mock.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("labels general health answers as non-NASA, non-personal information", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockResolvedValue({ data: { ...reply, id: "health", content: "Regular sleep and wake times help many people sleep better.", answerKind: "general_health", citations: [], keyPoints: ["Keep a consistent schedule."] } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.type(screen.getByRole("textbox"), "What causes headaches?");
+    await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(await screen.findByText("ORBIT · General health information")).toBeInTheDocument();
+    expect(screen.getByText(/not from NASA sources and not personal medical advice/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /MedlinePlus health topics/ })).toHaveAttribute("href", "https://medlineplus.gov/healthtopics.html");
+    expect(screen.queryByText("Related NASA resources")).not.toBeInTheDocument();
+    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "What causes headaches?", expect.objectContaining({ category: "health_human_spaceflight" }));
+  });
+
   it("does not misroute an educational radiation question as an emergency", async () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     render(<ChatWidget {...props} />); const user = await open();
@@ -58,9 +83,19 @@ describe("ORBIT NASA research assistant", () => {
     render(<ChatWidget {...props} />); const user = await open();
     await user.click(screen.getByRole("button", { name: /Health in space/i }));
     expect(await screen.findByText("ORBIT · NASA-grounded AI response")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /The Human Body in Space/ });
+    const link = screen.getAllByRole("link", { name: /The Human Body in Space/ }).find((candidate) => candidate.textContent?.includes("[1]"))!;
     expect(link).toHaveAttribute("href", citation.url);
     expect(link).toHaveTextContent("[1] NASA Human Research");
+  });
+
+  it("renders the structured answer card and official related resources", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /Health in space/i }));
+    expect(await screen.findByText("Key points")).toBeInTheDocument();
+    expect(screen.getByText("Useful next steps")).toBeInTheDocument();
+    expect(screen.getByText("Related NASA resources")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Yes" })).toBeInTheDocument();
   });
 
   it("shows urgent guidance locally, then requires confirmation of a sanitized NASA query", async () => {
@@ -75,6 +110,25 @@ describe("ORBIT NASA research assistant", () => {
     await user.click(screen.getByRole("button", { name: "Send sanitized question" }));
     await waitFor(() => expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "What does NASA documentation report about respiratory concerns during human spaceflight?", { category: "health_human_spaceflight", sanitizedFromTopic: "breathing" }));
     expect(mock.sendMessage.mock.calls.flat().join(" ")).not.toContain("I'm having trouble breathing");
+  });
+
+  it("gives Earth users a one-tap emergency call instead of crew-medic wording", async () => {
+    render(<ChatWidget {...props} stage="retired" />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /I need urgent help/i }));
+    const log = screen.getByRole("log");
+    expect(log).toHaveTextContent("Call emergency services now.");
+    expect(log).not.toHaveTextContent(/crew medic/i);
+    expect(screen.getByRole("link", { name: /Call emergency services \(112\)/ })).toHaveAttribute("href", "tel:112");
+    expect(screen.getByRole("group", { name: "Get help now" })).toHaveTextContent("OrbitWell has not contacted anyone.");
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps crew wording in space and offers no phone call", async () => {
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /I need urgent help/i }));
+    expect(screen.getByRole("log")).toHaveTextContent("Contact crew medic now");
+    expect(screen.queryByRole("link", { name: /Call emergency services/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Get help now" })).toHaveTextContent("mission's emergency channel");
   });
 
   it("keeps urgent guidance available while cloud research is pending", async () => {

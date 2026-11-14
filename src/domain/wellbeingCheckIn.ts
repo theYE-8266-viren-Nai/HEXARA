@@ -241,13 +241,14 @@ export function summarizeCheckIn(stage: LifeStage, answers: CheckInAnswers): Che
   const medium = concerns.filter((value) => value === 2).length;
   const overall: OverallState = high >= 2 || (high >= 1 && medium >= 2) || escalate ? "hard" : high || medium ? "watch" : "steady";
   const headline = overall === "steady" ? "You seem to be doing well today." : overall === "watch" ? "Mostly steady, with a few things to look after." : "Today looks hard. You don't have to handle it alone.";
-  const suggestions = [...concernByArea.entries()]
-    .filter(([, concern]) => concern >= 2)
+  const rankedSuggestions = [...concernByArea.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([area]) => SUGGESTIONS[stage][area])
-    .filter((item): item is { title: string; body: string } => Boolean(item))
-    .slice(0, 3);
-  if (!suggestions.length) suggestions.push({ title: "Keep your routine going", body: "Whatever you're doing is working. Check in again tomorrow so changes are easier to notice." });
+    .filter((item): item is { title: string; body: string } => Boolean(item));
+  const hasConcern = [...concernByArea.values()].some((concern) => concern >= 2);
+  const suggestions = hasConcern
+    ? rankedSuggestions.slice(0, 4)
+    : [{ title: "Keep your routine going", body: "Whatever you're doing is working. Check in again tomorrow so changes are easier to notice." }, ...rankedSuggestions.slice(0, 3)];
   return { overall, headline, lines, suggestions, talkTo: escalate ? `Some of your answers are worth talking through with ${PERSON[stage]}. This app doesn't contact anyone for you.` : undefined };
 }
 

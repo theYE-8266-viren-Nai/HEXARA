@@ -4,7 +4,7 @@
  *
  * Pure and deterministic. It never produces a diagnosis; landmarks are reduced to numbers
  * immediately and never stored. Landmark indices follow MediaPipe Pose (33 points).
- * Simulated data only. Not medical advice. Not diagnostic.
+ * Research-demo data only.
  */
 import type { CameraQuality, ObservedFeatures, VisualCheckTask } from "./visualCheck";
 
