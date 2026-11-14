@@ -11,7 +11,7 @@ type FunctionsClient = Pick<SupabaseClient, "functions">;
  * built-in template. Only successful cloud answers are cached, so a failure can be retried.
  */
 export function createExplainRepository(client: FunctionsClient | null, options: { timeoutMs?: number } = {}) {
-  const timeoutMs = options.timeoutMs ?? 18_000;
+  const timeoutMs = options.timeoutMs ?? 28_000; // the function may fail over from OpenRouter to Groq/Gemini (up to 25 s)
   const cache = new Map<string, ExplainResult>();
   let calls = 0;
   return {

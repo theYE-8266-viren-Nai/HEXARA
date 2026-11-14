@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEmergencySupport, SUPPORT_TOPICS, type EmergencyTopic } from "../../supabase/functions/_shared/emergencySupport";
+import { forEarth, getEmergencySupport, SUPPORT_TOPICS, type EmergencyTopic } from "../../supabase/functions/_shared/emergencySupport";
 
 const examples: Array<[string, EmergencyTopic, string]> = [
   ["I can't breathe", "breathing", "speak, cough, or breathe"],
@@ -64,6 +64,25 @@ describe("conversational support across emergency concerns", () => {
   it("does not treat reaching a medic or improvement as clearance", () => {
     expect(getEmergencySupport("A medic is with me", "chest")?.content).toContain("cannot confirm safety");
     expect(getEmergencySupport("I feel better", "chest")?.details).toContain("cannot judge whether things are improving");
+  });
+  it("treats 'no' to 'is the person awake and breathing?' as unresponsive", () => {
+    expect(getEmergencySupport("No", "general")?.topic).toBe("unresponsive");
+    expect(getEmergencySupport("she isn't breathing", "general")?.topic).toBe("unresponsive");
+    expect(getEmergencySupport("I'm alone", "general")?.topic).toBe("general");
+  });
+  it("routes heat stroke and broken bones to the right topic", () => {
+    expect(getEmergencySupport("I think it's heat stroke")?.topic).toBe("temperature");
+    expect(getEmergencySupport("I broke my arm")?.topic).toBe("injury");
+  });
+  it("puts emergency services first on Earth and removes crew-only steps", () => {
+    for (const message of ["I need help now", "chest pain", "he collapsed", "I'm choking", "burned my hand", "I want to hurt myself"]) {
+      const support = forEarth(getEmergencySupport(message)!);
+      const text = `${support.content}\n${support.details}`;
+      expect(support.content.split("\n")[0]).toBe("Call emergency services now.");
+      expect(text).not.toMatch(/crew ?medic|crewmate|mission control|onboard|Earth:/i);
+    }
+    expect(forEarth(getEmergencySupport("I'm alone", "chest")!).content).toContain("Call emergency services");
+    expect(forEarth(getEmergencySupport("burned my hand")!).details).toContain("Leave material stuck to a burn");
   });
   it("keeps general guidance independent of the glucose-specific correction", () => {
     expect(getEmergencySupport("I'm bleeding")?.content).not.toContain("Insulin");

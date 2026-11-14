@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, ownerKeyFor, taskFor, taskInstructions, tasksForStage,
+  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, movementStatusFor, ownerKeyFor, taskFor, taskInstructions, tasksForStage,
   type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckTask, type VisualCheckType,
 } from "../domain/visualCheck";
 import { cameraSupported, useCameraMotion } from "../lib/useCameraMotion";
@@ -22,7 +22,7 @@ const stageCopy: Record<LifeStage, { eyebrow: string; title: string; note?: stri
   retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", note: "Practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };
 
-const emptyContext: UserReportedContext = { discomfort: "none", steadiness: "steady", symptoms: "" };
+const emptyContext: UserReportedContext = { discomfort: "none", steadiness: "steady", dizziness: "none", symptoms: "" };
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -240,6 +240,8 @@ function ContextStep({ context, onChange, onSubmit, synthetic }: { context: User
       {scale("exertion", "Effort", "1 easy · 5 very hard")}
       <label className="block text-sm font-semibold text-slate-200">Steadiness
         <select className="field mt-2" value={context.steadiness ?? "steady"} onChange={(event) => onChange({ ...context, steadiness: event.target.value as UserReportedContext["steadiness"] })}><option value="steady">Steady</option><option value="slightly_unsteady">A little unsteady</option><option value="very_unsteady">Very unsteady</option></select></label>
+      <label className="block text-sm font-semibold text-slate-200">Dizziness
+        <select className="field mt-2" value={context.dizziness ?? "none"} onChange={(event) => onChange({ ...context, dizziness: event.target.value as UserReportedContext["dizziness"] })}><option value="none">None</option><option value="dizzy">Dizzy or light-headed</option></select></label>
       <label className="block text-sm font-semibold text-slate-200 sm:col-span-2">What did you notice?<textarea className="field mt-2 min-h-20" value={context.symptoms} onChange={(event) => onChange({ ...context, symptoms: event.target.value })} placeholder="Optional note in your own words" /></label>
     </div>
     <PrimaryButton className="mt-5" type="submit"><Check size={16} aria-hidden="true" />See observation summary</PrimaryButton>
@@ -249,7 +251,7 @@ function ContextStep({ context, onChange, onSubmit, synthetic }: { context: User
 function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewMedic }: { check: VisualCheck; onRepeat: () => void; repository: VisualCheckRepository; onSavedToBody?: (check: VisualCheck) => void; onRequestCrewMedic?: () => void }) {
   const [save, setSave] = useState<{ state: "idle" | "saving" | "saved" | "failed"; reason?: string }>({ state: "idle" });
   const note = combinedContextNote(check.userReportedSymptoms, check.comparisonSummary);
-  const escalate = check.userReportedSymptoms.discomfort === "pain" || check.userReportedSymptoms.discomfort === "severe_or_worsening" || check.userReportedSymptoms.steadiness === "very_unsteady";
+  const movementStatus = movementStatusFor(check.observedFeatures, check.userReportedSymptoms);
   const saveCloud = async () => {
     setSave({ state: "saving" });
     const outcome = await repository.saveCloud(check);
@@ -261,16 +263,24 @@ function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewM
   return <div className="grid gap-5 lg:grid-cols-2">
     <section className={panelClass} aria-labelledby="result-title">
       <div className="flex flex-wrap items-center gap-2"><h2 id="result-title" className="text-xl font-semibold text-white">Observation summary</h2>{check.isSynthetic ? <span className="rounded-full border border-purple-300/40 bg-purple-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-100">Synthetic demo result</span> : null}</div>
-      {escalate ? <div role="alert" className="mt-4 rounded-xl border border-rose-400/40 bg-rose-400/10 p-4 text-sm text-rose-100"><p className="font-semibold">{check.supportRecommendation}</p>{onRequestCrewMedic ? <SecondaryButton className="mt-3" onClick={onRequestCrewMedic}>Open support contacts</SecondaryButton> : null}</div> : null}
+      <div className="movement-status-box" data-status={movementStatus.status} role={movementStatus.status === "stop_and_check_in" ? "alert" : "status"} aria-live="polite">
+        <div>
+          <span className="movement-status-label">Movement status</span>
+          <h3>{movementStatus.title}</h3>
+          <p>{movementStatus.reason}</p>
+        </div>
+        {movementStatus.status === "complete" ? <PrimaryButton disabled={save.state === "saving" || save.state === "saved"} onClick={() => void saveCloud()}>{save.state === "saving" ? "Saving…" : save.state === "saved" ? "Saved to cloud" : onSavedToBody ? "Save and show on body" : "Save summary to cloud"}</PrimaryButton> : null}
+        {movementStatus.status === "limited_capture" ? <SecondaryButton onClick={onRepeat}><RotateCcw size={16} aria-hidden="true" />{movementStatus.actionLabel}</SecondaryButton> : null}
+        {movementStatus.status === "stop_and_check_in" && onRequestCrewMedic ? <SecondaryButton onClick={onRequestCrewMedic}>{movementStatus.actionLabel}</SecondaryButton> : null}
+      </div>
       <ul className="mt-4 space-y-2 text-slate-200">{check.observationSummary.map((line) => <li key={line} className="flex gap-2"><Check className="mt-1 shrink-0 text-cyan-200" size={16} aria-hidden="true" />{line}</li>)}</ul>
       <h3 className="mt-6 font-semibold text-white">Compared with your own practice</h3>
       <ul className="mt-2 space-y-1 text-sm text-slate-300">{check.comparisonSummary.statements.map((line) => <li key={line}>{line}</li>)}</ul>
       {check.comparisonSummary.priorSessionsUsed ? <p className="mt-2 text-xs text-slate-500">Based on your last {check.comparisonSummary.priorSessionsUsed} session{check.comparisonSummary.priorSessionsUsed === 1 ? "" : "s"} of this task.</p> : null}
       {note ? <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">{note}</p> : null}
-      {!escalate ? <p className="mt-4 text-sm text-slate-300">{check.supportRecommendation}</p> : null}
+      {movementStatus.status !== "stop_and_check_in" ? <p className="mt-4 text-sm text-slate-300">{check.supportRecommendation}</p> : null}
       <p className="mt-4 text-xs text-slate-500">{check.disclaimer}</p>
       <div className="mt-5 flex flex-wrap gap-3">
-        <PrimaryButton disabled={save.state === "saving" || save.state === "saved"} onClick={() => void saveCloud()}>{save.state === "saving" ? "Saving…" : save.state === "saved" ? "Saved to cloud" : onSavedToBody ? "Save and show on body" : "Save summary to cloud"}</PrimaryButton>
         <SecondaryButton onClick={onRepeat}><RotateCcw size={16} aria-hidden="true" />Practise again</SecondaryButton>
       </div>
       <p className="mt-3 text-xs" role="status">{save.state === "saved" ? <span className="text-emerald-200">Saved. Only the derived summary was stored — no video or images.</span> : save.state === "failed" ? <span className="text-rose-100">Not saved to cloud: {save.reason} The result remains on this device.</span> : <span className="text-slate-500">Saved on this device. Cloud save stores the derived summary only.</span>}</p>

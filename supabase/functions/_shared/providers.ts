@@ -7,13 +7,21 @@
  * in Supabase secrets and are never placed in a request body.
  * Simulated data only. Not medical advice. Not diagnostic.
  */
-export type ProviderName = "openrouter" | "anthropic";
+export type ProviderName = "openrouter" | "anthropic" | "groq" | "gemini";
 
 export type ProviderChoice =
   | { ok: true; provider: ProviderName; apiKey: string; model: string }
   | { ok: false; error: "not_configured" | "model_missing" | "model_invalid" | "paid_model_blocked" };
 
-export interface ProviderEnv { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; ANTHROPIC_API_KEY?: string; ALLOW_PAID_MODELS?: string }
+export interface ProviderEnv { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; ANTHROPIC_API_KEY?: string; ALLOW_PAID_MODELS?: string; GROQ_API_KEY?: string; GROQ_MODEL?: string; GEMINI_API_KEY?: string; GEMINI_MODEL?: string }
+
+/** Free-tier fallback models used when no GROQ_MODEL / GEMINI_MODEL secret is set. */
+export const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
+export const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+const OPENAI_COMPATIBLE: Record<"groq" | "gemini", string> = {
+  groq: "https://api.groq.com/openai/v1/chat/completions",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+};
 
 /**
  * FREE ONLY BY DEFAULT. A model counts as free when it is OpenRouter's free router or its id ends in ":free". Anything else, and every
@@ -46,6 +54,24 @@ export function chooseProvider(env: ProviderEnv): ProviderChoice {
   return { ok: false, error: "not_configured" };
 }
 
+/**
+ * Every provider to try, in order: the primary choice (OpenRouter, or Anthropic when paid models are allowed), then the free-tier
+ * Groq and Gemini fallbacks whose keys are set. When the primary is not usable but a fallback is, the fallbacks still run, so a
+ * missing or exhausted OpenRouter setup never leaves the app without AI. Returns the primary's error only when nothing is usable.
+ */
+export function chooseProviderChain(env: ProviderEnv): { ok: true; chain: Extract<ProviderChoice, { ok: true }>[] } | Extract<ProviderChoice, { ok: false }> {
+  const primary = chooseProvider(env);
+  const fallbacks: Extract<ProviderChoice, { ok: true }>[] = [];
+  const groqKey = clean(env.GROQ_API_KEY), geminiKey = clean(env.GEMINI_API_KEY);
+  if (groqKey) fallbacks.push({ ok: true, provider: "groq", apiKey: groqKey, model: clean(env.GROQ_MODEL) || GROQ_DEFAULT_MODEL });
+  if (geminiKey) fallbacks.push({ ok: true, provider: "gemini", apiKey: geminiKey, model: clean(env.GEMINI_MODEL) || GEMINI_DEFAULT_MODEL });
+  const chain = [...(primary.ok ? [primary] : []), ...fallbacks];
+  return chain.length ? { ok: true, chain } : (primary as Extract<ProviderChoice, { ok: false }>);
+}
+
+/** A failure the next provider might not have: no key/credit, unknown model, rate limit, timeout or server error. */
+export const shouldFailOver = (status: number) => status === 401 || status === 402 || status === 403 || status === 404 || status === 408 || status === 429 || status >= 500;
+
 export interface ProviderRequest { url: string; headers: Record<string, string>; body: string }
 
 /**
@@ -60,6 +86,15 @@ export function buildProviderRequest(choice: Extract<ProviderChoice, { ok: true 
       url: "https://openrouter.ai/api/v1/chat/completions",
       headers: { "content-type": "application/json", authorization: `Bearer ${choice.apiKey}` },
       body: JSON.stringify({ ...(models.length > 1 ? { models } : { model: models[0] }), max_tokens: OPENROUTER_MAX_TOKENS, temperature: 0.2, messages }),
+    };
+  }
+  if (choice.provider === "groq" || choice.provider === "gemini") {
+    const messages = options.mergeSystem ? [{ role: "user", content: `${system}\n\n${user}` }] : [{ role: "system", content: system }, { role: "user", content: user }];
+    return {
+      url: OPENAI_COMPATIBLE[choice.provider],
+      headers: { "content-type": "application/json", authorization: `Bearer ${choice.apiKey}` },
+      // gpt-oss models on Groq reason before answering; low effort keeps the reply inside the token budget.
+      body: JSON.stringify({ model: choice.model, max_tokens: OPENROUTER_MAX_TOKENS, temperature: 0.2, messages, ...(choice.provider === "groq" && /gpt-oss/i.test(choice.model) ? { reasoning_effort: "low" } : {}) }),
     };
   }
   return {

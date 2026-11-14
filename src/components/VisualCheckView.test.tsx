@@ -156,8 +156,8 @@ describe("VisualCheckView", () => {
     await runSynthetic(user);
     await user.selectOptions(screen.getByRole("combobox", { name: "Discomfort" }), "severe_or_worsening");
     await user.click(screen.getByRole("button", { name: "See observation summary" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(/contact the crew medic now/);
-    await user.click(screen.getByRole("button", { name: "Open support contacts" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/contact your approved support person/);
+    await user.click(screen.getByRole("button", { name: "Open wellbeing/support" }));
     expect(onRequestCrewMedic).toHaveBeenCalled();
   });
 

@@ -39,5 +39,11 @@ export function useVapiOrbit(onTranscript?: (text: string) => void) {
     try { await vapi.current.start(assistant); return true; } catch (err) { console.error("[ORBIT Voice] Vapi start failed:", err); setState("error"); setError("Microphone access was not available; you can still ask ORBIT by text."); return false; }
   }, []);
   const stop = useCallback(() => { vapi.current?.stop(); setState("idle"); }, []);
-  return { state, error, available: state !== "unavailable", start, stop };
+  // Read ORBIT's grounded answer aloud on the live call (citation markers removed).
+  const speak = useCallback((text: string) => {
+    const spoken = text.replace(/\s*\[\d+\]/g, "").trim();
+    if (!vapi.current || !spoken) return;
+    try { vapi.current.say(spoken, false, true); setState("speaking"); } catch (err) { console.error("[ORBIT Voice] Vapi say failed:", err); }
+  }, []);
+  return { state, error, available: state !== "unavailable", start, stop, speak };
 }

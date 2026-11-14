@@ -10,7 +10,7 @@ describe("wellbeing feedback repository", () => {
 
   it("does not claim success when cloud feedback fails", async () => {
     const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: { message: "offline" } }) } } as never;
-    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "future", headline: "You seem to be doing well", concern: "steady", lines: ["Mood was steady."] });
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "future", headline: "Your answers look steady today.", concern: "steady", lines: ["Mood was steady."] });
     expect(result.text).toBeUndefined();
     // The person sees plain wording, never the raw message.
     expect(result.error).toBe(GENERIC_FEEDBACK_ERROR);

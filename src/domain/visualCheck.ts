@@ -21,6 +21,14 @@ export type VisualWorkflow = "movement_exercise" | "sensorimotor" | "recovery_co
 export type CompletionStatus = "completed" | "partial" | "not_assessable";
 export type CameraQuality = "good" | "limited" | "poor";
 export type ComparisonTrend = "first_session" | "similar" | "different";
+export type MovementStatus = "complete" | "limited_capture" | "stop_and_check_in";
+
+export interface MovementStatusSummary {
+  status: MovementStatus;
+  title: string;
+  reason: string;
+  actionLabel: string;
+}
 
 export interface VisualCheckTask { type: VisualCheckType; label: string; workflow: VisualWorkflow; durationSeconds: number; repetitive: boolean; instructions: string; }
 
@@ -72,6 +80,8 @@ export interface UserReportedContext {
   exertion?: number; // 1–5 self-rated
   discomfort: "none" | "mild" | "pain" | "severe_or_worsening";
   steadiness?: "steady" | "slightly_unsteady" | "very_unsteady";
+  /** Optional explicit safety check; missing means an older saved record. */
+  dizziness?: "none" | "dizzy";
   /** Retained for older saved records; the movement form no longer asks for these wellbeing fields. */
   sleepHours?: number;
   stress?: number; // 1–5
@@ -290,11 +300,49 @@ export function combinedContextNote(context: UserReportedContext, comparison: Co
     context.exertion !== undefined && `effort ${context.exertion}/5`,
     context.steadiness === "slightly_unsteady" && "some unsteadiness",
     context.steadiness === "very_unsteady" && "marked unsteadiness",
+    context.dizziness === "dizzy" && "dizziness",
     context.discomfort === "mild" && "mild discomfort",
     comparison.trend === "different" && "a difference from earlier practice",
   ].filter(Boolean) as string[];
   if (!signals.length) return undefined;
   return `Your movement notes include ${signals.join(", ")}. This is context for your own practice, not a medical finding.`;
+}
+
+/**
+ * The result-page status is about the quality and safety of this practice,
+ * never about the person's health. Camera asymmetry alone is not a warning.
+ */
+export function movementStatusFor(features: ObservedFeatures, context: UserReportedContext): MovementStatusSummary {
+  const stopReported = context.discomfort === "pain"
+    || context.discomfort === "severe_or_worsening"
+    || context.steadiness === "very_unsteady"
+    || context.dizziness === "dizzy";
+  if (stopReported) {
+    return {
+      status: "stop_and_check_in",
+      title: "Stop and check in",
+      reason: "You reported pain, dizziness, or unsteadiness. Stop the practice and contact your approved support person.",
+      actionLabel: "Open wellbeing/support",
+    };
+  }
+
+  const difficultToTrack = features.cameraQuality !== "good"
+    || features.qualityNotes.some((note) => /no clear movement|too few frames|lost track|hard to see|outside the picture|difficult to assess/i.test(note));
+  if (difficultToTrack) {
+    return {
+      status: "limited_capture",
+      title: "Limited capture",
+      reason: "Some body points were difficult to track. Reset your anchor and try again.",
+      actionLabel: "Try again",
+    };
+  }
+
+  return {
+    status: "complete",
+    title: "Movement was captured clearly",
+    reason: "The camera captured enough movement context for this practice session.",
+    actionLabel: "Save and show on body",
+  };
 }
 
 /* ---------- Language guard ---------- */
@@ -319,7 +367,7 @@ export function composeCrewSummary(check: VisualCheck, fields: CrewSummaryFields
   if (fields.cameraLimits) lines.push(`Camera quality: ${check.observedFeatures.cameraQuality}.${check.observedFeatures.qualityNotes.length ? ` ${check.observedFeatures.qualityNotes.join(" ")}` : ""}`);
   if (fields.context) {
     const c = check.userReportedSymptoms;
-    lines.push(`Movement context: comfort ${c.discomfort.replace(/_/g, " ")}, effort ${c.exertion ?? "not given"}/5, steadiness ${c.steadiness?.replace(/_/g, " ") ?? "not given"}.`);
+    lines.push(`Movement context: comfort ${c.discomfort.replace(/_/g, " ")}, effort ${c.exertion ?? "not given"}/5, steadiness ${c.steadiness?.replace(/_/g, " ") ?? "not given"}, dizziness ${c.dizziness === "dizzy" ? "reported" : "not reported"}.`);
   }
   if (check.isSynthetic) lines.push("Synthetic demo data.");
   lines.push(VISUAL_CHECK_DISCLAIMER);
@@ -330,6 +378,7 @@ function describeSelfReportedContext(context: UserReportedContext): string[] {
   const lines: string[] = [];
   if (context.exertion !== undefined) lines.push(`You marked the effort as ${context.exertion} out of 5.`);
   if (context.steadiness) lines.push(`You marked your steadiness as ${context.steadiness.replace(/_/g, " ")}.`);
+  if (context.dizziness === "dizzy") lines.push("You marked dizziness during or after the practice.");
   if (context.discomfort !== "none") lines.push(`You marked comfort as ${context.discomfort.replace(/_/g, " ")}.`);
   return lines;
 }
