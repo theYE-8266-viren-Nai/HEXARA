@@ -236,7 +236,7 @@ function HorizonApp() {
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
-        return <WellbeingView stage={stage} />;
+        return <WellbeingView stage={stage} client={supabase} />;
       case "guidance":
         return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
       case "profile":
