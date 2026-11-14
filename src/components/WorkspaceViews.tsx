@@ -40,7 +40,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   ];
   return <main className="star-field onboarding">
     <div className="onboarding-container">
-      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span></div></header>
+      <header className="onboarding-topbar"><Brand /></header>
       <div className="onboarding-grid">
         <section className="journey-selection" aria-labelledby="journey-title">
           <p className="eyebrow"><span className="small-rule" /> YOUR SPACE. YOUR PACE.</p>
