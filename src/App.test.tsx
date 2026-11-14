@@ -34,6 +34,8 @@ async function signInThroughStage(stage: keyof typeof labels) {
   await userEvent.type(screen.getByLabelText("Confirm password"), "test-password");
   await userEvent.click(screen.getByRole("button", { name: /Continue/ }));
   await userEvent.type(screen.getByLabelText(/Full name/), `Test ${labels[stage]}`);
+  // Personal details, journey and care team are optional pages.
+  for (let page = 0; page < 3; page += 1) await userEvent.click(screen.getByRole("button", { name: /Continue/ }));
   await userEvent.click(screen.getByRole("button", { name: /Create account/ }));
   await screen.findByRole("button", { name: "Log out" });
 }
@@ -74,12 +76,35 @@ describe("OrbitWell app shell", () => {
     await user.type(screen.getByLabelText("Confirm password"), "station-life");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
 
-    expect(screen.getByRole("heading", { name: "Your personal details" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Current mission" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Create account/ }));
+    // One page per section: identity, personal details, current mission, care team.
+    expect(screen.getByText("Step 2 of 5")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Who you are" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Blood type")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
     expect(screen.getByText("Enter your full name.")).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Full name/), "Maya Chen");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Personal details" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Age"), "7");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByText("Enter a value between 16 and 110.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Age"));
+    await user.type(screen.getByLabelText("Age"), "41");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Current mission" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Full name/)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Mission"), "Expedition 12");
+    await user.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByLabelText("Age")).toHaveValue(41);
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByLabelText("Mission")).toHaveValue("Expedition 12");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Care team and contacts" })).toBeInTheDocument();
+    expect(screen.getByText("Step 5 of 5")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Flight surgeon"), "Dr. S. Lindqvist");
     await user.click(screen.getByRole("button", { name: /Create account/ }));
 
     expect(await screen.findByText(/Maya Chen · Active astronaut/)).toBeInTheDocument();
