@@ -138,8 +138,9 @@ describe("which Movement tasks each stage is offered", () => {
   });
 
   it("gives retired astronauts, who are back on Earth, the full reconditioning set", () => {
-    expect(tasksForStage("retired")).toEqual(VISUAL_CHECK_TASKS);
-    expect(tasksForStage("retired")).toHaveLength(5);
+    expect(tasksForStage("retired").map((task) => task.type)).toEqual(["sit_to_stand", "shoulder_mobility", "single_leg_balance", "reach_and_return"]);
+    expect(tasksForStage("retired")).toHaveLength(4);
+    expect(tasksForStage("retired")).not.toContainEqual(expect.objectContaining({ type: "standing_posture" }));
   });
 
   it("offers Future travelers nothing", () => {

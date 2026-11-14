@@ -16,6 +16,8 @@ import { missionDayFrom, type AstronautProfile } from "./domain/astronautAccount
 import { createPreparationRepository } from "./lib/preparationRepository";
 import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
+import { ownerKeyFor, type VisualCheck, type VisualCheckType } from "./domain/visualCheck";
+import { primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
 import { ThemeProvider } from "./lib/theme";
 import { DeviceContext } from "./lib/deviceContext";
 import { useDeviceStream } from "./lib/useDeviceStream";
@@ -57,6 +59,10 @@ function HorizonApp() {
   const profile = profiles.find((candidate) => candidate.id === profileId) ?? profiles[0];
   const preparationRepository = useMemo(() => createPreparationRepository(supabase, userId), [userId]);
   const visualCheckRepository = useMemo(() => createVisualCheckRepository(supabase, userId), [userId]);
+  const [movementChecks, setMovementChecks] = useState<VisualCheck[]>([]);
+  const [movementHistoryWarning, setMovementHistoryWarning] = useState<string | undefined>();
+  const [movementLaunch, setMovementLaunch] = useState<{ task: VisualCheckType; nonce: number } | null>(null);
+  const [bodyFocus, setBodyFocus] = useState<{ region: MovementBodyRegionId; nonce: number } | null>(null);
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
@@ -116,6 +122,21 @@ function HorizonApp() {
     })();
     return () => { cancelled = true; };
   }, [accounts, setProfileId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!stage || stage === "future") {
+      setMovementChecks([]);
+      setMovementHistoryWarning(undefined);
+      return;
+    }
+    void visualCheckRepository.listCloud(ownerKeyFor(stage, profile.id)).then((result) => {
+      if (cancelled) return;
+      setMovementChecks(result.data);
+      setMovementHistoryWarning(result.warning);
+    });
+    return () => { cancelled = true; };
+  }, [profile.id, stage, visualCheckRepository]);
 
   const setStageAndProfile = (nextStage: LifeStage) => {
     const matchingProfile = profiles.find((candidate) => candidate.stage === nextStage) ?? profiles[0];
@@ -211,6 +232,21 @@ function HorizonApp() {
   }, [backendRepository, mockProfiles, profileId, replayCount, scenario, seed, setProfileId]);
 
   const replayEvents = () => setReplayCount((count) => count + 1);
+  const openMovementFromBody = (task: VisualCheckType) => {
+    setMovementLaunch({ task, nonce: Date.now() });
+    setActiveView("movement");
+  };
+  const showSavedMovementOnBody = (check: VisualCheck) => {
+    setMovementChecks((current) => [check, ...current.filter((item) => item.checkId !== check.checkId)]);
+    setMovementHistoryWarning(undefined);
+    setMovementLaunch(null);
+    setBodyFocus({ region: primaryMovementRegion(check.checkType), nonce: Date.now() });
+    setActiveView("home");
+  };
+  const changeView = (next: ViewName) => {
+    if (next !== "movement") setMovementLaunch(null);
+    setActiveView(next);
+  };
 
   if (authLoading) return <StageSelectionView loading />;
   if (accountStage) return <AccountScreen stage={accountStage} repository={accounts} account={account} onDone={enterAccount} onBack={() => setAccountStage(null)} onLogOut={() => { void accounts.signOut().then(() => setAccount(null)); }} />;
@@ -226,18 +262,18 @@ function HorizonApp() {
       case "trends":
         return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
-        return <VisualCheckView key={`${stage}:${profile.id}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
+        return <VisualCheckView key={`${stage}:${profile.id}:${movementLaunch?.nonce ?? "nav"}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} initialTask={movementLaunch?.task} onSavedToBody={showSavedMovementOnBody} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
         return <WellbeingView stage={stage} client={supabase} />;
       case "guidance":
-        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={setActiveView} />;
+        return <GuidanceView stage={stage} preparationRepository={preparationRepository} onViewChange={changeView} />;
       case "profile":
         return <ProfileView profile={shownProfile} profiles={profiles} stage={stage} scenario={scenario} seed={seed} replayCount={replayCount} loading={viewLoading} onProfileChange={setProfileId} onScenarioChange={setScenario} onSeedChange={setSeed} onReplay={replayEvents} onStageChange={setStageAndProfile} account={ownProfile ? account : null} onSaveProfile={saveOwnProfile} />;
       case "home":
       default:
-        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} onViewChange={setActiveView} /></>;
+        return <><HomeView profile={shownProfile} stage={stage} scenario={scenario} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} solarEvents={solarEvents} movementChecks={movementChecks} movementWarning={movementHistoryWarning} bodyFocus={bodyFocus} onBodyFocusHandled={() => setBodyFocus(null)} onStartMovement={openMovementFromBody} onViewChange={changeView} /></>;
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId }}>{content}</AppShell></DeviceContext.Provider>;
 }

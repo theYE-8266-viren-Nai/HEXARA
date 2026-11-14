@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { bodyRegions, regionFacesCamera } from './bodyRegions';
 describe('body-region signal mapping', () => {
   it('exposes all eight requested regions and no fabricated muscle or spine signals', () => {
-    expect(bodyRegions.map(r => r.label)).toEqual(['Heart','Brain','Lungs','Chest','Leg muscle','Spine','Back muscle','Skin']);
+    expect(bodyRegions.filter(r => r.layer === 'signals').map(r => r.label)).toEqual(['Heart','Brain','Lungs','Chest','Leg muscle','Spine','Back muscle','Skin']);
+    expect(bodyRegions.filter(r => r.layer === 'movement').map(r => r.label)).toEqual(['Shoulder','Arm','Hip','Knee','Ankle']);
     for (const id of ['leg-muscle','spine','back-muscle']) expect(bodyRegions.find(r => r.id === id)?.metrics).toEqual([]);
     expect(bodyRegions.find(r => r.id === 'brain')?.note).toContain('does not measure brain activity');
   });

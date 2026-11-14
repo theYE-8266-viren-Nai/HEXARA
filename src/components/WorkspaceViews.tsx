@@ -25,6 +25,8 @@ import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { ThemeToggle } from "./ThemeToggle";
 import { formatMetricValue } from "../lib/formatMetricValue";
+import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
+import type { MovementBodyRegionId } from "../domain/movementBody";
 
 const panelClass = "tech-card p-5 sm:p-6";
 
@@ -63,7 +65,7 @@ export function StageSelectionView({ loading, warning, onSelect }: { loading?: b
   </main>;
 }
 
-export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, onViewChange }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; onViewChange: (view: ViewName) => void }) {
+export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void }) {
   const device = useDevice();
   const ingest = device?.ingest ?? null;
   const unreliable = ingest?.quality === "poor";
@@ -89,7 +91,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       </div>
       <div className="page-meta"><span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
-    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={profile.id} metrics={metrics} alert={alert} onViewChange={onViewChange}
+    {stage === 'active' || stage === 'retired' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
