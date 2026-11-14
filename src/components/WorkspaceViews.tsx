@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
-import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
+import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { StatusChip } from "./StatusChip";
@@ -13,6 +13,9 @@ import type { PreparationRepository } from "../lib/preparationRepository";
 import { useDevice } from "../lib/deviceContext";
 import { WellbeingCheckIn } from "./WellbeingCheckIn";
 import { astronautRecord, initials } from "../data/astronautProfiles";
+import { displayValue, initialsOf, profileGroups, validateProfile, type AstronautProfile } from "../domain/astronautAccount";
+import type { Account } from "../lib/accountRepository";
+import { ProfileFields } from "./AccountViews";
 import { BaselineSummaryPanel } from "./BaselineSummaryPanel";
 import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
@@ -21,7 +24,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const panelClass = "tech-card p-5 sm:p-6";
 
-export function StageSelectionView({ loading, warning, onSelect }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void }) {
+export function StageSelectionView({ loading, warning, onSelect, account, onLogin, onSignup, onContinue, onLogout }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void; account?: Account | null; onLogin?: () => void; onSignup?: () => void; onContinue?: () => void; onLogout?: () => void }) {
   const options = [
     { stage: "future" as const, title: "Future traveler", label: "BEFORE THE MISSION", body: "Build your baseline. Find your rhythm. Prepare for what’s ahead.", Icon: Rocket },
     { stage: "active" as const, title: "Active astronaut", label: "DURING THE MISSION", body: "Your signals, wellbeing, and next steps. One clear view.", Icon: Orbit },
@@ -29,13 +32,19 @@ export function StageSelectionView({ loading, warning, onSelect }: { loading?: b
   ];
   return <main className="star-field onboarding">
     <div className="onboarding-container">
-      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span><ThemeToggle /></div></header>
+      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span><ThemeToggle />{!loading && !account && onLogin ? <button type="button" className="btn-secondary landing-login" onClick={onLogin}>Log in</button> : null}</div></header>
       <div className="onboarding-grid">
         <section className="journey-selection" aria-labelledby="journey-title">
           <p className="eyebrow"><span className="small-rule" /> YOUR SPACE. YOUR PACE.</p>
           <h1 id="journey-title">A universe to explore.<br /><span>A moment for you.</span></h1>
           <p className="journey-intro">A little clarity, wherever your journey takes you. Explore your health and wellbeing, one small step at a time.</p>
-          <div className="journey-section-label"><h2>Choose your mission stage</h2><span>01 — 03</span></div>
+          {!loading && account ? <div className="tech-card landing-account" aria-label="Your account">
+            <span className="profile-avatar" aria-hidden="true">{initialsOf(account.profile?.fullName ?? account.email)}</span>
+            <div><p className="landing-account-name">{account.profile?.fullName ?? account.email}</p><p className="landing-account-meta">Signed in · {account.profile ? stageLabel(account.profile.stage) : "Profile not finished"}</p></div>
+            <div className="landing-account-actions"><button type="button" className="btn-primary" onClick={onContinue}>{account.profile ? "Continue to my workspace" : "Finish my profile"}<ArrowRight size={15} aria-hidden="true" /></button><button type="button" className="btn-link" onClick={onLogout}>Log out</button></div>
+          </div> : null}
+          {!loading && !account && onSignup ? <div className="landing-cta"><button type="button" className="btn-primary" onClick={onSignup}>Create your astronaut account <ArrowRight size={15} aria-hidden="true" /></button><p>Already have one? <button type="button" className="btn-link" onClick={onLogin}>Log in</button></p></div> : null}
+          <div className="journey-section-label"><h2>Choose your mission stage</h2><span>{account ? "Preview another stage" : "Or explore as a guest"}</span></div>
           {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="journey-options">{options.map(({ stage, title, label, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`journey-card journey-${stage}`}><span className="journey-icon"><Icon size={22} strokeWidth={1.4} aria-hidden="true" /></span><span className="journey-card-content"><span className="journey-kicker">{label}</span><h3>{title}</h3><span className="journey-description">{body}</span></span><span className="journey-arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></button>)}</div>}
           <p className="journey-footnote"><ShieldCheck size={14} aria-hidden="true" /> Explore freely. Change your stage at any time.</p>
           {warning ? <details className="cloud-note"><summary>Exploring in demo mode · cloud save unavailable</summary><p>{warning} Your stage choice applies to this visit. Cloud preferences can be restored when the connection is available.</p></details> : null}
@@ -209,41 +218,55 @@ export function WellbeingView({ stage }: { stage: LifeStage }) {
   return <WellbeingCheckIn key={stage} stage={stage} />;
 }
 
-export function ProfileView({ profile, profiles, stage, scenario, seed, replayCount, loading, onProfileChange, onScenarioChange, onSeedChange, onReplay, onStageChange }: { profile: TravelerProfile; profiles: TravelerProfile[]; stage: LifeStage; scenario: SimulationScenario; seed: number; replayCount: number; loading: boolean; onProfileChange: (id: string) => void; onScenarioChange: (scenario: SimulationScenario) => void; onSeedChange: (seed: number) => void; onReplay: () => void; onStageChange: (stage: LifeStage) => void }) {
+export function ProfileView({ profile, profiles, stage, scenario, seed, replayCount, loading, onProfileChange, onScenarioChange, onSeedChange, onReplay, onStageChange, account, onSaveProfile, onCreateAccount }: { profile: TravelerProfile; profiles: TravelerProfile[]; stage: LifeStage; scenario: SimulationScenario; seed: number; replayCount: number; loading: boolean; onProfileChange: (id: string) => void; onScenarioChange: (scenario: SimulationScenario) => void; onSeedChange: (seed: number) => void; onReplay: () => void; onStageChange: (stage: LifeStage) => void; account?: Account | null; onSaveProfile?: (profile: AstronautProfile) => Promise<string | undefined>; onCreateAccount?: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const own = account?.profile ?? null;
   const record = astronautRecord(stage);
   const metrics = useDevice()?.metrics ?? [];
   const baselines = metrics.filter((metric) => ["resting_hr", "hrv", "sleep_hours", "spo2"].includes(metric.metric));
+  if (own && editing && onSaveProfile) return <ProfileEditor initial={own} onCancel={() => setEditing(false)} onSave={async (next) => { const error = await onSaveProfile(next); if (!error) setEditing(false); return error; }} />;
+  const name = own ? own.fullName : profile.name;
+  const tags = own ? [["Call sign", own.callSign], ["Agency", own.agency]].filter(([, value]) => value) : [["Call sign", record.callsign], ["Agency", record.agency]];
+  const summary = own ? [own.journey.role ?? own.journey.currentRole ?? own.journey.trainingPhase, own.personal.background].filter(Boolean).join(" · ") || `Signed in as ${account!.email}` : record.summary;
   return <div className="page">
+    {!own ? <div className="notice account-callout" role="note"><p>This is a sample astronaut. Create your own account to keep your personal profile.</p>{onCreateAccount ? <button type="button" className="btn-secondary" onClick={onCreateAccount}>Create an account</button> : null}</div> : null}
     <header className="tech-card profile-hero">
-      <span className="profile-avatar" aria-hidden="true">{initials(profile)}</span>
+      <span className="profile-avatar" aria-hidden="true">{own ? initialsOf(own.fullName) : initials(profile)}</span>
       <div className="profile-hero-text">
         <p className="page-kicker">{stageLabel(stage)} · {missionLabel(profile, stage)}</p>
-        <h1>{profile.name}</h1>
-        <p className="page-lede">{record.summary}</p>
+        <h1>{name}</h1>
+        <p className="page-lede">{summary}</p>
       </div>
-      <dl className="profile-tags"><div><dt>Call sign</dt><dd>{record.callsign}</dd></div><div><dt>Agency</dt><dd>{record.agency}</dd></div></dl>
+      {tags.length ? <dl className="profile-tags">{tags.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : null}
+      {own ? <button type="button" className="btn-secondary profile-edit" onClick={() => setEditing(true)}><Pencil size={15} aria-hidden="true" /> Edit profile</button> : null}
     </header>
     <div className="profile-grid">
-      <ProfileFacts title="Personal details" facts={record.personal} />
-      <ProfileFacts title={record.journey.title} facts={record.journey.facts} />
+      {own ? <>
+        {profileGroups(own.stage).slice(0, 2).map((group) => <ProfileFacts key={group.id} title={group.title} facts={group.fields.map((field) => ({ label: field.label, value: displayValue(field, own[group.id][field.key]) }))} />)}
+      </> : <>
+        <ProfileFacts title="Personal details" facts={record.personal} />
+        <ProfileFacts title={record.journey.title} facts={record.journey.facts} />
+      </>}
       <section className="tech-card panel" aria-labelledby="baselines-title">
         <div className="panel-head"><h2 id="baselines-title">Personal baselines</h2></div>
         <p className="panel-note">Your usual values over the last 30 days. Alerts compare you only with these.</p>
         {baselines.length ? <dl className="fact-list">{baselines.map((metric) => <div key={metric.metric}><dt>{metric.label}</dt><dd>{Number(metric.baseline).toFixed(metric.metric === "sleep_hours" || metric.metric === "spo2" ? 1 : 0)} {metric.unit}</dd></div>)}</dl> : <p className="panel-note">Baselines appear once a wearable has synced.</p>}
       </section>
-      <ProfileFacts title="Care team and contacts" facts={record.careTeam} />
+      {own ? (() => { const group = profileGroups(own.stage)[2]; return <ProfileFacts title={group.title} facts={group.fields.map((field) => ({ label: field.label, value: displayValue(field, own.careTeam[field.key]) }))} />; })() : <ProfileFacts title="Care team and contacts" facts={record.careTeam} />}
     </div>
     <section className="tech-card panel" aria-labelledby="wearable-title">
       <div className="panel-head"><h2 id="wearable-title">Wearable</h2></div>
       <div className="mt-3"><DeviceCard onResetScenario={() => onScenarioChange("usual")} /></div>
     </section>
     <details className="tech-card panel demo-controls">
-      <summary><span>Demo controls</span><span className="demo-controls-hint">Switch traveler, scenario and data sources for the presentation</span></summary>
+      <summary><span>Demo controls</span><span className="demo-controls-hint">Switch {own ? "" : "traveler, "}scenario and data sources for the presentation</span></summary>
       {loading ? <LoadingPanel /> : null}
       <div className="demo-controls-grid">
         <div className="space-y-4">
-          <FieldLabel label="Sample traveler"><select value={profile.id} onChange={(event) => onProfileChange(event.target.value)} className="field" aria-label="Sample traveler">{profiles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.role}</option>)}</select></FieldLabel>
-          <FieldLabel label="Mission stage"><select value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)} className="field" aria-label="Mission stage"><option value="future">Future / Trainee</option><option value="active">Active astronaut</option><option value="retired">Retired / Post-mission</option></select></FieldLabel>
+          {!own ? <>
+            <FieldLabel label="Sample traveler"><select value={profile.id} onChange={(event) => onProfileChange(event.target.value)} className="field" aria-label="Sample traveler">{profiles.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.role}</option>)}</select></FieldLabel>
+            <FieldLabel label="Mission stage"><select value={stage} onChange={(event) => onStageChange(event.target.value as LifeStage)} className="field" aria-label="Mission stage"><option value="future">Future / Trainee</option><option value="active">Active astronaut</option><option value="retired">Retired / Post-mission</option></select></FieldLabel>
+          </> : null}
           <FieldLabel label="Demo scenario"><select value={scenario} onChange={(event) => onScenarioChange(event.target.value as SimulationScenario)} className="field" aria-label="Demo scenario"><option value="usual">Usual day</option><option value="recovery_concern">Recovery concern</option><option value="sensor_disconnected">Sensor disconnected</option><option value="stale">Stale data</option><option value="offline">Offline mode</option></select></FieldLabel>
           <FieldLabel label="Simulation seed" hint="Saved on this device"><input type="number" min="0" value={seed} onChange={(event) => onSeedChange(Number(event.target.value))} className="field" aria-label="Simulation seed" /></FieldLabel>
           <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={onReplay} className="btn-secondary"><RotateCcw size={15} aria-hidden="true" /> Replay events</button><span className="text-xs text-slate-500">Replay {replayCount} · mock run</span></div>
@@ -251,6 +274,31 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
         <div className="space-y-4"><BluetoothCard /><WebhookCard /></div>
       </div>
     </details>
+  </div>;
+}
+
+function ProfileEditor({ initial, onSave, onCancel }: { initial: AstronautProfile; onSave: (profile: AstronautProfile) => Promise<string | undefined>; onCancel: () => void }) {
+  const [draft, setDraft] = useState<AstronautProfile>(initial);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const found = validateProfile(draft);
+    setErrors(found);
+    if (Object.keys(found).length) { setError("Check the highlighted fields."); return; }
+    setBusy(true); setError(undefined);
+    const failure = await onSave(draft);
+    setBusy(false);
+    if (failure) setError(failure);
+  };
+  return <div className="page">
+    <header className="page-header"><div><p className="page-kicker">Profile</p><h1>Edit your profile</h1><p className="page-lede">Changing your stage switches your workspace, check-in questions and profile sections.</p></div></header>
+    <form className="tech-card account-card account-card-wide account-form" onSubmit={submit} noValidate>
+      <ProfileFields profile={draft} onChange={setDraft} errors={errors} showStage />
+      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      <div className="account-nav"><button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button><button type="submit" className="btn-primary" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
+    </form>
   </div>;
 }
 
