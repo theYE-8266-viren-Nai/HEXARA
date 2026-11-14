@@ -1144,23 +1144,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .landing-satellite-small::after { width: 5px; height: 5px; margin-top: -2.5px; background: #c9b6ff; box-shadow: 0 0 10px 2px rgba(201, 182, 255, .55); }
 .landing-astronaut-wrap { position: absolute; left: 30%; top: 22%; width: 40%; aspect-ratio: 1; animation: landing-float 12s ease-in-out infinite; }
 .landing-astronaut { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 42%, transparent 66%); mask-image: radial-gradient(circle at 50% 50%, #000 42%, transparent 66%); filter: saturate(1.05) contrast(1.05); }
-.landing-readout { position: absolute; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--ls-line); border-radius: 14px; background: var(--ls-card); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 18px 40px rgba(0, 0, 0, .35); animation: landing-card-in .8s ease both, landing-bob 7s ease-in-out infinite; }
-.landing-readout-heart { left: 0; top: 18%; animation-delay: .5s, 1.3s; }
-.landing-readout-sleep { right: 0; top: 44%; animation-delay: .7s, 2.4s; }
-.landing-readout-rad { left: 10%; bottom: 14%; animation-delay: .9s, .6s; }
-.landing-readout-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: rgba(127, 240, 228, .12); color: var(--ls-accent); }
-.landing-readout-label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ls-muted); }
-.landing-readout-value { font-size: 22px; font-weight: 600; letter-spacing: -.02em; color: var(--ls-ink); font-variant-numeric: tabular-nums; }
-.landing-readout-value small { font-size: 12px; font-weight: 500; color: var(--ls-soft); }
-.landing-readout-note { font-size: 12px; }
-.landing-readout-note.is-good { color: #6fe0a6; }
-.landing-readout-note.is-watch { color: #f1c66d; }
-.landing-ecg { width: 96px; height: 28px; }
-.landing-ecg path { fill: none; stroke: #ff8a9b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 220; stroke-dashoffset: 220; animation: landing-ecg 2.6s ease-in-out infinite; }
-.landing-bars { display: flex; align-items: flex-end; gap: 3px; height: 28px; }
-.landing-bars i { width: 6px; height: 24px; border-radius: 2px; background: rgba(127, 240, 228, .55); }
-.landing-bars i.is-low { height: 13px; background: #f1c66d; }
-.landing-example-tag { position: absolute; right: 2%; bottom: 4%; font-size: 11px; letter-spacing: .04em; color: var(--ls-muted); }
 .landing-shooting { position: absolute; width: 160px; height: 1.5px; background: linear-gradient(90deg, transparent, rgba(220, 250, 255, .9)); border-radius: 2px; opacity: 0; rotate: -18deg; }
 .landing-shooting-one { top: 14%; left: 30%; animation: landing-shoot 11s ease-in 3s infinite; }
 .landing-shooting-two { top: 36%; left: 55%; animation: landing-shoot 13s ease-in 8s infinite; }
@@ -1205,19 +1188,14 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .landing-copy > .landing-rise:nth-child(5), .landing-copy > .landing-rise:nth-child(6) { animation-delay: .32s; }
 
 @keyframes landing-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes landing-card-in { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes landing-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
 @keyframes landing-float { 0%, 100% { transform: translate(0, 0) rotate(-3deg); } 50% { transform: translate(-14px, -18px) rotate(3deg); } }
 @keyframes landing-spin { to { transform: rotate(360deg); } }
-@keyframes landing-ecg { 0% { stroke-dashoffset: 220; } 55%, 100% { stroke-dashoffset: 0; } }
 @keyframes landing-pulse { 0% { box-shadow: 0 0 0 0 rgba(127, 240, 228, .6); } 100% { box-shadow: 0 0 0 10px transparent; } }
 @keyframes landing-breathe { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
 @keyframes landing-shoot { 0% { opacity: 0; transform: translateX(0); } 2% { opacity: 1; } 9% { opacity: 0; transform: translateX(-340px) translateY(110px); } 100% { opacity: 0; transform: translateX(-340px) translateY(110px); } }
 
 @media (max-width: 1023px) {
   .landing-orbit-system { width: min(80vw, 560px); right: 50%; top: auto; bottom: 120px; translate: calc(50% + var(--px) * 12px) 0; opacity: .5; }
-  .landing-readout { display: none; }
-  .landing-example-tag { display: none; }
   .landing-hero { min-height: auto; }
   .landing-steps { grid-template-columns: 1fr; }
 }
@@ -1226,8 +1204,7 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
   .landing-stage { padding: 12px 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-rise, .landing-readout, .landing-astronaut-wrap, .landing-satellite, .landing-nebula, .landing-live-dot, .landing-ecg path, .landing-shooting { animation: none !important; }
-  .landing-ecg path { stroke-dashoffset: 0; }
+  .landing-rise, .landing-astronaut-wrap, .landing-satellite, .landing-nebula, .landing-live-dot, .landing-shooting { animation: none !important; }
   .landing-stage, .landing-stage-arrow { transition: none; }
 }
 /* Landing refinements: blended, larger astronaut and a two-line headline. */
@@ -1240,4 +1217,3 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 @media (max-width: 1023px) { .landing-astronaut-layer { width: min(80vw, 560px); right: 50%; top: auto; bottom: 120px; translate: calc(50% + var(--px) * 12px) 0; opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .landing-astronaut-wrap { animation: none !important; } }
 .landing-stages, .landing-stage-title { max-width: 560px; }
-.landing-readout-rad { left: 22%; bottom: 12%; }
