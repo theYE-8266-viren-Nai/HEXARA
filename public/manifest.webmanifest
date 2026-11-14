@@ -1,0 +1,17 @@
+{
+  "name": "OrbitWell",
+  "short_name": "OrbitWell",
+  "description": "OrbitWell research-demo health companion for space travelers",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0c1720",
+  "theme_color": "#0c1720",
+  "icons": [{
+    "src": "/images/orbit-companion.png",
+    "sizes": "512x512",
+    "type": "image/png",
+    "purpose": "any maskable"
+  }]
+}

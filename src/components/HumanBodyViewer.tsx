@@ -12,6 +12,7 @@ import { taskFor, type VisualCheck, type VisualCheckType } from '../domain/visua
 import type { Alert, LifeStage, MetricCardData } from '../types/horizon';
 import type { ViewName } from './AppShell';
 import { MetricTile } from './MetricTile';
+import { SpaceLoader } from './SpaceLoader';
 import { formatDisplayValue } from '../lib/formatMetric';
 
 export const clampBodyRotation = (degrees: number) => Math.round(Math.max(-180, Math.min(180, degrees)));
@@ -149,7 +150,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
           <span className="body-hotspot-light" aria-hidden="true" /><span className="body-hotspot-label" aria-hidden="true">{item.label}{connected ? null : " · not connected"}</span>
         </button>;
       }) : null}
-      {state !== 'ready' ? <div className="body-viewer-notice" role="status">{state === 'loading' ? <><span className="loading-dot" />Loading 3D body…</> : <><strong>3D view unavailable</strong><span>Enable WebGL or choose a body region below to review its available information.</span><button type="button" className="body-control" onClick={() => setAttempt(a => a + 1)}>Try again</button></>}</div> : null}
+      {state !== 'ready' ? <div className="body-viewer-notice">{state === 'loading' ? <SpaceLoader message="Loading 3D body…" /> : <><strong>3D view unavailable</strong><span>Enable WebGL or choose a body region below to review its available information.</span><button type="button" className="body-control" onClick={() => setAttempt(a => a + 1)}>Try again</button></>}</div> : null}
       {state === 'ready' ? <span className="body-viewer-orientation">{Math.abs(angle) < 15 ? 'Front view' : Math.abs(angle) > 165 ? 'Back view' : 'Side view'} · {Math.abs(angle)}°{angle < 0 ? ' left' : angle > 0 ? ' right' : ''}</span> : null}
     </div>
     <div className="body-region-menu"><button className="btn-primary" type="button" aria-expanded={menuOpen} aria-controls="body-region-options" onClick={() => setMenuOpen(open => !open)}>Choose a body region</button>{menuOpen ? <div id="body-region-options">{availableRegions.map(item => { const connected = item.layer !== 'signals' || connectedIds.has(item.id); return <button type="button" className="body-control body-region-option" data-connected={connected ? 'true' : 'false'} key={item.id} aria-pressed={selected === item.id} onClick={() => toggle(item.id)}>{layer === 'signals' ? <span className="body-region-dot" aria-hidden="true" /> : null}{item.label}<span className="sr-only">{connected ? '' : ', not connected'}</span></button>; })}</div> : null}</div>
