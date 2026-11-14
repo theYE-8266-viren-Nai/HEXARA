@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <style>
+    .pulse { stroke: #0c1720; }
+    @media (prefers-color-scheme: dark) { .pulse { stroke: #f3f8fa; } }
+  </style>
+  <path d="M15 53C7 53 5 48 7 43c4-11 22-24 41-27 8-1 13 1 14 5 1 5-2 10-8 14" stroke="#74d9e8" stroke-width="2.8" stroke-linecap="round"/>
+  <path class="pulse" d="M11 37h14l3-1 3-9 4 17 4-25 4 26 4-11 3 2h9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="55" cy="13" r="3.5" fill="#74d9e8"/>
+</svg>

@@ -72,7 +72,7 @@ function toQuality(quality?: BackendQuality): DashboardLoadResult<unknown>["qual
 }
 
 function toProfile(person: Traveler): TravelerProfile {
-  const role = person.life_stage === "retired" ? "Retired astronaut" : person.life_stage === "future" ? "Future traveler" : "Mission specialist";
+  const role = person.life_stage === "retired" ? "Former astronaut" : person.life_stage === "future" ? "Astronaut in Training" : "Mission specialist";
   return { id: person.id, name: person.name, role, missionDay: person.mission_day, stage: person.life_stage as LifeStage };
 }
 

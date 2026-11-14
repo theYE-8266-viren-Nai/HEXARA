@@ -6,7 +6,15 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 
 ### 🟢 Currently Built
 
-- **Sparse wellbeing history (2026-11-14):** The weekly wellbeing calendar now shows synthetic sample history on only some recent days, leaves visible no-data gaps, and stops inventing samples beyond a 21-day window. Genuine saved check-ins and journal entries remain available regardless of age; the explanatory sample-data caption was removed for a cleaner calendar. Focused journal tests and the production build pass.
+- **Future three-part guidance navigation and changed-reading guidance (2026-11-15):** Astronaut in Training Guidance now follows the Active-stage three-part shortcut pattern: Using OrbitWell, one combined Training guidance section, and When readings change. Added a responsive four-step changed-reading panel with trainee-appropriate advice for checking data quality, interpreting trends, contacting support, and recording follow-up. The focused guidance test and production build pass; the existing bundle-size warning remains.
+
+- **Astronaut in Training terminology (2026-11-15):** Replaced the user-facing Future astronaut/Future traveler stage name with "Astronaut in Training" across stage selection, account flows, workspace headings, profile mapping, Movement copy, chat naming, and matching tests. Production build passes.
+
+- **Former astronaut terminology (2026-11-15):** Replaced the user-facing "Retired astronaut" stage name with "Former astronaut" across stage selection, workspace headings, profile data, dashboard mapping, chat stage naming, and matching tests. Production build passes.
+
+- **Future wearable-training message (2026-11-15):** Future Home now explicitly tells astronaut candidates to use their wearable during physical training to build a personal pre-mission baseline.
+
+- **Restored sample wellbeing history (2026-11-15):** Wellbeing calendars in the Future, Active, and Retired stages again show deterministic synthetic entries from the previous 21 days. Samples are labeled as simulated demo data, never replace genuine locally saved entries, and cannot be deleted as though they were user records.
 
 - **Matched Future check-in and history cards (2026-11-14):** Every desktop check-in question card and the wellbeing history card now share the exact same 760 × 600px outer size. Standard question content is vertically centered; the flower, mood rating, and navigation controls sit lower in the mood card. Longer content scrolls inside the card, and all cards return to content-driven height on mobile. Production build passes.
 

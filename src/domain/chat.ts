@@ -29,7 +29,7 @@ export type ChatMessage = {
 export type ChatConversation = { id: string; stage: LifeStage; title: string; updatedAt: string };
 export type ChatSendResult = { data?: ChatMessage; warning?: string; error?: string };
 
-export const stageName = (stage: LifeStage) => stage === "future" ? "Future traveler" : stage === "retired" ? "Retired astronaut" : "Active astronaut";
+export const stageName = (stage: LifeStage) => stage === "future" ? "Astronaut in Training" : stage === "retired" ? "Former astronaut" : "Active astronaut";
 
 export function offlineChatReply(stage: LifeStage | null, message: string): string {
   const safetyReply = chatSafetyReply(message);

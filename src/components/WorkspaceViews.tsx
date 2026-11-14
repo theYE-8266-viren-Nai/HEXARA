@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, Check, CircleHelp, Compass, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, ShieldCheck, Sparkles, Watch, WifiOff } from "lucide-react";
+import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, ShieldCheck, Sparkles, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { ActiveGuidanceView } from "./ActiveGuidanceView";
@@ -35,9 +35,9 @@ const panelClass = "tech-card p-5 sm:p-6";
 
 export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDemo }: { loading?: boolean; warning?: string; onSelect?: (stage: LifeStage) => void; onOpenGroundDemo?: () => void }) {
   const options = [
-    { stage: "future" as const, title: "Future astronaut", Icon: Rocket },
+    { stage: "future" as const, title: "Astronaut in Training", Icon: Rocket },
     { stage: "active" as const, title: "Active astronaut", Icon: Orbit },
-    { stage: "retired" as const, title: "Retired astronaut", Icon: Compass },
+    { stage: "retired" as const, title: "Former astronaut", Icon: Compass },
   ];
   return <main className="onboarding landing-space">
     <LandingScene />
@@ -71,7 +71,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const action = dataUnavailable ? "Reconnect simulated data" : stale ? "Review data-quality controls" : alert?.nextAction ?? "Keep monitoring and complete the optional wellbeing check-in if something feels different.";
   const actionLabel = dataUnavailable ? "Reconnect data" : stale ? "Review data quality" : alert ? "Take the optional wellbeing check-in" : "Check in with yourself";
   const actionNote = dataUnavailable ? "This demo scenario shows how missing data is handled. Nothing is inferred while the source is offline." : "A short check-in adds context to the signals. Skipping it does not count as feeling well.";
-  const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Life after the mission", description: "Choose a body region to explore your signals and movement. Drag to turn the figure." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
+  const stageContent = stage === "future" ? { title: "Train with your wearable", description: "Use your wearable during physical training to build a personal baseline before your first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
   const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
   return <div className={`page${stage === "retired" ? " retired-page" : ""}`}>
@@ -203,7 +203,7 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
     <header className="tech-card profile-hero">
       <span className="profile-avatar" aria-hidden="true">{own ? initialsOf(own.fullName) : initials(profile)}</span>
       <div className="profile-hero-text">
-        <p className="page-kicker">{stage === "retired" ? "Retired astronaut" : `${stageLabel(stage)} · ${missionLabel(profile, stage)}`}</p>
+        <p className="page-kicker">{stage === "retired" ? "Former astronaut" : `${stageLabel(stage)} · ${missionLabel(profile, stage)}`}</p>
         <h1>{name}</h1>
         {stage === "retired" ? null : <p className="page-lede">{summary}</p>}
       </div>
@@ -279,27 +279,67 @@ const futureWorkflow: { title: string; body: string; view?: ViewName; anchor?: s
   { title: "Prepare your data connection", body: "Learn how to check device fit and connection, and how to resolve missing or poor-quality data. Practice resolving gaps before relying on a trend.", view: "profile", action: "Review connections" },
 ];
 
-function FuturePreparationView({ preparationRepository, onViewChange }: { preparationRepository?: PreparationRepository; onViewChange: (view: ViewName) => void }) {
-  const [day, setDay] = useState(1);
-  const [timelineMessage, setTimelineMessage] = useState("");
-  const [completedDays, setCompletedDays] = useState<number[]>([]);
-  const [practice, setPractice] = useState<string[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    void preparationRepository?.getAdaptationProgress().then((result) => {
-      if (!cancelled && !result.warning) setCompletedDays(result.data.filter((item) => item.completed).map((item) => item.day));
-    });
-    return () => { cancelled = true; };
-  }, [preparationRepository]);
-  const topics = ["Arrival and orientation", "Motion sensitivity", "Fluid shifts and facial puffiness", "Sleep timing changes", "Movement confidence", "Exercise adaptation", "Recovery rhythm", "Family and mission contact", "Sleep routine", "Stress reset", "Steady movement", "Personal pattern review", "Ask-for-support practice", "Your first-days recap"];
-  const togglePractice = (id: string) => {
-    const next = practice.includes(id) ? practice.filter((item) => item !== id) : [...practice, id];
-    setPractice(next);
-    void preparationRepository?.savePreparationSession({ sessionId: id, type: id.includes("breath") ? "breathing" : id.includes("ground") ? "grounding" : "fitness", status: next.includes(id) ? "completed" : "saved" });
-  };
-  return <div className="space-y-7"><p className="editorial-label hero-script">Future traveler / preparation workspace</p><section className="space-y-7"><section aria-labelledby="future-tools-title">
-    <p className="eyebrow">01 / Know your tools</p>
+const futureLearningGroups = [
+  {
+    title: "Training progress & reflection",
+    description: "Understand your preparation record, use personal context carefully, and turn each session into a useful next step.",
+    Icon: FileText,
+    cards: [
+      { title: "How qualification progress works", Icon: ShieldCheck, summary: "Use completed modules and assessed skills to understand where you are in the training programme.", points: ["A module counts as complete only when the training programme records its required work and assessment.", "Review the skills currently being practised and the evidence still needed for the next milestone.", "OrbitWell shows training progress only; it does not provide medical clearance, flight certification, or mission approval."], resources: [{ label: "NASA astronaut candidate training", href: "https://www.nasa.gov/centers-and-facilities/johnson/summer-training-catching-up-with-nasas-astronaut-candidates/" }] },
+      { title: "How baseline days are counted", Icon: Watch, summary: "Build a useful personal reference from consistent, good-quality wearable days rather than every calendar day.", points: ["A useful day needs enough wearable coverage and reliable readings to support a personal comparison.", "Missing, disconnected, stale, or poor-quality readings should be shown as gaps rather than treated as normal values.", "Compare patterns across relevant contexts such as strength work, pool training, simulator sessions, and recovery days."], resources: [{ label: "NASA Human Research Program", href: "https://www.nasa.gov/hrp/" }] },
+      { title: "How to interpret training load", Icon: Activity, summary: "Read training load as programme context, not as a target to maximize or a measure of flight readiness.", points: ["Review the planned mix of physical work, simulations, study, and recovery across the week.", "Look for changes from your own recent pattern and consider session type, duration, intensity, and how you feel.", "Follow the load and limits set by qualified trainers; do not add work simply to improve an app value."], resources: [{ label: "NASA strength and conditioning", href: "https://www.nasa.gov/directorates/esdmd/hhp/astronaut-strength-conditioning-and-rehabilitation/" }] },
+      { title: "How to use recovery information", Icon: Moon, summary: "Use sleep, wellbeing, and recent workload as context for the next demanding session.", points: ["Review sleep, fatigue, comfort, mood, and recent workload before training.", "Treat a change from your personal pattern as a prompt to check in, not as a diagnosis or automatic stop decision.", "Raise unusual, persistent, worsening, or activity-limiting concerns with the appropriate training or medical professional."], resources: [{ label: "NASA behavioral health and performance brief", href: "https://www.nasa.gov/wp-content/uploads/2023/03/behavioral-health-technical-brief-ochmo.pdf" }] },
+      { title: "How to conduct a useful debrief", Icon: MessageCircleHeart, summary: "Capture what happened, what you learned, and what should change before the next attempt.", points: ["Record the session goal, what actually happened, and any important difference from the plan.", "Note one effective action, one difficulty, and relevant trainer feedback without turning the debrief into a score chase.", "Finish with one specific skill to revisit and the agreed next step, owner, or follow-up."], resources: [{ label: "NASA training requirements", href: "https://www.nasa.gov/reference/5-0-training/" }] },
+    ],
+  },
+  {
+    title: "Physical & medical readiness",
+    description: "Build the fitness, recovery habits, and health awareness needed for demanding training.",
+    Icon: Activity,
+    cards: [
+      { title: "Strength & endurance", Icon: HeartPulse, summary: "Prepare for sustained workloads, equipment handling, and physically demanding operations.", points: ["Combine aerobic conditioning with progressive full-body strength work.", "Build gradually and prioritize consistent technique over performance scores.", "Treat pain, faintness, chest discomfort, or unusual breathlessness as reasons to stop and seek qualified guidance."], resources: [{ label: "NASA astronaut strength and conditioning", href: "https://www.nasa.gov/directorates/esdmd/hhp/astronaut-strength-conditioning-and-rehabilitation/" }] },
+      { title: "Mobility & water confidence", Icon: Droplets, summary: "Develop controlled movement, swimming ability, and confidence in unfamiliar environments.", points: ["Practice mobility, coordination, balance, and safe movement under load.", "Swimming and water-survival skills support later training in suits and recovery scenarios.", "Use trained supervision for water, altitude, or other specialist exercises."], resources: [{ label: "NASA astronaut candidate water-survival training", href: "https://www.nasa.gov/centers-and-facilities/johnson/summer-training-catching-up-with-nasas-astronaut-candidates/" }] },
+      { title: "Sleep, nutrition & recovery", Icon: Moon, summary: "Support learning and physical adaptation with repeatable recovery habits.", points: ["Keep a regular sleep routine and notice early signs of accumulating fatigue.", "Use balanced meals and hydration to support training rather than relying on restrictive routines.", "Plan recovery as part of the programme, especially after demanding sessions."], resources: [{ label: "NASA behavioral health and performance brief", href: "https://www.nasa.gov/wp-content/uploads/2023/03/behavioral-health-technical-brief-ochmo.pdf" }] },
+      { title: "Medical readiness", Icon: ShieldCheck, summary: "Understand screening, monitoring, and when a change should be professionally reviewed.", points: ["Keep medical, dental, vision, and preventive-care records current.", "Learn your personal baseline without treating wearable readings as medical clearance.", "Report persistent or worsening symptoms early instead of training through them."], resources: [{ label: "NASA aerospace medical certification standard", href: "https://www.nasa.gov/organizations/ochmo/aerospace-medical-certification-standard/" }] },
+    ],
+  },
+  {
+    title: "Mission systems & safety",
+    description: "Learn how spacecraft, suits, science equipment, and emergency procedures work together.",
+    Icon: Rocket,
+    cards: [
+      { title: "Spacecraft systems & robotics", Icon: Orbit, summary: "Understand the systems that keep a spacecraft operating and how crews control them.", points: ["Study power, life support, communications, navigation, and vehicle control.", "Build robotics and troubleshooting skills through repeated simulation.", "Understand system interactions so one failure is not considered in isolation."], resources: [{ label: "NASA Orion crew systems", href: "https://www.nasa.gov/reference/crew-systems/" }] },
+      { title: "Spacesuits & surface operations", Icon: Compass, summary: "Prepare for working safely in a suit and moving through constrained environments.", points: ["Learn suit components, communication checks, air supply, cooling, and contamination controls.", "Practice task planning when movement, visibility, dexterity, and time are limited.", "Use checklists and teammate verification for safety-critical steps."], resources: [{ label: "NASA: What is a spacesuit?", href: "https://www.nasa.gov/humans-in-space/what-is-a-spacesuit/" }] },
+      { title: "Science, maintenance & procedures", Icon: FileText, summary: "Carry out experiments and repairs accurately while protecting crew time and evidence quality.", points: ["Practice reading procedures, documenting results, and preserving samples correctly.", "Learn routine inspection, tool control, and preventive maintenance.", "Pause and clarify when actual conditions do not match the procedure."], resources: [{ label: "NASA astronaut candidate training", href: "https://www.nasa.gov/centers-and-facilities/johnson/summer-training-catching-up-with-nasas-astronaut-candidates/" }] },
+      { title: "Emergency & survival training", Icon: AlertTriangle, summary: "Respond calmly to equipment failures, fire, pressure loss, injury, and off-nominal landings.", points: ["Rehearse emergency roles until communication and first actions are reliable under pressure.", "Train for fire response, depressurization, first aid, evacuation, and survival after landing.", "Debrief simulations to improve judgment rather than hiding mistakes."], resources: [{ label: "NASA medical and crewmember training requirements", href: "https://www.nasa.gov/reference/5-0-training/" }] },
+    ],
+  },
+  {
+    title: "Teamwork & resilience",
+    description: "Strengthen communication, judgment, and wellbeing in a small multicultural crew.",
+    Icon: MessageCircleHeart,
+    cards: [
+      { title: "Crew communication", Icon: Radio, summary: "Share information clearly and build a common understanding during routine and critical work.", points: ["Use concise messages, closed-loop confirmation, and respectful questions.", "State uncertainty and emerging concerns before they become larger problems.", "Adapt communication across languages, disciplines, and cultural expectations."], resources: [{ label: "NASA risk of inadequate teamwork", href: "https://www.nasa.gov/reference/risk-of-inadequate-teamwork/" }] },
+      { title: "Leadership & decision-making", Icon: Compass, summary: "Know when to lead, when to support, and how to make sound decisions with incomplete information.", points: ["Practice rotating leadership and following based on expertise and mission needs.", "Separate urgent facts from assumptions before choosing a response.", "Invite challenge and alternative views when time and safety allow."], resources: [{ label: "NASA teamwork and mission performance", href: "https://www.nasa.gov/reference/risk-of-inadequate-teamwork/" }] },
+      { title: "Stress, isolation & resilience", Icon: Sparkles, summary: "Recognize strain early and use practical strategies to remain effective over time.", points: ["Build routines for sleep, exercise, recreation, privacy, and connection.", "Use grounding, breathing, and workload-management tools before stress becomes overwhelming.", "Ask for behavioral-health or peer support early; help-seeking is a crew-safety skill."], resources: [{ label: "NASA behavioral health in isolation", href: "https://www.nasa.gov/reference/risk-of-behavioral-changes-and-psychiatric-disorders/" }] },
+      { title: "Conflict, feedback & recovery", Icon: Heart, summary: "Repair working relationships and turn errors into safer future performance.", points: ["Address behavior and mission impact without attacking the person.", "Use structured debriefs to discuss what happened, why, and what should change.", "Make space for recovery after high-stress events before returning to full workload."], resources: [{ label: "NASA expeditionary mindset and connection", href: "https://www.nasa.gov/humans-in-space/isolation-what-can-we-learn-from-the-experiences-of-nasa-astronauts/" }] },
+    ],
+  },
+];
+
+function FutureLearningCard({ card }: { card: (typeof futureLearningGroups)[number]["cards"][number] }) {
+  const { title, Icon, summary, points, resources } = card;
+  return <details className="tech-card group p-5 sm:p-6"><summary className="flex cursor-pointer list-none items-center gap-3 text-base font-semibold text-white"><span className="text-cyan-200 transition-transform group-open:rotate-90" aria-hidden="true">▸</span><Icon className="shrink-0 text-cyan-200" size={20} aria-hidden="true" /><span>{title}</span><span className="ml-auto text-xs font-semibold text-cyan-200 underline decoration-cyan-300/60 underline-offset-4"><span className="group-open:hidden">Learn</span><span className="hidden group-open:inline">Close</span></span></summary><div className="mt-4 border-t border-slate-800 pt-4"><p className="text-sm leading-6 text-slate-300">{summary}</p><ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-400">{points.map((point) => <li key={point}>{point}</li>)}</ul><div className="mt-5 border-t border-slate-800 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Supporting resources</p><div className="mt-3 flex flex-col items-start gap-2">{resources.map((resource) => <a key={resource.href} className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 underline" href={resource.href} target="_blank" rel="noreferrer">{resource.label}<ArrowUpRight size={14} aria-hidden="true" /></a>)}</div></div></div></details>;
+}
+
+function FuturePreparationView({ onViewChange }: { onViewChange: (view: ViewName) => void }) {
+  return <div className="space-y-7"><p className="editorial-label hero-script">Astronaut in Training / preparation workspace</p><section className="space-y-7"><section id="future-using-orbitwell" className="scroll-mt-6" aria-labelledby="future-tools-title">
     <h1 id="future-tools-title" className="mt-2 text-2xl font-semibold text-white">Prepare with OrbitWell before your mission</h1>
+    <nav aria-label="Future guidance sections" className="mt-5 flex flex-wrap gap-3 text-sm">
+      <a href="#future-using-orbitwell" className="mission-guide-button">Using OrbitWell</a>
+      <a href="#future-training-guidance" className="mission-guide-button">Training guidance</a>
+      <a href="#future-changed-readings" className="mission-guide-button">When readings change</a>
+    </nav>
     <div className="mt-5 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
       {futureWorkflow.map((step, i) => <article key={step.title} className="tech-card flex h-full flex-col p-5 sm:p-7">
         <span className="font-mono text-xs text-cyan-200">0{i + 1}</span>
@@ -308,14 +348,27 @@ function FuturePreparationView({ preparationRepository, onViewChange }: { prepar
         <button type="button" onClick={() => step.view ? onViewChange(step.view) : document.getElementById(step.anchor ?? "")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mt-5 flex items-center gap-2 self-start text-sm font-semibold text-cyan-200 hover:underline">{step.action}<ArrowUpRight size={15} aria-hidden="true" /></button>
       </article>)}
     </div>
-  </section><section className={`${panelClass} space-y-4`} aria-labelledby="practice-title"><p className="text-sm text-slate-400">02 / Fitness and resilience</p><h2 id="practice-title" className="text-xl font-semibold text-white">Small practices for the week</h2>{[{ id: "mobility", title: "Equipment-free mobility", body: "Five minutes of gentle movement to practise control and comfort." }, { id: "strength", title: "Bodyweight strength", body: "A short equipment-free routine for preparation, not performance scoring." }, { id: "breath", title: "Extended-exhale breathing", body: "Slow the pace of your breathing and notice what changes." }, { id: "ground", title: "Five-senses grounding", body: "Name what you can see, hear, feel, smell, and taste." }].map((item) => <button key={item.id} type="button" onClick={() => togglePractice(item.id)} aria-pressed={practice.includes(item.id)} className={`w-full rounded-xl border p-4 text-left ${practice.includes(item.id) ? "border-emerald-300/50 bg-emerald-300/10" : "border-slate-700 bg-slate-950/30"}`}><p className="font-semibold text-white">{practice.includes(item.id) ? "✓ " : ""}{item.title}</p><p className="mt-1 text-sm leading-6 text-slate-400">{item.body}</p></button>)}</section>
-    </section><section className={`${panelClass} overflow-hidden`} aria-labelledby="timeline-title"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm text-slate-400">03 / First 14 days</p><h2 id="timeline-title" className="text-xl font-semibold text-white">Adaptation timeline</h2><p className="mt-2 text-sm text-slate-400">Every level includes a reason. Common does not mean every situation is harmless.</p></div><span className="rounded-full border border-cyan-300/40 px-3 py-1 font-mono text-xs text-cyan-200">Day {day} / 14</span></div><div className="mt-5 flex gap-2 overflow-x-auto pb-2">{topics.map((topic, index) => <button key={topic} type="button" onClick={() => setDay(index + 1)} aria-pressed={day === index + 1} className={`min-w-24 rounded-xl border px-3 py-3 text-left text-xs ${day === index + 1 ? "border-cyan-300 bg-cyan-300/10 text-cyan-100" : "border-slate-700 text-slate-400"}`}><span className="font-mono">D{index + 1}</span><span className="mt-2 block">{topic}</span></button>)}</div><div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto]"><div><h3 className="text-lg font-semibold text-white">{topics[day - 1]}</h3><p className="mt-2 leading-7 text-slate-300">Your body and routine may be adjusting to a new movement environment. Notice the pattern, use a gentle routine, and write down what you experience.</p><p className="mt-3 text-sm text-slate-400"><span className="font-semibold text-emerald-200">Self-care:</span> Try the breathing or grounding practice and note whether it helps. <span className="font-semibold text-amber-200">Tell a crew medic:</span> Tell someone if it is persistent, worsening, or making daily tasks difficult. <span className="font-semibold text-rose-200">Urgent:</span> Seek immediate mission support for severe or rapidly worsening symptoms.</p></div><button type="button" onClick={async () => { const result = await preparationRepository?.saveAdaptationProgress({ day, completed: true, experienceNote: "Completed educational timeline day." }); setTimelineMessage(result?.warning ?? `Day ${day} marked complete.`); }} className="btn-square self-start bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950">Mark day complete</button>{timelineMessage ? <p className="text-sm text-emerald-200" role="status">{timelineMessage}</p> : null}</div></section>
+  </section></section>
+    <section id="future-training-guidance" aria-label="Astronaut trainee learning" className="scroll-mt-6 space-y-8">
+      {futureLearningGroups.map(({ title, description, Icon, cards }) => { const sectionId = `learning-${title.toLowerCase().replaceAll(" ", "-").replaceAll("&", "and")}`; const showTrainingRhythm = title === "Training progress & reflection"; return <section key={title} id={sectionId} aria-labelledby={`${sectionId}-title`} className="scroll-mt-6 space-y-4"><div className="flex items-start gap-3"><Icon className="mt-1 shrink-0 text-cyan-200" size={22} aria-hidden="true" /><div><h3 id={`${sectionId}-title`} className="text-xl font-semibold text-white">{title}</h3><p className="mt-1 text-sm leading-6 text-slate-400">{description}</p></div></div><div className={showTrainingRhythm ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" : ""}><div className="space-y-3">{cards.map((card) => <FutureLearningCard key={card.title} card={card} />)}</div>{showTrainingRhythm ? <aside className={panelClass} aria-labelledby="training-rhythm-title"><Heart className="text-cyan-200" size={22} aria-hidden="true" /><h4 id="training-rhythm-title" className="mt-3 text-lg font-semibold text-white">A simple training rhythm</h4><ol className="mt-4 space-y-5 text-sm leading-6 text-slate-400"><li><strong className="block text-slate-200">Before training</strong>Review today’s session, check wearable fit, and complete the pre-session checklist.</li><li><strong className="block text-slate-200">During training</strong>Follow the assigned plan, record useful wearable data, and stop if your qualified training team instructs you to stop.</li><li><strong className="block text-slate-200">After training</strong>Complete a short reflection, note difficulties, and review trainer feedback.</li></ol></aside> : null}</div></section>; })}
+    </section>
+    <section id="future-changed-readings" className={`${panelClass} scroll-mt-6`} aria-labelledby="future-changed-readings-title">
+      <h2 id="future-changed-readings-title" className="text-2xl font-semibold text-white">When a reading looks different</h2>
+      <ol className="mt-5 grid gap-5 md:grid-cols-2">
+        {[
+          ["Check the data first", "Look at the source, timestamp, fit, and quality. Check the device according to its instructions. A gap, rejected reading, or poor signal cannot establish that you are well."],
+          ["Read the reason, not just the status", "Open Trends and the alert explanation. Look for repeated changes and context such as recent exercise, training workload, or disturbed sleep. A change from your baseline is a prompt to review, not a diagnosis."],
+          ["Tell the appropriate person", "Contact your approved training or medical support person about new, persistent, worsening, or activity-limiting concerns. Seek support based on how you feel, not only on whether OrbitWell shows an alert. ORBIT cannot contact them for you."],
+          ["Record the agreed follow-up", "Bring the dates, affected signals, quality limitations, and your own observations to the check-in. Follow professional advice and record the next review in the system your programme uses; OrbitWell does not schedule or send it."],
+        ].map(([title, body], i) => <li key={title} className="flex items-start gap-3"><span className="mt-0.5 font-mono text-sm text-cyan-200">0{i + 1}</span><div><h3 className="font-semibold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></li>)}
+      </ol>
+    </section>
     <section className={`${panelClass} flex items-start gap-3`}><CircleHelp className="mt-1 shrink-0 text-cyan-200" /><p className="text-sm leading-6 text-slate-400"><span className="font-semibold text-slate-200">Limits:</span> OrbitWell provides readiness education only. Completion does not mean you are ready to fly, medically cleared, certified, or approved for travel. Real decisions belong to qualified mission and medical teams.</p></section>
   </div>;
 }
 
 export function GuidanceView({ stage, preparationRepository, onViewChange, onOpenChat }: { stage: LifeStage; preparationRepository?: PreparationRepository; onViewChange: (view: ViewName) => void; onOpenChat?: () => void }) {
-  if (stage === "future") return <FuturePreparationView preparationRepository={preparationRepository} onViewChange={onViewChange} />;
+  if (stage === "future") return <FuturePreparationView onViewChange={onViewChange} />;
   if (stage === "retired") return <RetiredGuidanceView onViewChange={onViewChange} onOpenChat={onOpenChat} />;
   return <ActiveGuidanceView onViewChange={onViewChange} />;
 }
@@ -348,7 +401,7 @@ function RetiredGuidanceView({ onViewChange, onOpenChat }: { onViewChange: (view
 
   return <div className="space-y-7">
     <header>
-      <p className="eyebrow">Guidance · Retired astronaut</p>
+      <p className="eyebrow">Guidance · Former astronaut</p>
       <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Finding your rhythm after flight</h1>
       <nav aria-label="Retirement guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
         <a href="#retired-workflow" className="mission-guide-button">Using OrbitWell<ArrowRight size={16} aria-hidden="true" /></a>
@@ -478,7 +531,7 @@ function DeviceBadge() {
 }
 
 function missionLabel(profile: TravelerProfile, stage: LifeStage) { return stage === "future" ? "Pre-mission" : stage === "retired" ? "Post-mission" : `Mission day ${profile.missionDay}`; }
-function stageLabel(stage: LifeStage) { return stage === "future" ? "Future traveler" : stage === "retired" ? "Retired astronaut" : "Active astronaut"; }
+function stageLabel(stage: LifeStage) { return stage === "future" ? "Astronaut in Training" : stage === "retired" ? "Former astronaut" : "Active astronaut"; }
 function scenarioLabel(scenario: SimulationScenario) { return scenario === "usual" ? "Usual day" : scenario === "recovery_concern" ? "Recovery concern" : scenario === "sensor_disconnected" ? "Sensor disconnected" : scenario === "stale" ? "Stale data" : "Offline mode"; }
 
 function BluetoothCard() {

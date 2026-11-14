@@ -45,7 +45,7 @@ function LoginForm({ stage, repository, onDone, onSignup }: { stage: LifeStage; 
       // Each stage only opens its own accounts.
       await repository.signOut();
       setBusy(false);
-      const cardName = result.account.profile.stage === "future" ? "Future astronaut" : stageName(result.account.profile.stage);
+      const cardName = stageName(result.account.profile.stage);
       setError(`This account is registered as ${withArticle(stageName(result.account.profile.stage))}. Go back and choose the ${cardName} card to log in.`);
       return;
     }
