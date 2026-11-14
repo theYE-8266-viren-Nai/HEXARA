@@ -779,13 +779,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .retired-pair-card > p:not(.eyebrow) { max-width: 420px; margin: 14px auto 0; color: var(--text-secondary); font-size: 15px; line-height: 1.65; }
 .retired-pair-card .btn-primary { min-height: 48px; margin: 26px auto 0; justify-content: center; gap: 9px; }
 @media (max-width: 480px) { .retired-pair-page { min-height: 55vh; } .retired-pair-card .btn-primary { width: 100%; } }
-.retired-advisor { padding: clamp(24px, 3vw, 42px); border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); background: radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 46%), var(--surface); }
-.retired-advisor { min-height: 330px; }
-.retired-advisor-icon { display: grid; width: 54px; height: 54px; margin-bottom: 20px; place-items: center; border-radius: 16px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text); }
-.retired-advisor h2 { max-width: 680px; margin-top: 12px; color: var(--text-primary); font-size: clamp(27px, 3vw, 38px); line-height: 1.16; letter-spacing: -.035em; }
-.retired-advisor > p:not(.eyebrow) { max-width: 650px; margin-top: 12px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
-.retired-advisor .btn-primary { min-height: 48px; gap: 10px; margin-top: 24px; }
-@media (max-width: 640px) { .retired-advisor .btn-primary { width: 100%; } }
+.retired-advisor { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 20px 24px; border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); background: radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 46%), var(--surface); }
+.retired-advisor-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text); }
+.retired-advisor h2 { color: var(--text-primary); font-size: 25px; line-height: 1.2; letter-spacing: -.035em; }
+.retired-advisor-copy p { max-width: 680px; margin-top: 5px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
+.retired-advisor .btn-primary { min-height: 48px; gap: 10px; white-space: nowrap; }
+@media (max-width: 800px) { .retired-advisor { grid-template-columns: 48px minmax(0, 1fr); } .retired-advisor .btn-primary { grid-column: 2; justify-self: start; } }
+@media (max-width: 480px) { .retired-advisor { gap: 12px; padding: 18px; } .retired-advisor h2 { font-size: 23px; } .retired-advisor .btn-primary { grid-column: 1 / -1; width: 100%; } }
 
 .metric-grid { gap: 12px; }
 .metric-tile { display: block; width: 100%; min-width: 0; padding: 18px 18px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); text-align: left; color: inherit; overflow: hidden; }

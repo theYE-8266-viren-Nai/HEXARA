@@ -77,10 +77,11 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   if (stage === "retired") return <div className="page retired-page"><DeviceIdleGate stage={stage}>
     <header className="page-header"><div><p className="page-kicker">{profile.name} · Retired astronaut</p><h1>Life after the mission</h1><p className="page-lede">A place to talk about what matters to you.</p></div>{device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}</header>
     <section className="retired-advisor tech-card" aria-labelledby="retired-advisor-title">
-      <span className="retired-advisor-icon" aria-hidden="true"><MessageCircleHeart size={30} /></span>
-      <p className="eyebrow">A SPACE TO TALK</p>
-      <h2 id="retired-advisor-title">Mental friend</h2>
-      <p>Talk with ORBIT about life after flight, the view of Earth, your relationships, or whatever is on your mind. Start anywhere, at your own pace.</p>
+      <span className="retired-advisor-icon" aria-hidden="true"><MessageCircleHeart size={25} /></span>
+      <div className="retired-advisor-copy">
+        <h2 id="retired-advisor-title">Mental friend</h2>
+        <p>Talk with ORBIT about life after flight, the view of Earth, or anything on your mind.</p>
+      </div>
       <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
     </section>
     <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegions={bodyFocus?.regions} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
