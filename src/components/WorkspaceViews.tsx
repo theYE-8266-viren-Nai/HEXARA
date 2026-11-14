@@ -38,12 +38,6 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
     { stage: "active" as const, title: "Active astronaut", body: "Live signals and check-ins on mission", Icon: Orbit },
     { stage: "retired" as const, title: "Retired astronaut", body: "Long-term follow-up after flight", Icon: Compass },
   ];
-  const features = [
-    { label: "Personal baseline", Icon: Activity },
-    { label: "3D body signals", Icon: HeartPulse },
-    { label: "Daily check-ins", Icon: Moon },
-    { label: "ORBIT assistant", Icon: Sparkles },
-  ];
   return <main className="onboarding landing-space">
     <LandingScene />
     <div className="onboarding-container landing-content">
@@ -53,17 +47,11 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
           <p className="landing-eyebrow landing-rise"><span className="landing-live-dot" /> Health companion for astronauts</p>
           <h1 id="journey-title" className="landing-title landing-rise">Know your normal.<br /><span>Anywhere in orbit.</span></h1>
           <p className="landing-intro landing-rise">OrbitWell brings your wearables together on one 3D body, compares every reading with your own 30-day baseline, and tells you in plain words what changed and what to do next.</p>
-          <ul className="landing-features landing-rise" aria-label="What OrbitWell does">{features.map(({ label, Icon }) => <li key={label}><Icon size={15} aria-hidden="true" />{label}</li>)}</ul>
           <h2 id="stage-options-title" className="landing-stage-title landing-rise">Choose your mission stage</h2>
           {loading ? <div className="tech-card journey-loading" role="status" aria-live="polite"><span className="loading-dot" />Preparing your private workspace…</div> : <div className="landing-stages landing-rise" aria-labelledby="stage-options-title">{options.map(({ stage, title, body, Icon }) => <button key={stage} type="button" aria-label={title} onClick={() => onSelect?.(stage)} className={`landing-stage journey-${stage}`}><span className="landing-stage-icon"><Icon size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">{title}</span><span className="landing-stage-body">{body}</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button>)}{onOpenGroundDemo ? <button type="button" className="landing-stage landing-stage-ground" onClick={onOpenGroundDemo}><span className="landing-stage-icon"><HeartPulse size={20} strokeWidth={1.6} aria-hidden="true" /></span><span className="landing-stage-text"><span className="landing-stage-name">Ground health team</span><span className="landing-stage-body">Review the whole crew's trends</span></span><ArrowRight className="landing-stage-arrow" size={18} aria-hidden="true" /></button> : null}</div>}
           {warning ? <details className="cloud-note"><summary>Exploring in demo mode · cloud save unavailable</summary><p>{warning} Accounts are saved only in this browser until the connection is available.</p></details> : null}
         </section>
       </div>
-      <ol className="landing-steps landing-rise" aria-label="How OrbitWell works">
-        <li><span>01</span><div><strong>Connect</strong><p>Pair the Astroskin shirt, Actiwatch, dosimeter and motion sensors.</p></div></li>
-        <li><span>02</span><div><strong>Compare</strong><p>Every signal is measured against your own usual, not anyone else's.</p></div></li>
-        <li><span>03</span><div><strong>Act</strong><p>Check in, review a trend, or talk to the right person.</p></div></li>
-      </ol>
     </div>
     <SafetyDisclaimer landing />
   </main>;

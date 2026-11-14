@@ -1159,9 +1159,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .landing-title { margin-top: 22px; font-size: clamp(40px, 5.4vw, 68px); font-weight: 600; line-height: 1.04; letter-spacing: -.035em; color: var(--ls-ink); text-wrap: balance; }
 .landing-title span { background: linear-gradient(90deg, #7ff0e4, #8cc8ff 55%, #c9b6ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .landing-intro { margin-top: 18px; max-width: 520px; font-size: 17px; line-height: 1.6; color: var(--ls-soft); }
-.landing-features { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; list-style: none; }
-.landing-features li { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--ls-line); border-radius: 99px; background: rgba(12, 26, 38, .55); font-size: 13px; color: var(--ls-ink); }
-.landing-features svg { color: var(--ls-accent); }
 .landing-stage-title { margin-top: 30px; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ls-muted); }
 .landing-stages { display: grid; gap: 10px; margin-top: 12px; }
 .landing-stage { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: 1px solid var(--ls-line); border-radius: 14px; background: var(--ls-card); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-align: left; color: var(--ls-ink); transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
@@ -1174,11 +1171,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .landing-stage-arrow { color: var(--ls-muted); transition: transform .2s ease, color .2s ease; }
 .landing-stage:hover .landing-stage-arrow { transform: translateX(3px); color: var(--ls-accent); }
 .landing-stage-ground { border-style: dashed; }
-.landing-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 8px 0 70px; padding: 0; list-style: none; }
-.landing-steps li { display: flex; gap: 14px; padding: 16px 18px; border: 1px solid var(--ls-line); border-radius: 14px; background: rgba(8, 20, 30, .55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-.landing-steps span { font-size: 12px; font-weight: 700; color: var(--ls-accent); font-variant-numeric: tabular-nums; }
-.landing-steps strong { font-size: 15px; color: var(--ls-ink); }
-.landing-steps p { margin-top: 3px; font-size: 13px; line-height: 1.5; color: var(--ls-soft); }
 .landing-space .cloud-note { color: var(--ls-muted); }
 .landing-space .landing-disclaimer { background: rgba(5, 11, 20, .85); color: var(--ls-muted); border-top-color: rgba(160, 220, 240, .1); }
 .landing-rise { animation: landing-rise .7s ease both; }
@@ -1197,7 +1189,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 @media (max-width: 1023px) {
   .landing-orbit-system { width: min(80vw, 560px); right: 50%; top: auto; bottom: 120px; translate: calc(50% + var(--px) * 12px) 0; opacity: .5; }
   .landing-hero { min-height: auto; }
-  .landing-steps { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .landing-intro { font-size: 15px; }
