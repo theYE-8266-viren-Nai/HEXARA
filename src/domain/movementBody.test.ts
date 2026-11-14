@@ -32,7 +32,7 @@ describe("movement-to-body mapping", () => {
     expect(primaryMovementRegion("reach_and_return")).toBe("arm");
     expect(primaryMovementRegion("sit_to_stand")).toBe("knee");
     expect(primaryMovementRegion("single_leg_balance")).toBe("ankle");
-    expect(MOVEMENT_TASK_REGIONS.sit_to_stand).toEqual(["hip", "knee", "leg-muscle", "spine"]);
+    expect(MOVEMENT_TASK_REGIONS.sit_to_stand).toEqual(["hip", "knee", "legs", "back"]);
   });
 
   it("restores the newest saved session for a region", () => {

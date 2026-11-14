@@ -15,10 +15,10 @@ export const MOVEMENT_REGION_TASK: Record<MovementBodyRegionId, OfferedMovementT
 };
 
 export const MOVEMENT_TASK_REGIONS: Record<OfferedMovementType, readonly BodyRegionId[]> = {
-  shoulder_mobility: ["shoulder", "arm", "back-muscle"],
+  shoulder_mobility: ["shoulder", "arm", "back"],
   reach_and_return: ["arm", "shoulder", "chest"],
-  sit_to_stand: ["hip", "knee", "leg-muscle", "spine"],
-  single_leg_balance: ["ankle", "knee", "hip", "spine"],
+  sit_to_stand: ["hip", "knee", "legs", "back"],
+  single_leg_balance: ["ankle", "knee", "hip", "back"],
 };
 
 export const movementRegionsForStage = (stage: LifeStage): MovementBodyRegionId[] =>

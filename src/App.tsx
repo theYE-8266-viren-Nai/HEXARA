@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
@@ -19,7 +19,9 @@ import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 import { ownerKeyFor, type VisualCheck, type VisualCheckType } from "./domain/visualCheck";
 import { primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
 import { ThemeProvider } from "./lib/theme";
-import { DeviceContext } from "./lib/deviceContext";
+import { DeviceContext, type BodyDeviceControls } from "./lib/deviceContext";
+import { bodyDeviceTiming, type BodyDeviceId } from "./domain/bodyDevices";
+import { motionReadings } from "./domain/motionSensor";
 import { useDeviceStream } from "./lib/useDeviceStream";
 import { useBluetoothHeartRate } from "./lib/useBluetoothHeartRate";
 import { useWebhookSource } from "./lib/useWebhookSource";
@@ -81,6 +83,13 @@ function HorizonApp() {
   const [profileId, setProfileId] = usePersistedState("horizon:profile", profiles[0].id);
   // Pairing lasts for this visit only: the wearable never connects until the person presses "Pair".
   const [devicePaired, setDevicePaired] = useState(false);
+  // Wearables paired for the 3D body (Active stage). Like the wearable above, pairing lasts for this visit only.
+  const [bodyDevices, setBodyDevices] = useState<ReadonlySet<BodyDeviceId>>(new Set());
+  const [pairingBodyDevice, setPairingBodyDevice] = useState<BodyDeviceId | null>(null);
+  // "Connect wearables" switch: off disconnects every device, like turning Bluetooth off.
+  const [bluetoothOn, setBluetoothOn] = useState(false);
+  const [wearableListOpen, setWearableListOpen] = useState(false);
+  const bluetoothRef = useRef(false);
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendSnapshot, setBackendSnapshot] = useState<DashboardSnapshot | null>(null);
   const [dataSource, setDataSource] = useState<DashboardSource>("local");
@@ -98,7 +107,7 @@ function HorizonApp() {
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
-  const device = useDeviceStream({ enabled: stage !== null && devicePaired, personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
+  const device = useDeviceStream({ enabled: stage !== null && (devicePaired || bodyDevices.size > 0), personKey: `${stage ?? "none"}:${profile.id}`, scenario, seed, baseMetrics: dashboard.metrics, history: scenario === "usual" ? backendSnapshot?.history : undefined });
   // An optional Bluetooth heart-rate device replaces only the heart-rate and HRV cards; everything else stays simulated.
   const bluetooth = useBluetoothHeartRate(dashboard.metrics);
   const webhook = useWebhookSource(dashboard.metrics); // priority for the cards below: Bluetooth, then webhook, then the simulated wearable
@@ -129,10 +138,36 @@ function HorizonApp() {
   const explain = useMemo(() => ({ request: buildExplainRequest(pattern, { stage: stage ?? "active", ingestQuality: liveIngest?.quality, source: bluetooth.ready ? "bluetooth" as const : webhook.ready ? "api" as const : "simulated" as const, monthlyHistory }), run: explainRepository.explain }), [pattern, stage, liveIngest?.quality, bluetooth.ready, webhook.ready, monthlyHistory, explainRepository]);
   const deviceStatus = useMemo(() => ({
     ...device.status,
-    hasPaired: devicePaired,
+    hasPaired: devicePaired || bodyDevices.size > 0,
     pair: () => { setDevicePaired(true); device.status.pair(); },
     reconnect: () => { setDevicePaired(true); device.status.reconnect(); },
-  }), [device.status, devicePaired]);
+  }), [device.status, devicePaired, bodyDevices]);
+  const setBluetooth = useCallback((on: boolean) => {
+    bluetoothRef.current = on;
+    setBluetoothOn(on);
+    setWearableListOpen(on);
+    if (!on) { setBodyDevices(new Set()); setPairingBodyDevice(null); }
+  }, []);
+  const bodyDeviceControls = useMemo<BodyDeviceControls>(() => ({
+    bluetoothOn,
+    listOpen: wearableListOpen,
+    setBluetooth,
+    setListOpen: setWearableListOpen,
+    paired: bodyDevices,
+    pairing: pairingBodyDevice,
+    pair: (id) => {
+      if (!bluetoothRef.current) { bluetoothRef.current = true; setBluetoothOn(true); }
+      setPairingBodyDevice(id);
+      window.setTimeout(() => {
+        // Turning the switch off while pairing cancels it.
+        if (!bluetoothRef.current) return;
+        setBodyDevices((current) => new Set(current).add(id));
+        setPairingBodyDevice(null);
+      }, bodyDeviceTiming.pairMs);
+    },
+    unpair: (id) => setBodyDevices((current) => { const next = new Set(current); next.delete(id); return next; }),
+    motion: motionReadings(seed, `${stage ?? "none"}:${profile.id}`),
+  }), [bluetoothOn, wearableListOpen, setBluetooth, bodyDevices, pairingBodyDevice, seed, stage, profile.id]);
   const bluetoothControls = useMemo(() => ({
     phase: bluetooth.phase, message: bluetooth.message, deviceName: bluetooth.deviceName, ready: bluetooth.ready,
     // Connecting a heart-rate device also pairs the simulated wearable that supplies the other signals.
@@ -209,6 +244,8 @@ function HorizonApp() {
     setStage(null);
     setAccountStage(null);
     setDevicePaired(false);
+    setBodyDevices(new Set());
+    setBluetooth(false);
     setActiveView("home");
     const auth = await ensureAnonymousSession(supabase);
     setUserId(auth.userId);
@@ -321,5 +358,5 @@ function HorizonApp() {
     }
   })();
 
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && view === "home" && !devicePaired ? undefined : { client: supabase, userId, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ bodyDevices: bodyDeviceControls, status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={changeView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={stage === "retired" && view === "home" && !devicePaired ? undefined : { client: supabase, userId, openRequest: chatOpenRequest }}>{content}</AppShell></DeviceContext.Provider>;
 }

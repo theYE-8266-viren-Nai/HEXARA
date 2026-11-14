@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HumanBodyViewer, { clampBodyRotation } from './HumanBodyViewer';
 import { bodyRegions, regionFacesCamera, type BodyHotspot } from '../domain/bodyRegions';
 import { mockDashboardRepository } from '../lib/mockDashboardRepository';
+import { within } from '@testing-library/react';
+import type { BodyDeviceId } from '../domain/bodyDevices';
+import { motionReadings } from '../domain/motionSensor';
+
+const ALL_DEVICES = new Set<BodyDeviceId>(['astroskin', 'actiwatch', 'dosimeter', 'motion']);
+const motion = motionReadings(42, 'active:test');
+const metrics = () => mockDashboardRepository.getSnapshot('usual', {seed:42, replayCount:0}).metrics;
 import { VISUAL_CHECK_DISCLAIMER, type VisualCheck } from '../domain/visualCheck';
 
 const savedCheck = (checkType: VisualCheck['checkType'], overrides: Partial<VisualCheck> = {}): VisualCheck => ({
@@ -85,8 +92,7 @@ describe('Human body viewer', () => {
 
   it('hides readings until selection and toggles the selected region', async () => {
     const user = userEvent.setup();
-    const metrics = mockDashboardRepository.getSnapshot('usual', {seed:42, replayCount:0}).metrics;
-    render(<HumanBodyViewer metrics={metrics} />);
+    render(<HumanBodyViewer metrics={metrics()} pairedDevices={ALL_DEVICES} motion={motion} />);
     const heart = await screen.findByRole('button', {name:'Heart'});
     expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
     await user.hover(heart);
@@ -103,38 +109,70 @@ describe('Human body viewer', () => {
     expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
   });
 
-  it('keeps posterior markers on the back and never invents unavailable measurements', async () => {
+  it('keeps the Back marker on the back and shows each part only its own readings', async () => {
     const user = userEvent.setup();
-    render(<HumanBodyViewer metrics={mockDashboardRepository.getSnapshot('usual', {seed:42, replayCount:0}).metrics} />);
+    render(<HumanBodyViewer metrics={metrics()} pairedDevices={ALL_DEVICES} motion={motion} />);
     await screen.findByRole('button', {name:'Heart'});
+    expect(screen.queryByRole('button', {name:'Back'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button', {name:'Spine'})).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('slider'), {target:{value:'180'}});
     expect(screen.queryByRole('button', {name:'Heart'})).not.toBeInTheDocument();
-    for (const label of ['Spine','Back muscle']) {
-      await user.click(screen.getByRole('button', {name:label}));
-      expect(screen.getByRole('complementary', {name:`${label} signals`})).toBeInTheDocument();
-      expect(screen.getByRole('complementary', {name:`${label} signals`})).toHaveAttribute('data-side','left');
-      expect(screen.getByText('No direct measurement available')).toBeInTheDocument();
-      expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
-      await user.click(screen.getByRole('button', {name:label}));
-    }
+    await user.click(screen.getByRole('button', {name:'Back'}));
+    const back = screen.getByRole('complementary', {name:'Back signals'});
+    expect(back).toHaveAttribute('data-side','left');
+    expect(back).toHaveTextContent('Upright posture');
+    expect(back).not.toHaveTextContent('Sit-to-stand');
+    await user.click(screen.getByRole('button', {name:'Back'}));
     await user.click(screen.getByRole('button', {name:'Front view'}));
-    for (const label of ['Brain','Lungs','Chest','Leg muscle','Skin']) {
+    const expected: Record<string, { has: string[]; not: string[] }> = {
+      Brain: { has: ['Sleep'], not: ['Resting heart rate'] },
+      Lungs: { has: ['SpO₂'], not: ['HRV'] },
+      Chest: { has: ['Radiation dose'], not: ['SpO₂', 'Resting heart rate'] },
+      Legs: { has: ['Sit-to-stand repetitions', 'Left / right balance'], not: ['Upright posture'] },
+      Skin: { has: ['Skin temperature'], not: ['Radiation dose', 'Resting heart rate'] },
+    };
+    for (const [label, readings] of Object.entries(expected)) {
       await user.click(screen.getByRole('button', {name:label}));
-      expect(screen.getByRole('complementary', {name:`${label} signals`})).toBeInTheDocument();
-      expect(screen.getByRole('complementary', {name:`${label} signals`})).toHaveAttribute('data-side', ['Brain','Chest'].includes(label) ? 'left' : 'right');
+      const panel = screen.getByRole('complementary', {name:`${label} signals`});
+      expect(panel).toHaveAttribute('data-side', ['Brain','Chest'].includes(label) ? 'left' : 'right');
+      for (const text of readings.has) expect(panel).toHaveTextContent(text);
+      for (const text of readings.not) expect(panel).not.toHaveTextContent(text);
       fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'Escape'});
       expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
     }
   });
 
+  it('always shows every dot: red and not connected until its device is paired, then green with readings', async () => {
+    const user = userEvent.setup();
+    const onPair = vi.fn();
+    const view = render(<HumanBodyViewer metrics={metrics()} pairedDevices={new Set<BodyDeviceId>()} onPairDevice={onPair} motion={motion} />);
+    await waitFor(() => expect(screen.getByRole('slider')).toBeEnabled());
+    for (const name of ['Heart','Brain','Lungs','Chest','Legs','Skin']) {
+      const dot = screen.getByRole('button', {name:`${name}, not connected`});
+      expect(dot).toHaveAttribute('data-connected', 'false');
+    }
+
+    await user.click(screen.getByRole('button', {name:'Heart, not connected'}));
+    const panel = screen.getByRole('complementary', {name:'Heart signals'});
+    expect(panel).toHaveTextContent('Not connected. Pair the Astroskin shirt to see heart signals.');
+    expect(panel).not.toHaveTextContent('Resting heart rate');
+    await user.click(within(panel).getByRole('button', {name:'Pair Astroskin shirt'}));
+    expect(onPair).toHaveBeenCalledWith('astroskin');
+
+    view.rerender(<HumanBodyViewer metrics={metrics()} pairedDevices={new Set<BodyDeviceId>(['astroskin'])} motion={motion} />);
+    expect(screen.getByRole('button', {name:'Heart'})).toHaveAttribute('data-connected', 'true');
+    expect(screen.getByRole('complementary', {name:'Heart signals'})).toHaveTextContent('Resting heart rate');
+    for (const name of ['Lungs','Skin']) expect(screen.getByRole('button', {name})).toHaveAttribute('data-connected', 'true');
+    for (const name of ['Brain','Chest','Legs']) expect(screen.getByRole('button', {name:`${name}, not connected`})).toBeInTheDocument();
+  });
+
   it.each(['unpaired','unavailable','loading'] as const)('withholds numbers for a %s source', async signalState => {
     const user = userEvent.setup();
-    render(<HumanBodyViewer metrics={mockDashboardRepository.getSnapshot('usual', {seed:42, replayCount:0}).metrics} signalState={signalState} />);
+    render(<HumanBodyViewer metrics={metrics()} signalState={signalState} pairedDevices={ALL_DEVICES} motion={motion} />);
     await user.click(await screen.findByRole('button', {name:'Heart'}));
-    expect(screen.getByRole('complementary', {name:'Heart signals'})).toBeInTheDocument();
+    const panel = screen.getByRole('complementary', {name:'Heart signals'});
     expect(screen.queryByText('Resting heart rate')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(signalState === 'loading' ? 'Waiting' : signalState === 'unpaired' ? 'No device paired' : 'Readings unavailable');
+    expect(within(panel).getByRole('status')).toHaveTextContent(signalState === 'loading' ? 'Waiting' : signalState === 'unpaired' ? 'No device paired' : 'Readings unavailable');
   });
 
   it('shows only in-flight movement regions for Active and opens the mapped task', async () => {

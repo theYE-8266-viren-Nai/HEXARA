@@ -15,6 +15,7 @@ import { Brand, SafetyDisclaimer, type ViewName } from "./AppShell";
 import type { PreparationRepository } from "../lib/preparationRepository";
 import { useDevice } from "../lib/deviceContext";
 import { WellbeingCheckIn } from "./WellbeingCheckIn";
+import { WearableConnect } from "./WearableConnect";
 import { astronautRecord, initials } from "../data/astronautProfiles";
 import { displayValue, initialsOf, profileGroups, validateProfile, type AstronautProfile } from "../domain/astronautAccount";
 import type { Account } from "../lib/accountRepository";
@@ -81,7 +82,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const action = dataUnavailable ? "Reconnect simulated data" : stale ? "Review data-quality controls" : alert?.nextAction ?? "Keep monitoring and complete the optional wellbeing check-in if something feels different.";
   const actionLabel = dataUnavailable ? "Reconnect data" : stale ? "Review data quality" : alert ? "Take the optional wellbeing check-in" : "Check in with yourself";
   const actionNote = dataUnavailable ? "This demo scenario shows how missing data is handled. Nothing is inferred while the source is offline." : "A short check-in adds context to the signals. Skipping it does not count as feeling well.";
-  const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "How are you doing today?", description: "Use the simulated signals as context for your next small action." };
+  const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "Explore your signals", description: "Hover or focus a green dot to see the body part. Select it to open signals; select again to close. Drag to turn the figure." };
   const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
   if (stage === "retired" && device && !(device.status.hasPaired ?? device.status.paired)) return <div className="page retired-pair-page">
@@ -117,11 +118,11 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <div>
         <p className="page-kicker">{profile.name} · {stageLabel(stage)} · {missionLabel(profile, stage)}</p>
         <h1>{stageContent.title}</h1>
-        <p className="page-lede">{stageContent.description}</p>
+        <p className="page-lede" id={stage === "active" ? "body-viewer-instructions" : undefined}>{stageContent.description}</p>
       </div>
-      <div className="page-meta"><span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
+      <div className="page-meta">{stage === "active" && device?.bodyDevices ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
-    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
+    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} {...(device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
@@ -596,6 +597,8 @@ function LoadingPanel() {
 function DeviceIdleGate({ stage, children }: { stage: LifeStage; children: ReactNode }) {
   const device = useDevice()?.status;
   if (device && device.phase === "idle") {
+    // Active astronauts pair their wearables with "Find devices" in the body overview above.
+    if (stage === "active" && !device.hasPaired) return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">No device paired</h2><p className="mt-2 text-sm leading-6 text-slate-400">Switch on Connect wearables at the top right to pair your Astroskin shirt, Actiwatch, personal dosimeter or motion sensors.</p></div></section>;
     const first = !device.hasPaired;
     return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">{first ? "No device paired" : "Device disconnected"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{first ? "Pair the simulated wearable to see live heart rate, HRV, SpO₂, temperature and radiation context. You can also build a baseline by hand in Guidance." : "Live readings have stopped. Reconnect the simulated wearable to continue."}</p><button type="button" onClick={device.pair} className="btn-square mt-4 inline-flex items-center gap-2 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950"><Watch size={16} aria-hidden="true" />{first ? "Pair simulated wearable" : "Reconnect wearable"}</button></div></section>;
   }
