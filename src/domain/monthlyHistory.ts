@@ -22,6 +22,12 @@ export interface MonthlyHistorySummary {
   personalSummary: string;
 }
 
+export interface MonthlyHistoryWindow {
+  from?: string;
+  to?: string;
+  note?: string;
+}
+
 const METRIC_ORDER: MetricName[] = ["heart_rate", "hrv", "spo2", "sleep_hours", "skin_temperature", "radiation_dose"];
 const round = (value: number, places = 2) => Number(value.toFixed(places));
 const monthLabel = (month: string) => new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`));
@@ -56,8 +62,10 @@ function personalSummary(metrics: MonthlyMetricSummary[], monthQuality: MonthlyQ
 }
 
 /** Aggregates daily synthetic observations without exposing raw readings to the AI layer. */
-export function summarizeMonthlyHistory(observations: Observation[]): MonthlyHistorySummary[] {
-  const ordered = [...observations].sort((a, b) => a.observed_on.localeCompare(b.observed_on) || a.metric.localeCompare(b.metric));
+export function summarizeMonthlyHistory(observations: Observation[], window: MonthlyHistoryWindow = {}): MonthlyHistorySummary[] {
+  const ordered = [...observations]
+    .filter((observation) => (!window.from || observation.observed_on >= window.from) && (!window.to || observation.observed_on <= window.to))
+    .sort((a, b) => a.observed_on.localeCompare(b.observed_on) || a.metric.localeCompare(b.metric));
   const byMonth = new Map<string, Observation[]>();
   for (const observation of ordered) {
     const month = observation.observed_on.slice(0, 7);
