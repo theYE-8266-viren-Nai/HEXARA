@@ -15,7 +15,7 @@ the company that runs the model. Check that model's page on OpenRouter for its d
 
 ## Free models only (the default, so credit can never run out)
 
-The cloud features that use the shared chooser (Explain this pattern and the wellbeing AI feedback; the ORBIT chat when it uses it) share the same secrets and the same guard in
+The cloud features (Explain this pattern, the wellbeing AI feedback and the ORBIT chat) share the same secrets and the same free-only rule from
 `supabase/functions/_shared/providers.ts`:
 
 - A model is allowed only if it is `openrouter/free` or its id ends in `:free`.
