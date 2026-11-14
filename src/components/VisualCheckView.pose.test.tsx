@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,8 +19,9 @@ import { VisualCheckView } from "./VisualCheckView";
 import { createVisualCheckRepository } from "../lib/visualCheckRepository";
 
 const detector = { detect: vi.fn(), close: vi.fn() };
-async function toQualityStep(user: ReturnType<typeof userEvent.setup>) {
-  render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+async function toQualityStep(user: ReturnType<typeof userEvent.setup>, strict = false) {
+  const view = <VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />;
+  render(strict ? <StrictMode>{view}</StrictMode> : view);
   await user.click(screen.getByRole("checkbox", { name: /Allow my camera for this practice/ }));
   await user.click(screen.getByRole("button", { name: "Allow camera and continue" }));
   await screen.findByRole("heading", { name: "Lighting and framing check" });
@@ -97,5 +99,24 @@ describe("Movement check with body tracking", () => {
     await start(user);
     await waitFor(() => expect(camera.capturePose).toHaveBeenCalled(), { timeout: 6000 });
     expect(camera.capturePose.mock.calls[0][3]).toBeUndefined();
+  }, 20_000);
+
+  // The dev server (src/main.tsx) wraps the app in StrictMode, which mounts, unmounts and mounts every component again.
+  // A one-way "cancelled" flag used to stay set after that, so the quality check and the tracker result were thrown away.
+  it("still finishes the quality check and the body-tracking load under StrictMode, as in the dev server", async () => {
+    const user = userEvent.setup();
+    await toQualityStep(user, true);
+    expect(await screen.findByText(/Body tracking is ready/)).toBeInTheDocument();
+    expect(await screen.findByText(/Camera quality:/)).toBeInTheDocument();
+    expect(screen.queryByText("Body tracking is loading…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Checking the camera image…")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: /Start sit-to-stand or squat/i })).toBeEnabled(), { timeout: 4000 });
+  });
+
+  it("still captures and shows a result under StrictMode", async () => {
+    const user = userEvent.setup();
+    await toQualityStep(user, true);
+    await finish(user);
+    expect(screen.getByText("You completed 8 repetitions.")).toBeInTheDocument();
   }, 20_000);
 });
