@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Camera, CameraOff, Check, ClipboardList, Copy, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  VISUAL_CHECK_DISCLAIMER, VISUAL_CHECK_TASKS, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, ownerKeyFor, taskFor,
-  type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckType, type VisualWorkflow,
+  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, ownerKeyFor, taskFor, taskInstructions, tasksForStage,
+  type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckTask, type VisualCheckType,
 } from "../domain/visualCheck";
 import { cameraSupported, useCameraMotion } from "../lib/useCameraMotion";
 import { loadPoseDetector, type PoseDetector } from "../lib/poseLandmarker";
@@ -15,16 +15,10 @@ type Step = "intro" | "quality" | "countdown" | "capture" | "context" | "result"
 type Mode = "camera" | "synthetic";
 const panelClass = "tech-card p-5 sm:p-6";
 
-const workflowLabels: Record<VisualWorkflow, { title: string; body: string }> = {
-  movement_exercise: { title: "Movement and exercise", body: "Practise exercise form and track your own consistency." },
-  sensorimotor: { title: "Sensorimotor adaptation", body: "Practise balance and reach as a training observation." },
-  recovery_context: { title: "Recovery and fatigue context", body: "Your sleep, stress, and energy are added after each check." },
-};
-
-const stageCopy: Record<LifeStage, { eyebrow: string; title: string; body: string }> = {
-  future: { eyebrow: "Movement check · Future traveler", title: "Practise before you fly", body: "Build a personal practice history now so later sessions have something to compare against." },
-  active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent", body: "Use short guided movements to support exercise routines and the first days of adaptation." },
-  retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", body: "Compare today's practice with your own earlier sessions after returning." },
+/** Movement checks are offered to astronauts in space and to retired astronauts back on Earth. */
+const stageCopy: Record<"active" | "retired", { eyebrow: string; title: string; note?: string }> = {
+  active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent" },
+  retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", note: "Practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };
 
 const emptyContext: UserReportedContext = { discomfort: "none", symptoms: "" };
@@ -48,7 +42,8 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   const [step, setStep] = useState<Step>("intro");
   const [mode, setMode] = useState<Mode>(cameraSupported() ? "camera" : "synthetic");
   const [consent, setConsent] = useState(false);
-  const [taskType, setTaskType] = useState<VisualCheckType>("sit_to_stand");
+  const tasks = tasksForStage(stage);
+  const [taskType, setTaskType] = useState<VisualCheckType>(tasks[0]?.type ?? "shoulder_mobility");
   const [quality, setQuality] = useState<{ quality: CameraQuality; notes: string[] } | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [remaining, setRemaining] = useState(0);
@@ -65,6 +60,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   useEffect(() => () => { cancelled.current = true; }, []);
 
   const task = taskFor(taskType);
+  const instructions = taskInstructions(task, stage);
   const ownHistory = useMemo(() => history.filter((check) => check.ownerKey === ownerKey), [history, ownerKey]);
 
   const reset = () => { camera.stop(); setPose("idle"); setStep("intro"); setQuality(null); setFeatures(null); setResult(null); setContext(emptyContext); };
@@ -125,12 +121,17 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     setStep("result");
   };
 
-  const copy = stageCopy[stage];
+  // Movement is not offered to Future travelers. The view is never routed to them, but fail safe if it is ever rendered.
+  if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">Movement checks are not part of this stage</h1><p className="mt-2 text-sm leading-6 text-slate-400">They are offered to astronauts in space and to retired astronauts doing reconditioning practice.</p></section>;
+  const copy = stageCopy[stage === "retired" ? "retired" : "active"];
   return <div className="space-y-7">
-    <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">{copy.body}</p></header>
-    <p role="note" className="max-w-3xl rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">{VISUAL_CHECK_DISCLAIMER}</p>
+    <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1></header>
+    <div className="max-w-2xl space-y-1 text-xs leading-5">
+      <p role="note" className="flex items-start gap-2 text-amber-100"><Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{VISUAL_CHECK_DISCLAIMER}</p>
+      {copy.note ? <p className="pl-6 text-slate-400">{copy.note}</p> : null}
+    </div>
 
-    {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} onBegin={() => void begin()} camera={camera} /> : null}
+    {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} tasks={tasks} stage={stage} onBegin={() => void begin()} camera={camera} /> : null}
 
     {/* The preview element must exist while the camera runs; it is hidden outside camera steps. */}
     <div className={mode === "camera" && (step === "quality" || step === "countdown" || step === "capture") ? "max-w-3xl" : "hidden"}>
@@ -144,7 +145,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
 
     {step === "quality" ? <section className={`${panelClass} max-w-3xl`} aria-labelledby="quality-title">
       <h2 id="quality-title" className="text-xl font-semibold text-white">Lighting and framing check</h2>
-      <p className="mt-2 text-sm text-slate-400">Stand so your whole body fits inside the dashed frame, about two metres from the camera.</p>
+      <p className="mt-2 text-sm text-slate-400">{stage === "active" ? "Anchor yourself so your arms and upper body fit inside the dashed frame, about two metres from the camera." : "Stand so your whole body fits inside the dashed frame, about two metres from the camera."}</p>
       {quality ? <div className="mt-4 space-y-3" role="status">
         <p className="font-semibold text-white">Camera quality: <span className={quality.quality === "good" ? "text-emerald-200" : quality.quality === "limited" ? "text-amber-100" : "text-rose-100"}>{quality.quality}</span></p>
         {quality.notes.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">{quality.notes.map((note) => <li key={note}>{note}</li>)}</ul> : <p className="text-sm text-slate-300">Lighting and contrast look usable.</p>}
@@ -160,13 +161,13 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     </section> : null}
 
     {step === "countdown" ? <section className={`${panelClass} max-w-3xl text-center`} aria-live="assertive">
-      <p className="text-sm text-slate-400">{task.instructions}</p>
+      <p className="text-sm text-slate-400">{instructions}</p>
       <p className={`mono-data mt-4 text-7xl font-semibold text-cyan-200 ${reducedMotion ? "" : "animate-pulse"}`} aria-label={`Starting in ${countdown}`}>{Math.max(countdown, 1)}</p>
     </section> : null}
 
     {step === "capture" ? <section className={`${panelClass} max-w-3xl`} aria-live="polite">
       <h2 className="text-xl font-semibold text-white">{task.label}</h2>
-      <p className="mt-2 text-slate-300">{task.instructions}</p>
+      <p className="mt-2 text-slate-300">{instructions}</p>
       <p className="mono-data mt-4 text-4xl text-cyan-200">{remaining}s remaining</p>
       <p className="mt-2 text-sm text-slate-400">Stop at any time if you feel pain or unsteady.</p>
       <SecondaryButton className="mt-4" onClick={reset}>Stop</SecondaryButton>
@@ -180,39 +181,46 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   </div>;
 }
 
-function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onTaskChange, onBegin, camera }: { mode: Mode; onModeChange: (mode: Mode) => void; consent: boolean; onConsentChange: (value: boolean) => void; taskType: VisualCheckType; onTaskChange: (type: VisualCheckType) => void; onBegin: () => void; camera: ReturnType<typeof useCameraMotion> }) {
+function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onTaskChange, tasks, stage, onBegin, camera }: { tasks: VisualCheckTask[]; stage: LifeStage; mode: Mode; onModeChange: (mode: Mode) => void; consent: boolean; onConsentChange: (value: boolean) => void; taskType: VisualCheckType; onTaskChange: (type: VisualCheckType) => void; onBegin: () => void; camera: ReturnType<typeof useCameraMotion> }) {
   const supported = cameraSupported();
   const blocked = camera.status === "denied" || camera.status === "unavailable" || camera.status === "error";
-  return <div className="grid gap-5 lg:grid-cols-2">
-    <section className={panelClass} aria-labelledby="privacy-title">
-      <div className="flex items-start gap-3"><LockKeyhole className="mt-1 shrink-0 text-cyan-200" aria-hidden="true" /><div>
-        <h2 id="privacy-title" className="text-xl font-semibold text-white">Camera privacy and limits</h2>
-        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
-          <li>Video is processed on this device and never recorded or uploaded.</li>
-          <li>Only derived numbers — repetitions, timing, left/right balance, joint-angle ranges, pauses, and camera quality — are kept.</li>
-          <li>Results are compared only with your own previous practice. There is no “normal astronaut” score.</li>
-          <li>The camera cannot assess bone, vision, blood flow, radiation effects, or any medical condition.</li>
-          <li>If you have pain or severe or worsening symptoms, contact the crew medic instead of using this check.</li>
-        </ul>
-      </div></div>
-      <fieldset className="mt-5"><legend className="text-sm font-semibold text-slate-200">Mode</legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <ModeOption checked={mode === "camera"} disabled={!supported} onChange={() => onModeChange("camera")} icon={<Camera size={16} aria-hidden="true" />} label="Use my camera" hint={supported ? "Local processing only" : "Not available in this browser"} />
-          <ModeOption checked={mode === "synthetic"} onChange={() => onModeChange("synthetic")} icon={<Sparkles size={16} aria-hidden="true" />} label="Synthetic demo" hint="Generated, clearly labelled results" />
-        </div>
-      </fieldset>
-      {mode === "camera" ? <label className="mt-4 flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" className="mt-1 size-4" checked={consent} onChange={(event) => onConsentChange(event.target.checked)} />I understand the camera is used locally for this practice only and I choose to allow it.</label> : null}
-      {blocked ? <div role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-slate-500/40 bg-slate-800/40 p-4 text-sm text-slate-200"><CameraOff className="shrink-0" size={18} aria-hidden="true" /><div><p className="font-semibold">{camera.error}</p><p className="mt-1 text-slate-400">You can allow the camera in your browser settings and try again, or continue with the synthetic demo.</p><SecondaryButton className="mt-3" onClick={() => onModeChange("synthetic")}>Use synthetic demo</SecondaryButton></div></div> : null}
-    </section>
-    <section className={panelClass} aria-labelledby="task-title">
-      <h2 id="task-title" className="text-xl font-semibold text-white">Choose a practice task</h2>
-      {(["movement_exercise", "sensorimotor"] as VisualWorkflow[]).map((workflow) => <fieldset key={workflow} className="mt-4"><legend className="text-sm font-semibold text-slate-200">{workflowLabels[workflow].title}</legend><p className="text-xs text-slate-500">{workflowLabels[workflow].body}</p>
-        <div className="mt-2 space-y-2">{VISUAL_CHECK_TASKS.filter((task) => task.workflow === workflow).map((task) => <label key={task.type} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${taskType === task.type ? "border-cyan-200/70 bg-[#123047]" : "border-[#293d59]"}`}><input type="radio" name="visual-task" className="mt-1" checked={taskType === task.type} onChange={() => onTaskChange(task.type)} /><span><span className="font-semibold text-white">{task.label}</span><span className="block text-slate-400">{task.instructions} About {task.durationSeconds} s.</span></span></label>)}</div>
-      </fieldset>)}
-      <p className="mt-4 text-xs text-slate-500">{workflowLabels.recovery_context.title}: {workflowLabels.recovery_context.body}</p>
-      <PrimaryButton className="mt-5" disabled={mode === "camera" && (!consent || camera.status === "requesting")} onClick={onBegin}>{mode === "camera" ? <Camera size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}{mode === "camera" ? (camera.status === "requesting" ? "Waiting for camera permission…" : "Allow camera and continue") : "Run synthetic demo"}</PrimaryButton>
-    </section>
-  </div>;
+  return <section className={`${panelClass} max-w-2xl space-y-6`} aria-label="Start a movement check">
+    <fieldset>
+      <legend className="text-sm font-semibold text-slate-200">Practice task</legend>
+      <div className="mt-3 space-y-2">{tasks.map((task) => {
+        const selected = taskType === task.type;
+        return <label key={task.type} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition ${selected ? "border-cyan-400/70 bg-cyan-400/15" : "border-[#293d59] hover:border-cyan-200/40"}`}>
+          <input type="radio" name="visual-task" className="mt-1" checked={selected} onChange={() => onTaskChange(task.type)} />
+          <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-3"><span className="font-semibold text-white">{task.label}</span><span className="shrink-0 font-mono text-xs text-slate-400">{task.durationSeconds} s</span></span>
+            {selected ? <span className="mt-1 block text-slate-400">{taskInstructions(task, stage)}</span> : null}</span>
+        </label>;
+      })}</div>
+    </fieldset>
+
+    <fieldset>
+      <legend className="sr-only">Mode</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <ModeOption checked={mode === "camera"} disabled={!supported} onChange={() => onModeChange("camera")} icon={<Camera size={16} aria-hidden="true" />} label="Use my camera" hint={supported ? undefined : "Not available in this browser"} />
+        <ModeOption checked={mode === "synthetic"} onChange={() => onModeChange("synthetic")} icon={<Sparkles size={16} aria-hidden="true" />} label="Synthetic demo" hint="No camera needed" />
+      </div>
+    </fieldset>
+
+    {mode === "camera" ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" className="mt-1 size-4" checked={consent} onChange={(event) => onConsentChange(event.target.checked)} />Allow my camera for this practice. Video stays on this device.</label> : null}
+    {blocked ? <div role="alert" className="flex items-start gap-3 rounded-xl border border-slate-500/40 bg-slate-800/40 p-4 text-sm text-slate-200"><CameraOff className="shrink-0" size={18} aria-hidden="true" /><div><p className="font-semibold">{camera.error}</p><p className="mt-1 text-slate-400">Allow the camera in your browser settings and try again, or use the synthetic demo.</p><SecondaryButton className="mt-3" onClick={() => onModeChange("synthetic")}>Use synthetic demo</SecondaryButton></div></div> : null}
+
+    <PrimaryButton disabled={mode === "camera" && (!consent || camera.status === "requesting")} onClick={onBegin}>{mode === "camera" ? <Camera size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}{mode === "camera" ? (camera.status === "requesting" ? "Waiting for camera permission…" : "Allow camera and continue") : "Run synthetic demo"}</PrimaryButton>
+
+    <details className="group border-t border-slate-700/50 pt-4 text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-slate-300 hover:text-white"><LockKeyhole size={15} className="text-cyan-200" aria-hidden="true" />Privacy and limits</summary>
+      <ul className="mt-3 list-disc space-y-1.5 pl-6 leading-6 text-slate-400">
+        <li>Video is processed on this device and never recorded or uploaded.</li>
+        <li>Only derived numbers are kept: repetitions, timing, left/right balance, joint-angle ranges, pauses and camera quality.</li>
+        <li>Results are compared only with your own earlier practice. There is no “normal astronaut” score.</li>
+        <li>The camera cannot assess bone, vision, blood flow, radiation effects or any medical condition.</li>
+        <li>With pain or severe or worsening symptoms, contact the crew medic instead of using this check.</li>
+      </ul>
+    </details>
+  </section>;
 }
 
 function ContextStep({ context, onChange, onSubmit, synthetic }: { context: UserReportedContext; onChange: (context: UserReportedContext) => void; onSubmit: () => void; synthetic: boolean }) {
@@ -290,8 +298,8 @@ function HistoryPanel({ history }: { history: VisualCheck[] }) {
   </section>;
 }
 
-function ModeOption({ checked, disabled, onChange, icon, label, hint }: { checked: boolean; disabled?: boolean; onChange: () => void; icon: ReactNode; label: string; hint: string }) {
-  return <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${checked ? "border-cyan-200/70 bg-[#123047]" : "border-[#293d59]"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}><input type="radio" name="visual-mode" className="mt-1" checked={checked} disabled={disabled} onChange={onChange} /><span><span className="flex items-center gap-2 font-semibold text-white">{icon}{label}</span><span className="block text-slate-400">{hint}</span></span></label>;
+function ModeOption({ checked, disabled, onChange, icon, label, hint }: { checked: boolean; disabled?: boolean; onChange: () => void; icon: ReactNode; label: string; hint?: string }) {
+  return <label className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${checked ? "border-cyan-400/70 bg-cyan-400/15" : "border-[#293d59]"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}><input type="radio" name="visual-mode" checked={checked} disabled={disabled} onChange={onChange} /><span className="min-w-0"><span className="flex items-center gap-2 font-semibold text-white">{icon}{label}</span>{hint ? <span className="block text-xs text-slate-400">{hint}</span> : null}</span></label>;
 }
 
 function PrimaryButton({ children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {

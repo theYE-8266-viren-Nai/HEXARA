@@ -19,8 +19,8 @@ import { createVisualCheckRepository } from "../lib/visualCheckRepository";
 
 const detector = { detect: vi.fn(), close: vi.fn() };
 async function toQualityStep(user: ReturnType<typeof userEvent.setup>) {
-  render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
-  await user.click(screen.getByRole("checkbox", { name: /choose to allow it/ }));
+  render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+  await user.click(screen.getByRole("checkbox", { name: /Allow my camera for this practice/ }));
   await user.click(screen.getByRole("button", { name: "Allow camera and continue" }));
   await screen.findByRole("heading", { name: "Lighting and framing check" });
 }
