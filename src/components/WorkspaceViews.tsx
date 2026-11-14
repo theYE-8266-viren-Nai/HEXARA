@@ -41,7 +41,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   return <main className="onboarding landing-space">
     <LandingScene />
     <div className="onboarding-container landing-content">
-      <header className="onboarding-topbar landing-topbar"><Brand /><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span></div></header>
+      <header className="onboarding-topbar landing-topbar"><Brand /></header>
       <div className="landing-hero">
         <section className="landing-copy" aria-labelledby="journey-title">
           <p className="landing-eyebrow landing-rise"><span className="landing-live-dot" /> Health companion for astronauts</p>
