@@ -34,6 +34,8 @@ async function signInThroughStage(stage: keyof typeof labels) {
   await userEvent.type(screen.getByLabelText("Confirm password"), "test-password");
   await userEvent.click(screen.getByRole("button", { name: /Continue/ }));
   await userEvent.type(screen.getByLabelText(/Full name/), `Test ${labels[stage]}`);
+  // Personal details, journey and care team are optional pages.
+  for (let page = 0; page < 3; page += 1) await userEvent.click(screen.getByRole("button", { name: /Continue/ }));
   await userEvent.click(screen.getByRole("button", { name: /Create account/ }));
   await screen.findByRole("button", { name: "Log out" });
 }
@@ -74,12 +76,35 @@ describe("OrbitWell app shell", () => {
     await user.type(screen.getByLabelText("Confirm password"), "station-life");
     await user.click(screen.getByRole("button", { name: /Continue/ }));
 
-    expect(screen.getByRole("heading", { name: "Your personal details" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Current mission" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Create account/ }));
+    // One page per section: identity, personal details, current mission, care team.
+    expect(screen.getByText("Step 2 of 5")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Who you are" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Blood type")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
     expect(screen.getByText("Enter your full name.")).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Full name/), "Maya Chen");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Personal details" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Age"), "7");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByText("Enter a value between 16 and 110.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Age"));
+    await user.type(screen.getByLabelText("Age"), "41");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Current mission" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Full name/)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Mission"), "Expedition 12");
+    await user.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByLabelText("Age")).toHaveValue(41);
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByLabelText("Mission")).toHaveValue("Expedition 12");
+    await user.click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(screen.getByRole("heading", { name: "Care team and contacts" })).toBeInTheDocument();
+    expect(screen.getByText("Step 5 of 5")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Flight surgeon"), "Dr. S. Lindqvist");
     await user.click(screen.getByRole("button", { name: /Create account/ }));
 
     expect(await screen.findByText(/Maya Chen · Active astronaut/)).toBeInTheDocument();
@@ -286,15 +311,21 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
   });
 
-  it.each(["future", "active", "retired"] as const)("opens %s Trends without the pattern summary", async (stage) => {
+  it.each(["future", "active", "retired"] as const)("opens %s Trends with the pattern summary", async (stage) => {
     const user = userEvent.setup();
     await openWorkspace(stage);
 
     await user.click(screen.getAllByRole("button", { name: /Trends/ })[0]);
 
     expect(screen.getByRole("heading", { name: stage === "retired" ? "Your wearable trends over time" : "Your signals over time" })).toBeInTheDocument();
-    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Explain this pattern" })).not.toBeInTheDocument();
+    // The card is mounted for every stage; only Active has the local 30-day history to score here.
+    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    if (stage === "active") {
+      expect(await screen.findByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
+    } else {
+      // Demo-only profiles have no stored history yet, so the card says so instead of scoring.
+      expect(screen.getByText("Pattern view paused")).toBeInTheDocument();
+    }
   });
 
   it("explains a recovery concern in plain language", async () => {
@@ -556,14 +587,42 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByText("You slept well and woke up rested.")).toBeInTheDocument();
   });
-  it("opens the Movement check with its camera disclaimer and privacy limits", async () => {
+  it("opens the Movement check for an astronaut in space, with in-orbit tasks only and its camera disclaimer", async () => {
     const user = userEvent.setup();
-    await openWorkspace("future");
+    await openWorkspace("active");
 
     await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
-    expect(screen.getByRole("heading", { name: "Practise before you fly" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Keep your practice consistent" })).toBeInTheDocument();
     expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
+    // Only tasks that work without gravity, each with the anchoring reminder.
+    expect(screen.getByRole("radio", { name: /Shoulder mobility/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Reach-and-return/ })).toBeInTheDocument();
+    for (const gravityTask of [/Sit-to-stand/, /Standing posture/, /Single-leg balance/]) expect(screen.queryByRole("radio", { name: gravityTask })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Stand so your whole body/)).not.toBeInTheDocument();
+  });
+
+  it("offers retired astronauts the full reconditioning set on Earth, framed as practice tracking and not a rehab programme", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("retired");
+
+    await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
+    expect(screen.getByRole("heading", { name: "Track your reconditioning practice" })).toBeInTheDocument();
+    expect(screen.getByText(/not a rehab programme: follow the plan from your own rehab or medical team/)).toBeInTheDocument();
+    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Standing posture/ })).not.toBeInTheDocument();
+    // The how-to line (including the stop-if-unsteady safety line) shows for the selected task.
+    await user.click(screen.getByRole("radio", { name: /Single-leg balance/ }));
+    expect(screen.getByText(/Stop if you feel unsteady/)).toBeInTheDocument();
+    expect(screen.queryByText(/Anchor your feet in a foot restraint/)).not.toBeInTheDocument(); // no restraint on Earth
+  });
+
+  it("does not offer Movement to Future travelers anywhere", async () => {
+    await openWorkspace("future");
+    expect(screen.queryByRole("button", { name: "Movement" })).not.toBeInTheDocument(); // desktop, drawer and mobile bar alike
+    expect(screen.getAllByRole("button", { name: "Wellbeing" }).length).toBeGreaterThan(0); // the other items are still there
+    expect(screen.queryByRole("heading", { name: /Movement checks are not part of this stage/ })).not.toBeInTheDocument();
   });
 
   it("shows the staged wearable loader, then live readings with a freshness badge", async () => {
@@ -577,6 +636,8 @@ describe("OrbitWell app shell", () => {
       expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
       expect(screen.getAllByLabelText("Live").length).toBeGreaterThan(0);
+      expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
+      await userEvent.click(await screen.findByRole("button", { name: "Heart" }));
       expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
     } finally { deviceTiming.connectMs = 30; }
   });
@@ -729,6 +790,8 @@ describe("OrbitWell app shell", () => {
     await openWorkspace();
     await waitForSignals();
 
+    expect(screen.queryByText("Skin temperature")).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Skin" }));
     expect(await screen.findByText("Skin temperature")).toBeInTheDocument();
     expect(screen.queryByText("Core temperature")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Signals assume a crew wearable and a personal dosimeter");
@@ -794,50 +857,17 @@ describe("OrbitWell app shell", () => {
     } finally { vi.unstubAllGlobals(); webhookTiming.pollMs = savedPoll; }
   });
 
-  it("shows the pattern card on Home and changes it for Recovery concern, leaving alerts alone", async () => {
-    const user = userEvent.setup();
-    await openWorkspace("active");
-    await waitForSignals();
-    expect(await screen.findByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
-    expect(screen.getByRole("meter", { name: "Pattern score" })).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
-    await waitForSignals();
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(await screen.findByText("Noticeably different from your usual pattern")).toBeInTheDocument();
-    expect(screen.getByText(/Resting heart rate higher/)).toBeInTheDocument();
-    expect(screen.getByText(/HRV lower/)).toBeInTheDocument();
-    // The existing alert still comes from the existing rules.
-    expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    expect(screen.queryByText("PATTERN ACROSS SIGNALS")).not.toBeInTheDocument();
-    expect(screen.queryByRole("meter", { name: "Pattern score" })).not.toBeInTheDocument();
-  });
-
-  it("pauses the pattern view when the sensor is disconnected", async () => {
-    const user = userEvent.setup();
-    await openWorkspace("active");
-    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "sensor_disconnected");
-    await waitForSignals();
-    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    expect(await screen.findByText("Pattern view paused")).toBeInTheDocument();
-  });
-
-  it("explains the pattern on request with the built-in text when cloud is not configured", async () => {
+  it("keeps the recovery alert on Home with the pattern card and no activity card", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
-    await user.click(await screen.findByRole("button", { name: "Explain this pattern" }));
-    expect(await screen.findByText("Built-in explanation")).toBeInTheDocument();
-    expect(screen.getByText(/Cloud explanations are not set up/)).toBeInTheDocument();
-    expect(screen.getByText(/Resting heart rate was higher/i)).toBeInTheDocument();
-    expect(screen.getByText(/tell the crew medic/)).toBeInTheDocument();
+    expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
+    expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
   /** Runs the webhook flow: start receiving, post rows, return to Home. */

@@ -80,9 +80,32 @@ function stageName(stage: LifeStage): string {
   return STAGE_CHOICES.find((item) => item.stage === stage)!.title;
 }
 
+type SignupStep = "account" | "identity" | ProfileGroup["id"];
+
+const JOURNEY_LEDE: Record<LifeStage, string> = {
+  future: "Where you are in astronaut training. Skip anything that doesn't apply yet.",
+  active: "Details of the mission you're on now.",
+  retired: "A short summary of your time in space.",
+};
+
+function stepCopy(step: SignupStep, stage: LifeStage): { title: string; lede: string } {
+  switch (step) {
+    case "account": return { title: "Create your account", lede: `Each ${stageName(stage).toLowerCase()} has their own account and private profile.` };
+    case "identity": return { title: "Who you are", lede: "Your full name is the only required detail. You can edit everything later on your Profile page." };
+    case "personal": return { title: "Personal details", lede: "Basic details your care team may ask for. Leave out anything you'd rather not share." };
+    case "journey": return { title: profileGroups(stage)[1].title, lede: JOURNEY_LEDE[stage] };
+    case "careTeam": return { title: "Care team and contacts", lede: "The people who support you. They're shown for your reference; OrbitWell never contacts them." };
+  }
+}
+
+/** Only the errors that belong to one step, so each page can be checked before moving on. */
+function errorsForStep(step: SignupStep, errors: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(errors).filter(([key]) => step === "identity" ? !key.includes(".") : key.startsWith(`${step}.`)));
+}
+
 function SignupFlow({ stage, repository, account, onDone, onLogin }: { stage: LifeStage; repository: AccountRepository; account: Account | null; onDone: (account: Account) => void; onLogin: () => void }) {
   const completing = Boolean(account);
-  const steps = completing ? ["details"] as const : ["account", "details"] as const;
+  const steps: SignupStep[] = completing ? ["identity", "personal", "journey", "careTeam"] : ["account", "identity", "personal", "journey", "careTeam"];
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -93,18 +116,31 @@ function SignupFlow({ stage, repository, account, onDone, onLogin }: { stage: Li
   const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState(false);
   const current = steps[step];
+  const last = step === steps.length - 1;
+  const copy = stepCopy(current, stage);
 
   const next = () => {
     setError(undefined);
-    const invalid = checkCredentials(email, password) ?? (password !== confirm ? "The passwords don't match." : undefined);
-    if (invalid) { setError(invalid); return; }
+    if (current === "account") {
+      const invalid = checkCredentials(email, password) ?? (password !== confirm ? "The passwords don't match." : undefined);
+      if (invalid) { setError(invalid); return; }
+    } else {
+      const found = errorsForStep(current, validateProfile(profile));
+      setErrors(found);
+      if (Object.keys(found).length) { setError("Check the highlighted fields."); return; }
+    }
     setStep((value) => value + 1);
   };
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
     const found = validateProfile(profile);
     setErrors(found);
-    if (Object.keys(found).length) { setError("Check the highlighted fields."); return; }
+    if (Object.keys(found).length) {
+      // Send the person back to the first page with a problem.
+      const firstBad = steps.findIndex((item) => item !== "account" && Object.keys(errorsForStep(item, found)).length);
+      if (firstBad >= 0) setStep(firstBad);
+      setError("Check the highlighted fields.");
+      return;
+    }
     setBusy(true); setError(undefined);
     const result = account ? await repository.saveProfile(account, profile) : await repository.signUp(email, password, profile);
     setBusy(false);
@@ -115,25 +151,26 @@ function SignupFlow({ stage, repository, account, onDone, onLogin }: { stage: Li
 
   if (notice) return <section className="tech-card account-card" role="status"><h1>Almost there</h1><p className="page-lede">{notice}</p><button type="button" className="btn-primary" onClick={onLogin}>Go to log in</button></section>;
 
-  return <section className="tech-card account-card account-card-wide" aria-labelledby="signup-title">
-    {steps.length > 1 ? <p className="checkin-count">Step {step + 1} of {steps.length}</p> : null}
-    <h1 id="signup-title">{current === "account" ? "Create your account" : "Your personal details"}</h1>
-    <p className="page-lede">{current === "account" ? `Each ${stageName(stage).toLowerCase()} has their own account and private profile.` : "These appear on your Profile page. Only your name is required, and you can edit everything later."}</p>
-    <form className="account-form" onSubmit={current === "details" ? submit : (event) => { event.preventDefault(); next(); }} noValidate>
+  return <section className="tech-card account-card account-card-step" aria-labelledby="signup-title">
+    <div className="checkin-progress" aria-hidden="true"><span style={{ width: `${Math.round(((step + 1) / steps.length) * 100)}%` }} /></div>
+    <p className="checkin-count">Step {step + 1} of {steps.length}</p>
+    <h1 id="signup-title">{copy.title}</h1>
+    <p className="page-lede">{copy.lede}</p>
+    <form className="account-form" onSubmit={(event) => { event.preventDefault(); if (last) void submit(); else next(); }} noValidate>
       {current === "account" ? <>
         <TextField id="signup-email" label="Email" type="email" autoComplete="email" value={email} onChange={setEmail} />
         <TextField id="signup-password" label="Password" type="password" autoComplete="new-password" hint="At least 8 characters" value={password} onChange={setPassword} />
         <TextField id="signup-confirm" label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={setConfirm} />
-      </> : <ProfileFields profile={profile} onChange={setProfile} errors={errors} />}
+      </> : <ProfileFields key={current} profile={profile} onChange={setProfile} errors={errors} sections={[current]} />}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <div className="account-nav">
         {step > 0 ? <button type="button" className="btn-secondary" onClick={() => { setError(undefined); setStep((value) => value - 1); }}><ArrowLeft size={15} aria-hidden="true" /> Back</button> : <span />}
-        {current === "details"
+        {last
           ? <button type="submit" className="btn-primary" disabled={busy}><UserPlus size={16} aria-hidden="true" />{busy ? "Saving…" : completing ? "Save profile" : "Create account"}</button>
           : <button type="submit" className="btn-primary">Continue <ArrowRight size={15} aria-hidden="true" /></button>}
       </div>
     </form>
-    {!completing ? <p className="account-switch">Already have an account? <button type="button" className="btn-link" onClick={onLogin}>Log in</button></p> : null}
+    {!completing && step === 0 ? <p className="account-switch">Already have an account? <button type="button" className="btn-link" onClick={onLogin}>Log in</button></p> : null}
   </section>;
 }
 
@@ -149,25 +186,32 @@ export function StagePicker({ value, onChange }: { value: LifeStage | null; onCh
 }
 
 /** Identity fields plus the stage's personal, journey and care-team groups. Used for sign-up and editing. */
-export function ProfileFields({ profile, onChange, errors, showStage = false }: { profile: AstronautProfile; onChange: (profile: AstronautProfile) => void; errors: Record<string, string>; showStage?: boolean }) {
+/**
+ * Identity plus the stage's personal, journey and care-team groups. Sign-up shows one section per page
+ * (`sections`); the edit form shows them all.
+ */
+export function ProfileFields({ profile, onChange, errors, showStage = false, sections }: { profile: AstronautProfile; onChange: (profile: AstronautProfile) => void; errors: Record<string, string>; showStage?: boolean; sections?: Array<"identity" | ProfileGroup["id"]> }) {
   const setGroup = (group: ProfileGroup["id"], key: string, value: string) => onChange({ ...profile, [group]: { ...profile[group], [key]: value } });
+  const shows = (section: "identity" | ProfileGroup["id"]) => !sections || sections.includes(section);
+  const single = Boolean(sections && sections.length === 1);
   return <div className="profile-fields">
     {showStage ? <FormSection title="Mission stage"><StagePicker value={profile.stage} onChange={(stage) => onChange({ ...profile, stage })} /></FormSection> : null}
-    <FormSection title="Identity">
+    {shows("identity") ? <FormSection title="Identity" hideTitle={single}>
       <div className="field-grid">
         <TextField id="profile-fullName" label="Full name" required value={profile.fullName} onChange={(value) => onChange({ ...profile, fullName: value })} error={errors.fullName} />
         <TextField id="profile-callSign" label="Call sign" value={profile.callSign} onChange={(value) => onChange({ ...profile, callSign: value })} error={errors.callSign} />
         <TextField id="profile-agency" label="Agency" value={profile.agency} onChange={(value) => onChange({ ...profile, agency: value })} />
       </div>
-    </FormSection>
-    {profileGroups(profile.stage).map((group) => <FormSection key={group.id} title={group.title}>
+    </FormSection> : null}
+    {profileGroups(profile.stage).filter((group) => shows(group.id)).map((group) => <FormSection key={group.id} title={group.title} hideTitle={single}>
       <div className="field-grid">{group.fields.map((field) => <ProfileInput key={field.key} id={`profile-${group.id}-${field.key}`} field={field} value={profile[group.id][field.key] ?? ""} error={errors[`${group.id}.${field.key}`]} onChange={(value) => setGroup(group.id, field.key, value)} />)}</div>
     </FormSection>)}
   </div>;
 }
 
-function FormSection({ title, children }: { title: string; children: ReactNode }) {
-  return <fieldset className="form-section"><legend>{title}</legend>{children}</fieldset>;
+function FormSection({ title, children, hideTitle = false }: { title: string; children: ReactNode; hideTitle?: boolean }) {
+  // On a one-section page the page heading already names it, so the legend is kept for screen readers only.
+  return <fieldset className="form-section"><legend className={hideTitle ? "sr-only" : undefined}>{title}</legend>{children}</fieldset>;
 }
 
 function ProfileInput({ id, field, value, error, onChange }: { id: string; field: ProfileField; value: string; error?: string; onChange: (value: string) => void }) {

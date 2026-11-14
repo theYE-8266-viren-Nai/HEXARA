@@ -95,3 +95,12 @@ export function getEmergencySupport(message: string, previousTopic?: EmergencyTo
   if (topic === "glucose") return result(GLUCOSE_GUIDANCE);
   return result(`${EMERGENCY_GUIDANCE}\n${item.detail}\nI cannot diagnose. No one has been contacted.`);
 }
+
+/** Educational NASA questions may contain hazard words without reporting an active emergency. */
+export function getUrgentSupport(message: string, previousTopic?: EmergencyTopic): EmergencySupport | undefined {
+  if (previousTopic) return getEmergencySupport(message, previousTopic);
+  const text = normalize(message);
+  const educationalQuestion = /^(what|why|how|when|where|which|does|do|is|are|can|could|would|explain|tell me about)\b/.test(text)
+    && /\b(nasa|space|spaceflight|astronaut|spacecraft|mission|iss|microgravity|radiation|orbit|lunar|mars)\b/.test(text);
+  return educationalQuestion ? undefined : getEmergencySupport(message);
+}

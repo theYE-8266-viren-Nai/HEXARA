@@ -4,7 +4,7 @@ import { cleanProfile, displayValue, emptyProfile, missionDayFrom, profileGroups
 describe("astronaut profile", () => {
   it("gives each stage its own journey and care-team sections", () => {
     expect(profileGroups("future").map((group) => group.title)).toEqual(["Personal details", "Training", "Care team and contacts"]);
-    expect(profileGroups("active")[1].fields.map((field) => field.key)).toContain("launchDate");
+    expect(profileGroups("active")[1].fields.map((field) => field.key)).toEqual(["mission", "role", "launchDate", "plannedReturn", "exercisePlan"]);
     expect(profileGroups("retired")[2].fields.map((field) => field.label)).toContain("Primary doctor");
   });
 

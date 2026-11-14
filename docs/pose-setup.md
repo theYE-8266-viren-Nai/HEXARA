@@ -31,7 +31,7 @@ npm run setup:pose
 npm run setup:pose -- --yes
 ```
 
-3. Start the app (`npm run dev`), open Movement, choose your camera, and continue. You should see
+3. Start the app (`npm run dev`), choose the **Active astronaut** or **Retired astronaut** stage (Movement is not offered to Future travelers), open Movement, choose your camera, and continue. Active offers shoulder mobility and reach-and-return; Retired offers all five tasks. You should see
    "Body tracking is ready". If you see "Body tracking is not available here", the files are missing or could not load
    and the motion-based check is used instead.
 

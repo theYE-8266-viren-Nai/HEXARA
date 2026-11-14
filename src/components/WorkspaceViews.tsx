@@ -1,8 +1,10 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { lazy, Suspense, useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { Activity, AlertTriangle, Pencil, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, Check, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { ActiveGuidanceView } from "./ActiveGuidanceView";
+
+const HumanBodyViewer = lazy(() => import('./HumanBodyViewer'));
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
 import type { DashboardSource } from "../lib/backendDashboardRepository";
@@ -23,6 +25,9 @@ import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { ThemeToggle } from "./ThemeToggle";
 import { formatMetricValue } from "../lib/formatMetricValue";
+import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
+import type { MovementBodyRegionId } from "../domain/movementBody";
+import type { MonthlyHistorySummary } from "../domain/monthlyHistory";
 
 const panelClass = "tech-card p-5 sm:p-6";
 
@@ -62,9 +67,9 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   </main>;
 }
 
-export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, onViewChange, onOpenChat, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; onViewChange: (view: ViewName) => void; onOpenChat?: () => void; pattern?: ReactNode }) {
-  const deviceContext = useDevice();
-  const ingest = deviceContext?.ingest ?? null;
+export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, movementChecks = [], movementWarning, bodyFocus, onBodyFocusHandled, onStartMovement, onViewChange, onOpenChat, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; movementChecks?: VisualCheck[]; movementWarning?: string; bodyFocus?: { region: MovementBodyRegionId; nonce: number } | null; onBodyFocusHandled?: () => void; onStartMovement?: (task: VisualCheckType) => void; onViewChange: (view: ViewName) => void; onOpenChat?: () => void; pattern?: ReactNode }) {
+  const device = useDevice();
+  const ingest = device?.ingest ?? null;
   const unreliable = ingest?.quality === "poor";
   const dataUnavailable = dataQuality === "disconnected" || dataQuality === "offline" || unreliable;
   const stale = dataQuality === "stale";
@@ -77,15 +82,15 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const actionLabel = dataUnavailable ? "Reconnect data" : stale ? "Review data quality" : alert ? "Take the optional wellbeing check-in" : "Check in with yourself";
   const actionNote = dataUnavailable ? "This demo scenario shows how missing data is handled. Nothing is inferred while the source is offline." : "A short check-in adds context to the signals. Skipping it does not count as feeling well.";
   const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "How are you doing today?", description: "Use the simulated signals as context for your next small action." };
-  const radiation = stage !== "retired" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
+  const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
-  if (stage === "retired" && deviceContext && !deviceContext.status.hasPaired) return <div className="page retired-pair-page">
+  if (stage === "retired" && device && !(device.status.hasPaired ?? device.status.paired)) return <div className="page retired-pair-page">
     <section className="retired-pair-card tech-card" aria-labelledby="retired-pair-title">
       <span className="retired-pair-icon" aria-hidden="true"><Watch size={28} /></span>
       <p className="eyebrow">RETIRED ASTRONAUT · FIRST STEP</p>
       <h1 id="retired-pair-title">Pair one wearable to begin</h1>
       <p>Connect the simulated wearable to open your retired Home. This demo does not connect to real hardware.</p>
-      <button type="button" className="btn-primary" onClick={deviceContext.status.pair}><Watch size={17} aria-hidden="true" /> Pair simulated wearable</button>
+      <button type="button" className="btn-primary" onClick={device.status.pair}><Watch size={17} aria-hidden="true" /> Pair simulated wearable</button>
     </section>
   </div>;
 
@@ -99,6 +104,8 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       <button type="button" className="btn-primary" onClick={onOpenChat}>Chat with ORBIT <ArrowRight size={17} aria-hidden="true" /></button>
     </section>
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /></DeviceIdleGate>}
+    <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement} signalState={loading ? "loading" : device?.status.phase === "idle" ? "unpaired" : dataUnavailable ? "unavailable" : stale ? "stale" : dataQuality === "insufficient_baseline" ? "insufficient_baseline" : "ready"} /></Suspense>
+    {pattern ? <div className="mt-6">{pattern}</div> : null}
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
       <DataSourceStatus source={source} warning={warning} />
@@ -114,6 +121,8 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       </div>
       <div className="page-meta"><span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
+    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
+      signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
         <div className="status-card-main">
@@ -127,28 +136,17 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         </div>
       </section>
 
-      <section aria-labelledby="signals-title">
+      {stage === "future" ? <section aria-labelledby="signals-title">
         <div className="section-head">
           <div><h2 id="signals-title">Your signals</h2><p>Latest reading compared with your 30-day personal baseline.</p></div>
           <button type="button" onClick={() => onViewChange("trends")} className="btn-link">See all trends <ArrowRight size={14} aria-hidden="true" /></button>
         </div>
         <div className="metric-grid">{metrics.slice(0, 6).map((metric) => <MetricTile key={metric.metric} metric={metric} flagged={alert?.metric === metric.metric} onOpen={() => onViewChange("trends")} />)}</div>
-      </section>
+      </section> : null}
 
-      {pattern}
-
-      <div className={radiation ? "home-columns" : undefined}>
-        {radiation ? <RadiationPanel metric={radiation} solarEvents={solarEvents} /> : null}
-        <section className="tech-card panel" aria-labelledby="timeline-title">
-          <h2 id="timeline-title">Recent activity</h2>
-          <ol className="timeline">
-            <li><p>Simulation started</p><span>{scenarioLabel(scenario)} pattern selected</span></li>
-            <li><p>Personal baseline loaded</p><span>30-day rolling comparison</span></li>
-            {alert ? <li data-tone="watch"><p>Pattern flagged for review</p><span>See the reason in Trends</span></li> : null}
-          </ol>
-        </section>
-      </div>
+      {radiation ? <RadiationPanel metric={radiation} solarEvents={solarEvents} /> : null}
     </></DeviceIdleGate>}
+    {pattern ? <div className="mt-6">{pattern}</div> : null}
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
       <DataSourceStatus source={source} warning={warning} />
@@ -241,7 +239,7 @@ function formatTrendValue(metric: MetricCardData | RetiredActivityTrend, value: 
   return formatMetricValue(metric.metric, value, metric.unit);
 }
 
-export function TrendsView({ stage = "active", metrics, alert, dataQuality, loading, source, warning }: { stage?: LifeStage; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string }) {
+export function TrendsView({ stage = "active", metrics, alert, dataQuality, loading, source, warning, pattern, monthlyHistory = [] }: { stage?: LifeStage; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; pattern?: ReactNode; monthlyHistory?: MonthlyHistorySummary[] }) {
   const dataUnavailable = dataQuality === "disconnected" || dataQuality === "offline";
   const stale = dataQuality === "stale";
   const [alertOpen, setAlertOpen] = useState(false);
@@ -249,11 +247,20 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : metrics;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{pattern ? <div>{pattern}</div> : null}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} /></></DeviceIdleGate>}</div>;
 }
 
-export function WellbeingView({ stage }: { stage: LifeStage }) {
-  return <WellbeingCheckIn key={stage} stage={stage} />;
+const MONTHLY_LABELS: Record<string, string> = { heart_rate: "Resting heart rate", hrv: "HRV", spo2: "SpO₂", sleep_hours: "Sleep", skin_temperature: "Skin temperature", radiation_dose: "Radiation dose" };
+const MONTHLY_UNITS: Record<string, string> = { heart_rate: "bpm", hrv: "ms", spo2: "%", sleep_hours: "h", skin_temperature: "°C", radiation_dose: "mSv" };
+const MONTHLY_DIRECTION: Record<string, string> = { usual: "close to earlier pattern", higher: "higher than earlier pattern", lower: "lower than earlier pattern", insufficient: "not enough data to compare" };
+
+export function MonthlyHistorySection({ summaries }: { summaries: MonthlyHistorySummary[] }) {
+  if (!summaries.length) return null;
+  return <section className="monthly-history tech-card" aria-labelledby="monthly-history-title"><div className="panel-head"><div><p className="eyebrow">LONGER VIEW</p><h2 id="monthly-history-title">Monthly personal history</h2></div><span className="monthly-history-count">{summaries.length} months</span></div><p className="panel-note">Personal history from simulated readings. This is context, not a diagnosis.</p><div className="monthly-history-list">{summaries.slice().reverse().map((summary, index) => <details key={summary.month} open={index === 0} className="monthly-history-month"><summary><span>{summary.label}</span><span className={`monthly-quality monthly-quality-${summary.quality}`}>{summary.quality === "good" ? "Good context" : summary.quality === "limited" ? "Limited context" : "Insufficient context"}</span></summary><div className="monthly-history-content"><p className="monthly-personal-summary">{summary.personalSummary}</p><div className="monthly-metric-grid">{summary.metrics.map((metric) => <div key={metric.metric} className="monthly-metric"><span>{MONTHLY_LABELS[metric.metric]}</span><strong>{metric.average} {MONTHLY_UNITS[metric.metric]}</strong><small>{metric.minimum}–{metric.maximum} · {MONTHLY_DIRECTION[metric.direction]}</small></div>)}</div><p className="monthly-history-foot">{summary.notableDays ? `${summary.notableDays} notable day${summary.notableDays === 1 ? "" : "s"} under the existing review rules.` : "No notable days under the existing review rules."}</p></div></details>)}</div></section>;
+}
+
+export function WellbeingView({ stage, client }: { stage: LifeStage; client: import("@supabase/supabase-js").SupabaseClient | null }) {
+  return <WellbeingCheckIn key={stage} stage={stage} client={client} />;
 }
 
 export function ProfileView({ profile, profiles, stage, scenario, seed, replayCount, loading, onProfileChange, onScenarioChange, onSeedChange, onReplay, onStageChange, account, onSaveProfile }: { profile: TravelerProfile; profiles: TravelerProfile[]; stage: LifeStage; scenario: SimulationScenario; seed: number; replayCount: number; loading: boolean; onProfileChange: (id: string) => void; onScenarioChange: (scenario: SimulationScenario) => void; onSeedChange: (seed: number) => void; onReplay: () => void; onStageChange: (stage: LifeStage) => void; account?: Account | null; onSaveProfile?: (profile: AstronautProfile) => Promise<string | undefined> }) {

@@ -33,9 +33,6 @@ const RECORDS: Record<LifeStage, AstronautRecord> = {
       { label: "Role", value: "Flight engineer" },
       { label: "Launch date", value: "1 January 2026" },
       { label: "Planned return", value: "30 June 2026" },
-      { label: "Previous flights", value: "1 (166 days)" },
-      { label: "Spacewalks", value: "2 · 13 h 40 min" },
-      { label: "Sleep period", value: "21:30 – 06:00 GMT" },
       { label: "Exercise plan", value: "2.5 h daily (treadmill, resistance, cycle)" },
     ] },
     careTeam: [
