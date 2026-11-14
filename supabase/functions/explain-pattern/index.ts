@@ -37,7 +37,7 @@ function rateLimited(key: string): boolean {
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
-  const choice = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") });
+  const choice = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY"), ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS") });
   if (!choice.ok) return json(503, { error: choice.error });
   if (rateLimited(userKey(request))) return json(429, { error: "rate_limited" });
 

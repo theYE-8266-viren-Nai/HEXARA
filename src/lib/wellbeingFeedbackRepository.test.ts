@@ -24,11 +24,11 @@ describe("wellbeing feedback repository", () => {
   });
 
   it("never shows a raw error code or provider message", async () => {
-    for (const code of ["upstream_unavailable", "upstream_timeout", "upstream_error", "unsafe_output", "not_configured", "rate_limited", "something_new"]) {
-      const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: code, upstreamMessage: "Rate limit exceeded: free-models-per-day" }, error: { message: "non-2xx" } }) } } as never;
+    for (const code of ["upstream_unavailable", "upstream_timeout", "upstream_error", "upstream_credit", "upstream_auth", "unsafe_output", "not_configured", "rate_limited", "something_new"]) {
+      const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: code, upstreamMessage: "This request requires more credits, or fewer max_tokens. You requested up to 800 tokens, but can only afford 68. visit https://openrouter.ai/settings/credits" }, error: { message: "non-2xx" } }) } } as never;
       const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
       expect(result.error, code).toBe(friendlyFeedbackError(code));
-      expect(result.error).not.toMatch(/upstream|_|free-models|non-2xx/i);
+      expect(result.error).not.toMatch(/upstream_|max_tokens|openrouter\.ai|https?:|non-2xx|\b800\b/i);
     }
   });
 
@@ -44,5 +44,13 @@ describe("wellbeing feedback repository", () => {
     const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
     expect(result.error).toBe(FEEDBACK_ERROR_TEXT.upstream_unavailable);
     expect(result.text).toBeUndefined();
+  });
+
+  it("explains a no-credit failure in one short sentence, never the provider's long message", async () => {
+    const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: "upstream_credit", upstreamStatus: 402 }, error: { message: "non-2xx" } }) } } as never;
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "active", headline: "Mostly steady", concern: "watch", lines: ["Sleep was broken."] });
+    expect(result.error).toBe(FEEDBACK_ERROR_TEXT.upstream_credit);
+    expect(result.error).toMatch(/no credit left/);
+    expect(result.error!.length).toBeLessThan(140);
   });
 });
