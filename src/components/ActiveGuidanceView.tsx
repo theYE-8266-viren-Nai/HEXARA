@@ -1,4 +1,4 @@
-import { Activity, ArrowUpRight, Heart, Moon, Utensils, Users, Radio } from "lucide-react";
+import { ArrowRight, Activity, ArrowUpRight, Heart, Moon, Utensils, Users, Radio } from "lucide-react";
 import type { ViewName } from "./AppShell";
 
 const panel = "tech-card p-5 sm:p-7";
@@ -34,7 +34,7 @@ export function ActiveGuidanceView({ onViewChange }: { onViewChange: (view: View
       <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Your guide to staying well on mission</h1>
       <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">Build a steady routine, understand what OrbitWell is showing, and bring useful context to your crew medical team. Use this educational guide alongside your assigned mission procedures.</p>
       <nav aria-label="Mission guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
-        {[["use-horizon", "Using OrbitWell"], ["daily-habits", "Daily habits"], ["changed-readings", "When readings change"]].map(([id, label]) => <a key={id} href={`#${id}`} className="mission-guide-button">{label}</a>)}
+        {[["use-horizon", "Using OrbitWell"], ["daily-habits", "Daily habits"], ["changed-readings", "When readings change"]].map(([id, label]) => <a key={id} href={`#${id}`} className="mission-guide-button">{label}<ArrowRight size={16} aria-hidden="true" /></a>)}
       </nav>
     </header>
 
