@@ -119,11 +119,11 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         <h1>{stageContent.title}</h1>
         <p className="page-lede" id={stage === "active" ? "body-viewer-instructions" : undefined}>{stageContent.description}</p>
       </div>
-      <div className="page-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
+      <div className="page-meta home-device-meta">{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size === 0 ? <DeviceIdleGate stage={stage}>{null}</DeviceIdleGate> : null}{stage === "active" && device?.bodyDevices && device.bodyDevices.paired.size > 0 ? <WearableConnect on={device.bodyDevices.bluetoothOn} open={device.bodyDevices.listOpen} paired={device.bodyDevices.paired} pairing={device.bodyDevices.pairing} onToggle={device.bodyDevices.setBluetooth} onOpenChange={device.bodyDevices.setListOpen} onPair={device.bodyDevices.pair} onUnpair={device.bodyDevices.unpair} /> : null}<span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
     {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={`${stage}:${profile.id}`} stage={stage} metrics={metrics} alert={alert} onViewChange={onViewChange} {...(device?.bodyDevices ? { pairedDevices: device.bodyDevices.paired, pairingDevice: device.bodyDevices.pairing, onPairDevice: device.bodyDevices.pair, motion: device.bodyDevices.motion } : {})} movementChecks={movementChecks} movementWarning={movementWarning} initialLayer={bodyFocus ? "movement" : "signals"} initialRegion={bodyFocus?.region} initialFocusKey={bodyFocus?.nonce} onInitialFocusHandled={onBodyFocusHandled} onStartMovement={onStartMovement}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
-    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
+    {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage} hidePrompt={stage === "active" && Boolean(device?.bodyDevices)}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
         <div className="status-card-main">
           <StatusChip severity={status} />
@@ -593,12 +593,13 @@ function LoadingPanel() {
 }
 
 /** Shows the pair/reconnect prompt instead of readings when no device is connected. */
-function DeviceIdleGate({ stage, children }: { stage: LifeStage; children: ReactNode }) {
+function DeviceIdleGate({ stage, children, hidePrompt = false }: { stage: LifeStage; children: ReactNode; hidePrompt?: boolean }) {
   const context = useDevice();
   const device = context?.status;
   const wearables = stage === "active" ? context?.bodyDevices : undefined;
   const connected = wearables ? wearables.paired.size > 0 : context?.bluetooth?.phase === "streaming";
   if (device && device.phase === "idle" && !connected) {
+    if (hidePrompt) return null;
     return <section className={`${panelClass} device-connect-card`} aria-labelledby="no-device-title">
       <Watch size={26} aria-hidden="true" /><div><h2 id="no-device-title">No device paired</h2>
       {wearables ? <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
