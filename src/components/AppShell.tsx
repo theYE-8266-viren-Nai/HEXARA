@@ -1,4 +1,5 @@
-import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, ShieldCheck, UserRound, X } from "lucide-react";
+import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserRound, X } from "lucide-react";
+import { usePersistedState } from "../lib/usePersistedState";
 import { useState, type ReactNode } from "react";
 import type { LifeStage } from "../types/horizon";
 import { ThemeToggle } from "./ThemeToggle";
@@ -30,16 +31,18 @@ export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
 
 export function AppShell({ activeView, onViewChange, stage, onStageChange, children, chat, account, onLogOut }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode; account?: Account | null; onLogOut?: () => void; chat?: { client: SupabaseClient | null; userId: string | null; openRequest?: number } }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Desktop sidebar can be collapsed to a narrow icon rail; the choice is remembered in this browser.
+  const [collapsed, setCollapsed] = usePersistedState<boolean>("orbitwell:sidebar-collapsed", false);
   const workspaceLabel = stage === "future" ? "Preparation workspace" : stage === "retired" ? "Post-mission workspace" : "Active monitoring workspace";
   const items = navigation.filter(({ id }) => viewAvailable(id, stage));
   const chooseView = (view: ViewName) => { onViewChange(view); setMobileOpen(false); };
-  return <div className="star-field app-layout">
+  return <div className="star-field app-layout" data-sidebar={collapsed ? "collapsed" : "open"}>
     <a href="#workspace" className="skip-link">Skip to workspace</a>
     <aside className="app-sidebar">
       <Brand />
       <p className="nav-caption">YOUR WORKSPACE</p>
-      <Nav items={items} activeView={activeView} onChoose={chooseView} />
-      <div className="sidebar-bottom"><p className="demo-label"><span /> SYNTHETIC RESEARCH DEMO</p></div>
+      <Nav items={items} activeView={activeView} onChoose={chooseView} collapsed={collapsed} />
+      <div className="sidebar-bottom"><button type="button" className="sidebar-toggle" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span className="sidebar-toggle-label">Hide sidebar</span></button></div>
     </aside>
     <div className="app-body">
       <header className="app-topbar">
@@ -57,6 +60,6 @@ export function AppShell({ activeView, onViewChange, stage, onStageChange, child
   </div>;
 }
 
-function Nav({ items, activeView, onChoose }: { items: typeof navigation; activeView: ViewName; onChoose: (view: ViewName) => void }) {
-  return <nav aria-label="Workspace navigation" className="workspace-nav">{items.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => onChoose(id)} aria-current={activeView === id ? "page" : undefined}><Icon size={18} strokeWidth={1.6} aria-hidden="true" />{label}{activeView === id ? <span className="nav-active-dot" /> : null}</button>)}</nav>;
+function Nav({ items, activeView, onChoose, collapsed = false }: { items: typeof navigation; activeView: ViewName; onChoose: (view: ViewName) => void; collapsed?: boolean }) {
+  return <nav aria-label="Workspace navigation" className="workspace-nav">{items.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => onChoose(id)} aria-current={activeView === id ? "page" : undefined} title={collapsed ? label : undefined}><Icon size={18} strokeWidth={1.6} aria-hidden="true" /><span className="nav-label">{label}</span>{activeView === id ? <span className="nav-active-dot" /> : null}</button>)}</nav>;
 }

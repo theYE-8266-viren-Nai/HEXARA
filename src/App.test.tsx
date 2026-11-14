@@ -645,6 +645,40 @@ describe("OrbitWell app shell", () => {
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
+  it("shows only the Trends charts measured by the paired wearables", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    for (const name of ["Resting heart rate", "HRV", "SpO₂", "Skin temperature"]) expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    for (const name of ["Sleep", "Radiation dose"]) expect(screen.queryByRole("heading", { name })).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing charts from: Astroskin shirt/)).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
+    await user.click(screen.getByRole("button", { name: /^Connect wearables/ }));
+    await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
+    await screen.findByRole("button", { name: "Disconnect Actiwatch" });
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(await screen.findByRole("heading", { name: "Sleep" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();
+  });
+
+  it("collapses the sidebar to icons, remembers it, and no longer shows the demo label", async () => {
+    const user = userEvent.setup();
+    const first = await openWorkspace("active", { pair: false });
+    expect(screen.queryByText(/SYNTHETIC RESEARCH DEMO/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(document.querySelector(".app-layout")).toHaveAttribute("data-sidebar", "collapsed");
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Trends" })[0]).toHaveAttribute("title", "Trends");
+    first.unmount();
+
+    await openWorkspace("active", { pair: false });
+    expect(document.querySelector(".app-layout")).toHaveAttribute("data-sidebar", "collapsed");
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(document.querySelector(".app-layout")).toHaveAttribute("data-sidebar", "open");
+  });
+
   it("Connect wearables is one button that opens the device list every time", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
