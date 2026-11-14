@@ -524,14 +524,39 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByText("You slept well and woke up rested.")).toBeInTheDocument();
   });
-  it("opens the Movement check with its camera disclaimer and privacy limits", async () => {
+  it("opens the Movement check for an astronaut in space, with in-orbit tasks only and its camera disclaimer", async () => {
     const user = userEvent.setup();
-    await openWorkspace("future");
+    await openWorkspace("active");
 
     await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
-    expect(screen.getByRole("heading", { name: "Practise before you fly" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Keep your practice consistent" })).toBeInTheDocument();
     expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
+    // Only tasks that work without gravity, each with the anchoring reminder.
+    expect(screen.getByRole("radio", { name: /Shoulder mobility/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Reach-and-return/ })).toBeInTheDocument();
+    for (const gravityTask of [/Sit-to-stand/, /Standing posture/, /Single-leg balance/]) expect(screen.queryByRole("radio", { name: gravityTask })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Stand so your whole body/)).not.toBeInTheDocument();
+  });
+
+  it("offers retired astronauts the full reconditioning set on Earth, framed as practice tracking and not a rehab programme", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("retired");
+
+    await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
+    expect(screen.getByRole("heading", { name: "Track your reconditioning practice" })).toBeInTheDocument();
+    expect(screen.getByText(/not a rehab programme: follow the plan from your own rehab or medical team/)).toBeInTheDocument();
+    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Standing posture/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    expect(screen.getByText(/Stop if you feel unsteady/)).toBeInTheDocument();
+    expect(screen.queryByText(/Anchor your feet in a foot restraint/)).not.toBeInTheDocument(); // no restraint on Earth
+  });
+
+  it("does not offer Movement to Future travelers anywhere", async () => {
+    await openWorkspace("future");
+    expect(screen.queryByRole("button", { name: "Movement" })).not.toBeInTheDocument(); // desktop, drawer and mobile bar alike
+    expect(screen.getAllByRole("button", { name: "Wellbeing" }).length).toBeGreaterThan(0); // the other items are still there
+    expect(screen.queryByRole("heading", { name: /Movement checks are not part of this stage/ })).not.toBeInTheDocument();
   });
 
   it("shows the staged wearable loader, then live readings with a freshness badge", async () => {
