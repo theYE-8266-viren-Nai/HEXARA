@@ -3,7 +3,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { emptyProfile, profileGroups, STAGE_CHOICES, validateProfile, type AstronautProfile, type ProfileField, type ProfileGroup } from "../domain/astronautAccount";
 import { checkCredentials, type Account, type AccountRepository } from "../lib/accountRepository";
 import type { LifeStage } from "../types/horizon";
-import { Brand, SafetyDisclaimer } from "./AppShell";
+import { Brand } from "./AppShell";
 
 const STAGE_ICONS: Record<LifeStage, typeof Rocket> = { future: Rocket, active: Orbit, retired: Compass };
 
@@ -29,7 +29,6 @@ export function AccountScreen({ stage, repository, account, onDone, onBack }: { 
         {mode !== "login" ? <SignupFlow stage={stage} repository={repository} account={mode === "complete" ? needsProfile : null} onDone={onDone} onLogin={() => setMode("login")} /> : null}
       </div>
     </div>
-    <SafetyDisclaimer landing />
   </main>;
 }
 

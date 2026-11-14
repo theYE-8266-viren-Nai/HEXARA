@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, Radio, ShieldCheck } from "lucide-react";
-import { Brand, SafetyDisclaimer } from "./AppShell";
+import { Brand } from "./AppShell";
 import { missionCounts, ongoingMissionCrew, syntheticCrewTrends, syntheticGroundMissions, type CrewSituation } from "../domain/groundTeam";
 import { TrendChart } from "./TrendChart";
 
@@ -76,6 +76,5 @@ export function GroundTeamDashboard({ onExit }: { onExit: () => void }) {
       </div>
 
     </main>
-    <SafetyDisclaimer />
   </div>;
 }

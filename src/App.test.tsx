@@ -216,7 +216,6 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("button", { name: "Active astronaut" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retired astronaut" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Life stage" })).not.toBeInTheDocument();
-    expect(screen.getByText("Simulated data. Not medical advice. Not diagnostic.")).toBeInTheDocument();
   });
 
   it("opens a synthetic ground team view with only active crew on ongoing missions", async () => {
@@ -301,11 +300,10 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByRole("heading", { name: "Wearable activity, at a glance" })).not.toBeInTheDocument();
   });
 
-  it("renders the safety disclaimer and switches stage by logging out and choosing another card", async () => {
+  it("switches stage by logging out and choosing another card", async () => {
     const user = userEvent.setup();
     await openWorkspace();
 
-    expect(screen.getByText("Simulated data. Not medical advice. Not diagnostic.")).toBeInTheDocument();
     expect(screen.getByText("Active monitoring workspace")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Log out" }));
     await signInThroughStage("retired");
