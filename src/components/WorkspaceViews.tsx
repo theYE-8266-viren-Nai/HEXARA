@@ -89,7 +89,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       </div>
       <div className="page-meta"><span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
-    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={profile.id} metrics={metrics} alert={alert} onViewChange={onViewChange}
+    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={profile.id} metrics={metrics} alert={alert} onViewChange={onViewChange} pairedDevices={device?.bodyDevices?.paired} pairingDevice={device?.bodyDevices?.pairing} onPairDevice={device?.bodyDevices?.pair} onUnpairDevice={device?.bodyDevices?.unpair} motion={device?.bodyDevices?.motion}
       signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
@@ -500,6 +500,8 @@ function LoadingPanel() {
 function DeviceIdleGate({ stage, children }: { stage: LifeStage; children: ReactNode }) {
   const device = useDevice()?.status;
   if (device && device.phase === "idle") {
+    // Active astronauts pair their wearables with "Find devices" in the body overview above.
+    if (stage === "active" && !device.hasPaired) return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">No device paired</h2><p className="mt-2 text-sm leading-6 text-slate-400">Use Find devices in the body overview above to pair your Astroskin shirt, Actiwatch, personal dosimeter or motion sensors.</p></div></section>;
     const first = !device.hasPaired;
     return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} aria-labelledby="no-device-title"><Watch className="mt-1 shrink-0 text-slate-300" aria-hidden="true" /><div><h2 id="no-device-title" className="font-semibold text-white">{first ? "No device paired" : "Device disconnected"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{first ? "Pair the simulated wearable to see live heart rate, HRV, SpO₂, temperature and radiation context. You can also build a baseline by hand in Guidance." : "Live readings have stopped. Reconnect the simulated wearable to continue."}</p><button type="button" onClick={device.pair} className="btn-square mt-4 inline-flex items-center gap-2 bg-cyan-300 px-4 py-3 text-sm font-bold text-slate-950"><Watch size={16} aria-hidden="true" />{first ? "Pair simulated wearable" : "Reconnect wearable"}</button></div></section>;
   }
