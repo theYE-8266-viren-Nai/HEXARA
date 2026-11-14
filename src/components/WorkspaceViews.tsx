@@ -24,7 +24,6 @@ import { ProfileFields } from "./AccountViews";
 import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
-import { ThemeToggle } from "./ThemeToggle";
 import { formatMetricValue } from "../lib/formatMetricValue";
 import type { VisualCheck, VisualCheckType } from "../domain/visualCheck";
 import type { MovementBodyRegionId } from "../domain/movementBody";
@@ -40,7 +39,7 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   ];
   return <main className="star-field onboarding">
     <div className="onboarding-container">
-      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span><ThemeToggle /></div></header>
+      <header className="onboarding-topbar"><Brand /><span className="onboarding-topline">A human perspective on space health</span><div className="onboarding-actions"><span className="research-badge"><span /> Research demo</span></div></header>
       <div className="onboarding-grid">
         <section className="journey-selection" aria-labelledby="journey-title">
           <p className="eyebrow"><span className="small-rule" /> YOUR SPACE. YOUR PACE.</p>
