@@ -24,10 +24,6 @@ export function Brand() {
   return <div className="brand"><span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 180 100" fill="none"><path d="M43 90C13 90 7 74 13 58 23 31 76 8 129 5c27-2 44 4 46 18 2 13-6 27-22 37" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/><path d="M28 51h43l9-1 8-19 9 36 8-53 11 56 8-22 7 3h26" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="157" cy="7" r="6" fill="var(--accent)"/></svg></span><div><p className="brand-name">Orbit<span>Well</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
 }
 
-export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {
-  return <div className={`safety-disclaimer ${landing ? "landing-disclaimer" : ""}`}><span>Research demo · Synthetic data</span></div>;
-}
-
 export function AppShell({ activeView, onViewChange, stage, onStageChange, children, chat, account, onLogOut }: { activeView: ViewName; onViewChange: (view: ViewName) => void; stage: LifeStage; onStageChange: (stage: LifeStage) => void; children: ReactNode; account?: Account | null; onLogOut?: () => void; chat?: { client: SupabaseClient | null; userId: string | null; openRequest?: number } }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   // Desktop sidebar can be collapsed to a narrow icon rail; the choice is remembered in this browser.
@@ -53,7 +49,6 @@ export function AppShell({ activeView, onViewChange, stage, onStageChange, child
       <main id="workspace" className="workspace-content" tabIndex={-1}>{children}</main>
     </div>
     <nav aria-label="Mobile navigation" className="mobile-bottom-nav">{items.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => chooseView(id)} aria-current={activeView === id ? "page" : undefined}><Icon size={18} aria-hidden="true" />{label}</button>)}</nav>
-    <SafetyDisclaimer />
     {chat ? <ChatWidget stage={stage} client={chat.client} userId={chat.userId} openRequest={chat.openRequest} /> : null}
   </div>;
 }

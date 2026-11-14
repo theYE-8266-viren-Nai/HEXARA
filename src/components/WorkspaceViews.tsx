@@ -11,7 +11,7 @@ import type { DashboardSource } from "../lib/backendDashboardRepository";
 import type { SolarEventResult } from "../lib/nasaDonki";
 import { usePersistedState } from "../lib/usePersistedState";
 import type { Alert, DataQualityState, LifeStage, MetricCardData, SimulationScenario, TravelerProfile } from "../types/horizon";
-import { Brand, SafetyDisclaimer, type ViewName } from "./AppShell";
+import { Brand, type ViewName } from "./AppShell";
 import type { PreparationRepository } from "../lib/preparationRepository";
 import { useDevice } from "../lib/deviceContext";
 import { WellbeingCheckIn } from "./WellbeingCheckIn";
@@ -53,7 +53,6 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
         </section>
       </div>
     </div>
-    <SafetyDisclaimer landing />
   </main>;
 }
 
@@ -219,7 +218,7 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : metrics;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1>{retired ? null : <><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></>}</header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate stage={stage}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div><div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
 }
 
 const MONTHLY_LABELS: Record<string, string> = { heart_rate: "Resting heart rate", hrv: "HRV", spo2: "SpO₂", sleep_hours: "Sleep", skin_temperature: "Skin temperature", radiation_dose: "Radiation dose" };
@@ -249,9 +248,9 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
     <header className="tech-card profile-hero">
       <span className="profile-avatar" aria-hidden="true">{own ? initialsOf(own.fullName) : initials(profile)}</span>
       <div className="profile-hero-text">
-        <p className="page-kicker">{stageLabel(stage)} · {missionLabel(profile, stage)}</p>
+        <p className="page-kicker">{stage === "retired" ? "Retired astronaut" : `${stageLabel(stage)} · ${missionLabel(profile, stage)}`}</p>
         <h1>{name}</h1>
-        <p className="page-lede">{summary}</p>
+        {stage === "retired" ? null : <p className="page-lede">{summary}</p>}
       </div>
       {tags.length ? <dl className="profile-tags">{tags.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : null}
       {own ? <button type="button" className="btn-secondary profile-edit" onClick={() => setEditing(true)}><Pencil size={15} aria-hidden="true" /> Edit profile</button> : null}
@@ -443,7 +442,6 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, on
     <header>
       <p className="eyebrow">Guidance · Retired astronaut</p>
       <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Finding your rhythm after flight</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">Use this guide to reflect on life after a mission, care for everyday wellbeing, and prepare for follow-up conversations.</p>
       <nav aria-label="Retirement guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
         <a href="#retired-workflow" className="mission-guide-button">Using OrbitWell<ArrowRight size={16} aria-hidden="true" /></a>
         <a href="#retired-routine" className="mission-guide-button">Everyday wellbeing<ArrowRight size={16} aria-hidden="true" /></a>
@@ -467,7 +465,6 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, on
     <section id="retired-routine" className="scroll-mt-6" aria-labelledby="retired-education-title">
       <p className="eyebrow">02 / Support your routine</p>
       <h2 id="retired-education-title" className="mt-2 text-2xl font-semibold text-white">Maintain physical and mental wellbeing</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Choose a topic to explore. These reminders support conversations with your care team and the people close to you.</p>
       <div className="mt-5 grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-200">Mental health after spaceflight</h3>
@@ -499,7 +496,6 @@ function RetiredGuidanceView({ summaryFields, setSummaryFields, onViewChange, on
             ["Record the next step", "Use the dates and notes from your own records and care team. The sample appointment and reminder below stay in this demo."],
           ].map(([title, body], index) => <li key={title} className="flex items-start gap-3"><span className="mt-0.5 font-mono text-sm text-cyan-200">0{index + 1}</span><div><h3 className="font-semibold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></li>)}
         </ol>
-        <p className="mt-5 border-t border-slate-700 pt-4 text-sm leading-6 text-slate-400">Do not change treatment or activity limits based on a wearable value or AI reply.</p>
       </div>
       <div className={`${panelClass} border-cyan-300/30`} aria-labelledby="next-follow-up-title">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
