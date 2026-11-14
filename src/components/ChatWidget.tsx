@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowUpRight, BookOpen, Send, ShieldCheck, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BookOpen, Mic, Send, ShieldCheck, Sparkles, Square, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LifeStage } from "../types/horizon";
@@ -6,13 +6,10 @@ import { createChatRepository } from "../lib/chatRepository";
 import { offlineChatReply, type ChatMessage } from "../domain/chat";
 import { getUrgentSupport, type EmergencySupport, type EmergencyTopic } from "../../supabase/functions/_shared/emergencySupport";
 import { sanitizedNasaQuery } from "../../supabase/functions/_shared/nasaGrounding";
+import { classifyOrbitQuestion, faqsForStage } from "../domain/orbitFaq";
 import { RobotAvatar } from "./RobotAvatar";
+import { useVapiOrbit } from "../lib/useVapiOrbit";
 
-const SUGGESTIONS = [
-  "How does microgravity affect the vestibular system?",
-  "Why does the ISS use control moment gyroscopes?",
-  "What has NASA learned about radiation beyond low Earth orbit?",
-];
 const RETIRED_SUGGESTIONS = ["I miss the view of Earth", "Life after the mission feels different", "I want to reconnect with people"];
 const localMessage = (content: string, support?: EmergencySupport): ChatMessage => ({ id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString(), status: "complete", source: "built-in", answerKind: support ? "urgent_warning" : "unavailable", supportTopic: support?.topic, details: support?.details, resources: support?.resources });
 
@@ -40,6 +37,8 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
   const repository = useMemo(() => createChatRepository(client, userId), [client, userId]);
   const privateMode = stage === "retired" && !researchMode;
   const visibleMessages = privateMode ? privateMessages : messages;
+  const faqs = faqsForStage(stage ?? "future");
+  const voice = useVapiOrbit((transcript) => { void send(transcript, "voice"); });
 
   useEffect(() => {
     epoch.current += 1; requestSequence.current += 1; supportRef.current = undefined;
@@ -72,11 +71,11 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
   const close = () => { setOpen(false); launcher.current?.focus(); };
   const leaveUrgentMode = () => { supportRef.current = undefined; setSupportTopic(undefined); setPendingResearch(undefined); setInput(""); question.current?.focus(); };
 
-  const sendCloud = async (trimmed: string, options: { sanitizedFromTopic?: EmergencyTopic } = {}) => {
+  const sendCloud = async (trimmed: string, options: { sanitizedFromTopic?: EmergencyTopic; inputMode?: "text" | "voice" } = {}) => {
     if (!trimmed || trimmed.length > 2_000 || sending.current || loading) return;
     const version = epoch.current; const request = ++requestSequence.current; const isCurrent = () => version === epoch.current && request === requestSequence.current;
     sending.current = true; setBusy(true); setWarning(undefined);
-    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: trimmed, createdAt: new Date().toISOString(), status: "complete", sanitizedQuery: options.sanitizedFromTopic ? trimmed : undefined };
+    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: trimmed, createdAt: new Date().toISOString(), status: "complete", sanitizedQuery: options.sanitizedFromTopic ? trimmed : undefined, inputMode: options.inputMode ?? "text" };
     setMessages((current) => [...current, userMessage]);
     try {
       let id = conversationId;
@@ -86,7 +85,7 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
         id = created.data?.id; setWarning(created.warning); setConversationId(id);
       }
       if (!stage || !id) { setMessages((current) => [...current, localMessage(offlineChatReply(null, trimmed))]); return; }
-      const result = await repository.sendMessage(id, stage, trimmed, options);
+      const result = await repository.sendMessage(id, stage, trimmed, { ...options, category: classifyOrbitQuestion(trimmed) });
       if (!isCurrent()) return;
       setWarning(result.warning ?? result.error);
       setMessages((current) => [...current, result.data ?? localMessage(offlineChatReply(null, trimmed))]);
@@ -95,7 +94,7 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
     } finally { if (isCurrent()) { sending.current = false; setBusy(false); } }
   };
 
-  const send = async (text = input) => {
+  const send = async (text = input, inputMode: "text" | "voice" = "text") => {
     const trimmed = text.trim(); if (!trimmed || trimmed.length > 2_000) return;
     const safety = getUrgentSupport(trimmed, supportRef.current);
     if (!safety) {
@@ -105,11 +104,11 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
         setPrivateMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", content: trimmed, createdAt: new Date().toISOString(), status: "complete" }, localMessage(offlineChatReply("retired", trimmed))]);
         return;
       }
-      await sendCloud(trimmed); return;
+      await sendCloud(trimmed, { inputMode }); return;
     }
     requestSequence.current += 1; sending.current = false; setBusy(false); setInput("");
     supportRef.current = safety.topic; setSupportTopic(safety.topic); setPendingResearch(undefined);
-    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: trimmed, createdAt: new Date().toISOString(), status: "complete" };
+    const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: trimmed, createdAt: new Date().toISOString(), status: "complete", inputMode };
     const append = privateMode ? setPrivateMessages : setMessages;
     append((current) => [...current, userMessage, localMessage(safety.content, safety)]);
   };
@@ -133,7 +132,7 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
       {stage === "retired" ? <div className="chat-mode-switch"><button type="button" className="btn-link" onClick={() => { leaveUrgentMode(); setWarning(undefined); setResearchMode((current) => !current); }}>{privateMode ? "Explore NASA research" : "Return to private chat"}</button></div> : null}
       <div className="chat-messages" ref={messageList}>
         {loading ? <p className="chat-meta" role="status">Loading saved NASA research…</p> : null}
-        {visibleMessages.length === 0 ? <div className="chat-empty"><div className="chat-pet-intro"><RobotAvatar imageSrc={avatarSrc} /><span className="chat-pet-greeting">{privateMode ? "Hey, I'm ORBIT." : "Ask the NASA archive."}</span></div><h3>{privateMode ? "There's room for your story here." : "What do you want to explore?"}</h3><p>{privateMode ? "Share a memory, a change in perspective, or how today feels. Start anywhere." : "ORBIT searches indexed NASA documents, then uses AI to explain only what those sources support."}</p>{(privateMode ? RETIRED_SUGGESTIONS : SUGGESTIONS).map((suggestion) => <button disabled={busy || loading} key={suggestion} type="button" onClick={() => void send(suggestion)}>{suggestion}<ArrowUpRight size={14} aria-hidden="true" /></button>)}</div> : null}
+        {visibleMessages.length === 0 ? <div className="chat-empty"><div className="chat-pet-intro"><RobotAvatar imageSrc={avatarSrc} /><span className="chat-pet-greeting">{privateMode ? "Hey, I'm ORBIT." : "Ask the NASA archive."}</span></div><h3>{privateMode ? "There's room for your story here." : "What do you want to explore?"}</h3><p>{privateMode ? "Share a memory, a change in perspective, or how today feels. Start anywhere." : "ORBIT searches indexed NASA documents, then uses AI to explain only what those sources support."}</p>{privateMode ? RETIRED_SUGGESTIONS.map((suggestion) => <button disabled={busy || loading} key={suggestion} type="button" onClick={() => void send(suggestion)}>{suggestion}<ArrowUpRight size={14} aria-hidden="true" /></button>) : faqs.slice(0, 5).map((faq) => <button disabled={busy || loading} key={faq.category} type="button" onClick={() => void send(faq.question)}><span><strong>{faq.title}</strong><small>{faq.description}</small></span><ArrowUpRight size={14} aria-hidden="true" /></button>)}</div> : null}
         <div className="chat-transcript" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
           {visibleMessages.map((message) => <div key={message.id} className={`chat-message ${message.role}`}><small>{message.role === "user" ? (message.sanitizedQuery ? "Sanitized NASA research question" : "You") : message.answerKind === "nasa_grounded" ? "ORBIT · NASA-grounded AI response" : message.answerKind === "no_evidence" ? "ORBIT · No verified NASA source" : message.answerKind === "urgent_warning" ? "ORBIT · Urgent guidance" : privateMode ? "ORBIT · Private reply" : "ORBIT · Research unavailable"}</small><p>{message.content}</p>{message.citations?.length ? <div className="chat-source-cards" aria-label="NASA sources">{message.citations.map((source, index) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer"><span>[{index + 1}] {source.collection}</span><strong>{source.title}</strong>{source.publishedAt ? <small>{source.publishedAt}</small> : null}<p>{source.excerpt}</p><ArrowUpRight size={12} aria-hidden="true" /></a>)}</div> : null}{message.details || message.resources?.length ? <details className="chat-references"><summary>More guidance</summary>{message.details ? <p>{message.details}</p> : null}<span>Earth guidance; onboard procedures take precedence.</span>{message.resources?.map((resource) => <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">{resource.label}<ArrowUpRight size={11} aria-hidden="true" /></a>)}</details> : null}</div>)}
           {busy ? <p className="chat-meta" role="status">ORBIT is searching and checking NASA sources…</p> : null}
@@ -141,7 +140,7 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
         {supportTopic ? <div className="chat-followups" aria-label="Urgent guidance options"><button type="button" onClick={() => setPendingResearch({ topic: supportTopic, query: sanitizedNasaQuery(supportTopic) })}><BookOpen size={13} aria-hidden="true" />Ask NASA about this topic</button><button type="button" onClick={leaveUrgentMode}>Return to {privateMode ? "private chat" : "NASA research"}</button></div> : null}
         {pendingResearch ? <div className="chat-research-confirm" role="group" aria-label="Confirm sanitized NASA research question"><p>Your personal message stays in this browser session. Send this neutral research question instead?</p><blockquote>{pendingResearch.query}</blockquote><div><button type="button" className="btn-primary" onClick={() => void confirmResearch()}>Send sanitized question</button><button type="button" className="btn-secondary" onClick={() => setPendingResearch(undefined)}>Cancel</button></div></div> : null}
       </div>
-      <div className="chat-controls"><div className="chat-composer-topline"><button className="chat-urgent-shortcut" type="button" onClick={() => void send("I need help now")}><AlertTriangle size={13} aria-hidden="true" />I need urgent help</button><details className="chat-options"><summary>Chat privacy</summary><p className="chat-privacy">{stage === "retired" ? "Private conversation stays in this browser session. If you switch to NASA research, those questions and answers may be saved to your account. Urgent personal messages are never sent automatically." : "NASA questions and grounded answers may be saved to your account. Urgent personal messages stay in this browser session and are never sent unless you confirm the neutral research rewrite."}</p></details></div>{warning ? <p className="chat-warning" role="status">{warning}</p> : null}<form onSubmit={(event) => { event.preventDefault(); void send(); }}><input ref={question} value={input} maxLength={2_000} onChange={(event) => setInput(event.target.value)} placeholder={privateMode ? "Share what's on your mind…" : "Ask a NASA or space question…"} aria-label={privateMode ? "Private message" : "NASA research question"} /><button type="submit" aria-label="Send question" disabled={!input.trim() || busy || loading}><Send size={17} /></button></form></div>
+      <div className="chat-controls"><div className="chat-composer-topline"><button className="chat-urgent-shortcut" type="button" onClick={() => void send("I need help now")}><AlertTriangle size={13} aria-hidden="true" />I need urgent help</button>{!privateMode ? <button type="button" className="chat-voice-button" disabled={!voice.available || busy} onClick={() => voice.state === "listening" ? voice.stop() : void voice.start()}>{voice.state === "listening" ? <Square size={13} /> : <Mic size={13} />} {voice.state === "unavailable" ? "Voice unavailable" : voice.state === "listening" ? "Stop listening" : "Ask by voice"}</button> : null}<details className="chat-options"><summary>Chat privacy</summary><p className="chat-privacy">{stage === "retired" ? "Private conversation stays in this browser session. If you switch to NASA research, those questions and answers may be saved to your account. Urgent personal messages are never sent automatically." : "NASA questions and grounded answers may be saved to your account. Urgent personal messages stay in this browser session and are never sent unless you confirm the neutral research rewrite."}</p></details></div>{voice.error ? <p className="chat-warning" role="status">{voice.error}</p> : null}{warning ? <p className="chat-warning" role="status">{warning}</p> : null}<form onSubmit={(event) => { event.preventDefault(); void send(); }}><input ref={question} value={input} maxLength={2_000} onChange={(event) => setInput(event.target.value)} placeholder={privateMode ? "Share what's on your mind…" : "Ask a NASA or space question…"} aria-label={privateMode ? "Private message" : "NASA research question"} /><button type="submit" aria-label="Send question" disabled={!input.trim() || busy || loading}><Send size={17} /></button></form></div>
     </section> : null}
   </>;
 }

@@ -31,7 +31,7 @@ describe("ORBIT NASA research assistant", () => {
     expect(screen.getByRole("dialog", { name: "ORBIT AI" })).toBeInTheDocument();
     expect(screen.getByText("NASA RESEARCH ASSISTANT")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "NASA research question" })).toHaveFocus();
-    expect(screen.getByRole("button", { name: /microgravity affect the vestibular system/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Health in space/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "I'm not feeling well" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -40,15 +40,15 @@ describe("ORBIT NASA research assistant", () => {
   it("sends an ordinary NASA question to the cloud repository", async () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     render(<ChatWidget {...props} />); const user = await open();
-    await user.click(screen.getByRole("button", { name: /control moment gyroscopes/i }));
+    await user.click(screen.getByRole("button", { name: /Mission support/i }));
     expect(await screen.findByText(/Microgravity changes vestibular inputs/)).toBeInTheDocument();
-    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "Why does the ISS use control moment gyroscopes?", {});
+    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "Why does the ISS use control moment gyroscopes?", { category: "missions_engineering", inputMode: "text", sanitizedFromTopic: undefined });
   });
 
   it("does not misroute an educational radiation question as an emergency", async () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     render(<ChatWidget {...props} />); const user = await open();
-    await user.click(screen.getByRole("button", { name: /radiation beyond low Earth orbit/i }));
+    await user.click(screen.getByRole("button", { name: /Health in space/i }));
     expect(mock.sendMessage).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/Do not wait for this chat/)).not.toBeInTheDocument();
   });
@@ -56,7 +56,7 @@ describe("ORBIT NASA research assistant", () => {
   it("renders numbered NASA source cards for grounded responses", async () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     render(<ChatWidget {...props} />); const user = await open();
-    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
+    await user.click(screen.getByRole("button", { name: /Health in space/i }));
     expect(await screen.findByText("ORBIT · NASA-grounded AI response")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /The Human Body in Space/ });
     expect(link).toHaveAttribute("href", citation.url);
@@ -73,7 +73,7 @@ describe("ORBIT NASA research assistant", () => {
     await user.click(screen.getByRole("button", { name: /Ask NASA about this topic/i }));
     expect(screen.getByRole("group", { name: "Confirm sanitized NASA research question" })).toHaveTextContent("respiratory concerns during human spaceflight");
     await user.click(screen.getByRole("button", { name: "Send sanitized question" }));
-    await waitFor(() => expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "What does NASA documentation report about respiratory concerns during human spaceflight?", { sanitizedFromTopic: "breathing" }));
+    await waitFor(() => expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "What does NASA documentation report about respiratory concerns during human spaceflight?", { category: "health_human_spaceflight", sanitizedFromTopic: "breathing" }));
     expect(mock.sendMessage.mock.calls.flat().join(" ")).not.toContain("I'm having trouble breathing");
   });
 
@@ -82,7 +82,7 @@ describe("ORBIT NASA research assistant", () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
     render(<ChatWidget {...props} />); const user = await open();
-    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
+    await user.click(screen.getByRole("button", { name: /Health in space/i }));
     await screen.findByText("ORBIT is searching and checking NASA sources…");
     fireEvent.click(screen.getByRole("button", { name: "I need urgent help" }));
     expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
@@ -104,7 +104,7 @@ describe("ORBIT NASA research assistant", () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
     const view = render(<ChatWidget {...props} />); const user = await open();
-    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
+    await user.click(screen.getByRole("button", { name: /Health in space/i }));
     view.rerender(<ChatWidget {...props} stage="retired" />);
     await act(async () => resolve({ data: reply }));
     expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
