@@ -16,9 +16,39 @@ Visible replies show at most 30 words in 1–3 short lines, with longer fixed gu
 
 The assistant does not share dashboard readings. NASA research chats are stored by life stage in the owner's Supabase session. Retired private conversation stays in browser session memory and is not sent to cloud AI or saved to the account.
 
+## FAQ categories and voice
+
+The panel groups starter questions by the selected stage: health and human
+spaceflight, Future preparation, Active mission support, Retired follow-up,
+missions and engineering, and NASA science topics. These cards only help users
+find a question; every factual answer still requires evidence from the NASA
+index. The selected stage changes examples and suggested Horizon destinations,
+not the evidence standard, and personal readings or private notes are never
+included in a text or voice request.
+
+Optional browser push-to-talk voice uses Vapi as an input/output layer. It must
+be configured with the public client values below; no OpenRouter or Supabase
+service key belongs in a `VITE_` variable:
+
+```text
+VITE_VAPI_PUBLIC_KEY
+VITE_VAPI_ASSISTANT_ID
+```
+
+The Vapi assistant must be configured to call the same server-side ORBIT chat
+tool/endpoint and speak only its validated `answer`. Without those values, text
+chat remains available and the panel honestly reports that voice is unavailable.
+Voice uses the same NASA retrieval, citation, emergency, and no-evidence rules;
+it is not a second answer engine.
+
 ## Urgent-language boundary
 
 Clear personal urgent language is handled locally first. The original statement is not persisted and is not sent to OpenRouter. ORBIT displays deterministic guidance to contact the crew medic, mission emergency channel, or local emergency services on Earth, and says that the app has not contacted anyone.
+
+For an in-space emergency, onboard procedures, crew instructions, mission
+control, and the crew medic always take priority. ORBIT is only a visible
+reminder and research assistant; it cannot call anyone, issue mission commands,
+or replace the approved emergency procedure.
 
 After that warning, the user may choose **Ask NASA about this topic**. ORBIT shows a neutral research question, such as “What does NASA documentation report about respiratory concerns during human spaceflight?” Nothing is sent until the user confirms. Only that sanitized question is uploaded and persisted.
 
