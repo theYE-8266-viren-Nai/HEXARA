@@ -1208,3 +1208,16 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 @media (max-width: 1023px) { .landing-astronaut-layer { width: min(80vw, 560px); right: 50%; top: auto; bottom: 120px; translate: calc(50% + var(--px) * 12px) 0; opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .landing-astronaut-wrap { animation: none !important; } }
 .landing-stages, .landing-stage-title { max-width: 560px; }
+/* Landing: a spaceship flies up and to the right across the right half of the sky every ~20 s. */
+.landing-ship-path { position: absolute; left: 42%; top: 78%; opacity: 0; animation: landing-ship-fly 20s linear 2s infinite; will-change: transform, opacity; }
+.landing-ship { display: block; rotate: -16deg; filter: drop-shadow(0 0 10px rgba(127, 240, 228, .45)); }
+.landing-ship-flame { transform-origin: 52px 24px; animation: landing-flame .18s ease-in-out infinite alternate; }
+@keyframes landing-ship-fly {
+  0% { opacity: 0; transform: translate(0, 0) scale(.55); }
+  4% { opacity: 1; }
+  38% { opacity: 1; transform: translate(62vw, -64vh) scale(.9); }
+  42%, 100% { opacity: 0; transform: translate(66vw, -70vh) scale(.95); }
+}
+@keyframes landing-flame { from { transform: scaleX(.8); opacity: .8; } to { transform: scaleX(1.15); opacity: 1; } }
+@media (max-width: 1023px) { .landing-ship-path { left: 10%; top: 70%; } }
+@media (prefers-reduced-motion: reduce) { .landing-ship-path { display: none; } .landing-ship-flame { animation: none; } }

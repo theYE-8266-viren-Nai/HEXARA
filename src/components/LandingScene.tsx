@@ -69,6 +69,21 @@ export function LandingScene() {
     <div className="landing-nebula" />
     <span className="landing-shooting landing-shooting-one" />
     <span className="landing-shooting landing-shooting-two" />
+    <div className="landing-ship-path">
+      <svg className="landing-ship" viewBox="0 0 140 48" width="140" height="48">
+        <defs>
+          <linearGradient id="ship-flame" x1="1" x2="0"><stop offset="0" stopColor="#ffffff" /><stop offset=".25" stopColor="#7ff0e4" /><stop offset="1" stopColor="#7ff0e4" stopOpacity="0" /></linearGradient>
+          <linearGradient id="ship-hull" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#f4fbff" /><stop offset="1" stopColor="#9fb7c6" /></linearGradient>
+        </defs>
+        <path className="landing-ship-flame" d="M0 24 Q30 17 52 21 L52 27 Q30 31 0 24 Z" fill="url(#ship-flame)" />
+        <path d="M60 14 L66 4 L80 14 Z M60 34 L66 44 L80 34 Z" fill="#5fc9c0" />
+        <path d="M52 16 L104 14 Q132 18 138 24 Q132 30 104 34 L52 32 Q48 24 52 16 Z" fill="url(#ship-hull)" />
+        <path d="M104 14 Q132 18 138 24 L104 24 Z" fill="#ffffff" fillOpacity=".55" />
+        <ellipse cx="114" cy="22" rx="8" ry="4.5" fill="#123247" />
+        <ellipse cx="116" cy="21" rx="3" ry="1.4" fill="#7ff0e4" fillOpacity=".8" />
+        <rect x="52" y="18" width="4" height="12" rx="1.5" fill="#5f7a8a" />
+      </svg>
+    </div>
     <div className="landing-earth" />
     {/* Separate layer so the photo's black sky blends into the star field (screen blend). */}
     <div className="landing-astronaut-layer"><div className="landing-astronaut-wrap"><div className="landing-astronaut" /></div></div>
