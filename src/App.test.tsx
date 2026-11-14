@@ -44,9 +44,9 @@ async function signInThroughStage(stage: keyof typeof labels) {
 /** Active astronauts pair through "Find devices" in the body overview; other stages use the wearable card. */
 async function pairWearable(stage: keyof typeof labels) {
   if (stage !== "active") { await userEvent.click(await screen.findByRole("button", { name: "Pair simulated wearable" })); return; }
-  const find = screen.queryByRole("button", { name: "Find devices" });
-  if (find) await userEvent.click(find);
-  else await userEvent.click(await screen.findByRole("button", { name: "Find devices" }));
+  const toggle = await screen.findByRole("switch", { name: "Connect wearables" });
+  if (toggle.getAttribute("aria-checked") !== "true") await userEvent.click(toggle);
+  else if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(screen.getByRole("button", { name: /Connect wearables/ }));
   await userEvent.click(await screen.findByRole("button", { name: "Pair Astroskin shirt" }));
   await screen.findByRole("button", { name: "Disconnect Astroskin shirt" });
 }
@@ -609,13 +609,25 @@ describe("OrbitWell app shell", () => {
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
+  it("turning Connect wearables off disconnects every device and turns the body dots red", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent("1/4");
+    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
+    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.queryByRole("region", { name: "Available wearables" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
+    expect(screen.getByRole("button", { name: "Pair Astroskin shirt" })).toBeInTheDocument();
+  });
+
   it("never connects the wearable until the person presses Pair, in any stage", async () => {
     const user = userEvent.setup();
     const first = await openWorkspace("active", { pair: false });
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
-    expect(screen.getByText(/Use Find devices in the body overview/)).toBeInTheDocument();
+    expect(screen.getByText(/Switch on Connect wearables at the top right/)).toBeInTheDocument();
     await pairWearable("active");
     expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
     first.unmount();

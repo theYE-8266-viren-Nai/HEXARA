@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
@@ -52,6 +52,10 @@ function HorizonApp() {
   // Wearables paired for the 3D body (Active stage). Like the wearable above, pairing lasts for this visit only.
   const [bodyDevices, setBodyDevices] = useState<ReadonlySet<BodyDeviceId>>(new Set());
   const [pairingBodyDevice, setPairingBodyDevice] = useState<BodyDeviceId | null>(null);
+  // "Connect wearables" switch: off disconnects every device, like turning Bluetooth off.
+  const [bluetoothOn, setBluetoothOn] = useState(false);
+  const [wearableListOpen, setWearableListOpen] = useState(false);
+  const bluetoothRef = useRef(false);
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendSnapshot, setBackendSnapshot] = useState<DashboardSnapshot | null>(null);
   const [dataSource, setDataSource] = useState<DashboardSource>("local");
@@ -87,19 +91,32 @@ function HorizonApp() {
     pair: () => { setDevicePaired(true); device.status.pair(); },
     reconnect: () => { setDevicePaired(true); device.status.reconnect(); },
   }), [device.status, devicePaired, bodyDevices]);
+  const setBluetooth = useCallback((on: boolean) => {
+    bluetoothRef.current = on;
+    setBluetoothOn(on);
+    setWearableListOpen(on);
+    if (!on) { setBodyDevices(new Set()); setPairingBodyDevice(null); }
+  }, []);
   const bodyDeviceControls = useMemo<BodyDeviceControls>(() => ({
+    bluetoothOn,
+    listOpen: wearableListOpen,
+    setBluetooth,
+    setListOpen: setWearableListOpen,
     paired: bodyDevices,
     pairing: pairingBodyDevice,
     pair: (id) => {
+      if (!bluetoothRef.current) { bluetoothRef.current = true; setBluetoothOn(true); }
       setPairingBodyDevice(id);
       window.setTimeout(() => {
+        // Turning the switch off while pairing cancels it.
+        if (!bluetoothRef.current) return;
         setBodyDevices((current) => new Set(current).add(id));
         setPairingBodyDevice(null);
       }, bodyDeviceTiming.pairMs);
     },
     unpair: (id) => setBodyDevices((current) => { const next = new Set(current); next.delete(id); return next; }),
     motion: motionReadings(seed, `${stage ?? "none"}:${profile.id}`),
-  }), [bodyDevices, pairingBodyDevice, seed, stage, profile.id]);
+  }), [bluetoothOn, wearableListOpen, setBluetooth, bodyDevices, pairingBodyDevice, seed, stage, profile.id]);
   const bluetoothControls = useMemo(() => ({
     phase: bluetooth.phase, message: bluetooth.message, deviceName: bluetooth.deviceName, ready: bluetooth.ready,
     // Connecting a heart-rate device also pairs the simulated wearable that supplies the other signals.
@@ -162,6 +179,7 @@ function HorizonApp() {
     setAccountStage(null);
     setDevicePaired(false);
     setBodyDevices(new Set());
+    setBluetooth(false);
     setActiveView("home");
     const auth = await ensureAnonymousSession(supabase);
     setUserId(auth.userId);
