@@ -24,6 +24,9 @@ export type ComparisonTrend = "first_session" | "similar" | "different";
 
 export interface VisualCheckTask { type: VisualCheckType; label: string; workflow: VisualWorkflow; durationSeconds: number; repetitive: boolean; instructions: string; }
 
+/** Said before every task: without gravity, an unanchored arm movement turns the whole body. */
+export const ANCHOR_NOTE = "Anchor your feet in a foot restraint or hold a handrail first, so you do not drift.";
+
 export const VISUAL_CHECK_TASKS: VisualCheckTask[] = [
   { type: "sit_to_stand", label: "Sit-to-stand or squat", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "Stand up and sit down (or squat) at a steady, comfortable pace." },
   { type: "shoulder_mobility", label: "Shoulder mobility", workflow: "movement_exercise", durationSeconds: 15, repetitive: true, instructions: "Raise both arms overhead and lower them slowly, keeping the movement even." },
@@ -33,6 +36,18 @@ export const VISUAL_CHECK_TASKS: VisualCheckTask[] = [
 ];
 
 export const taskFor = (type: VisualCheckType) => VISUAL_CHECK_TASKS.find((task) => task.type === type)!;
+
+/**
+ * Where the person is decides what is sensible. In weightlessness standing up, standing still and balancing on one leg
+ * mean nothing, so Active astronauts get only the tasks that work without gravity. Retired astronauts are back on Earth
+ * and get the full set as reconditioning practice. Future travelers get none.
+ */
+export const IN_ORBIT_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reach_and_return"];
+
+export const tasksForStage = (stage: LifeStage): VisualCheckTask[] => (stage === "active" ? VISUAL_CHECK_TASKS.filter((task) => IN_ORBIT_TASK_TYPES.includes(task.type)) : stage === "retired" ? VISUAL_CHECK_TASKS : []);
+
+/** The instructions to show, with the anchoring reminder added for astronauts in space. */
+export const taskInstructions = (task: VisualCheckTask, stage: LifeStage): string => (stage === "active" ? `${ANCHOR_NOTE} ${task.instructions}` : task.instructions);
 
 /** Derived, non-identifying features only. No frames, images, or video are ever stored. */
 export interface ObservedFeatures {

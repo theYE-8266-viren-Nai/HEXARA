@@ -22,7 +22,7 @@ describe("VisualCheckView", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("shows privacy limits and the camera disclaimer before any capture", () => {
-    render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByRole("heading", { name: "Camera privacy and limits" })).toBeInTheDocument();
     expect(screen.getAllByText(VISUAL_CHECK_DISCLAIMER).length).toBeGreaterThan(0);
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe("VisualCheckView", () => {
 
   it("falls back to synthetic mode when the camera is unavailable", () => {
     vi.stubGlobal("navigator", { ...navigator, mediaDevices: undefined });
-    render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByRole("radio", { name: /Use my camera/ })).toBeDisabled();
     expect(screen.getByRole("radio", { name: /Synthetic demo/ })).toBeChecked();
   });
@@ -51,7 +51,7 @@ describe("VisualCheckView", () => {
 
   it("completes the synthetic flow, compares with own history, and composes a crew summary without sending it", async () => {
     const user = userEvent.setup();
-    render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     await runSynthetic(user);
     await user.click(screen.getByRole("button", { name: "See observation summary" }));
     expect(screen.getByText("Synthetic demo result")).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("VisualCheckView", () => {
 
   it("does not show false success when the cloud save fails", async () => {
     const user = userEvent.setup();
-    render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(failingClient(), "user-1")} />);
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(failingClient(), "user-1")} />);
     await runSynthetic(user);
     await user.click(screen.getByRole("button", { name: "See observation summary" }));
     await user.click(screen.getByRole("button", { name: "Save summary to cloud" }));
@@ -93,7 +93,7 @@ describe("VisualCheckView", () => {
 
   it("keeps history separate per stage", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    const { unmount } = render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     await runSynthetic(user);
     await user.click(screen.getByRole("button", { name: "See observation summary" }));
     unmount();
@@ -106,7 +106,7 @@ describe("VisualCheckView", () => {
     const media = (matches: boolean) => vi.stubGlobal("matchMedia", (query: string) => ({ matches: matches && query.includes("reduce"), media: query, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false }));
     for (const [reduced, expectPulse] of [[true, false], [false, true]] as const) {
       media(reduced);
-      const { unmount } = render(<VisualCheckView stage="future" profileId={`rm-${reduced}`} seed={42} repository={createVisualCheckRepository(null, null)} />);
+      const { unmount } = render(<VisualCheckView stage="active" profileId={`rm-${reduced}`} seed={42} repository={createVisualCheckRepository(null, null)} />);
       await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
       await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
       const countdown = await screen.findByLabelText(/Starting in/);
@@ -114,5 +114,12 @@ describe("VisualCheckView", () => {
       await screen.findByRole("heading", { name: "How did that feel?" }, { timeout: 3000 });
       unmount();
     }
+  });
+
+  it("fails safe if it is ever rendered for a Future traveler: no tasks and no camera", () => {
+    render(<VisualCheckView stage="future" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.getByRole("heading", { name: "Movement checks are not part of this stage" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Allow camera|Run synthetic demo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 });

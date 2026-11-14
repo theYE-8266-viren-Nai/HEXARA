@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Camera, CameraOff, Check, ClipboardList, Copy, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  VISUAL_CHECK_DISCLAIMER, VISUAL_CHECK_TASKS, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, ownerKeyFor, taskFor,
-  type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckType, type VisualWorkflow,
+  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, ownerKeyFor, taskFor, taskInstructions, tasksForStage,
+  type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckTask, type VisualCheckType, type VisualWorkflow,
 } from "../domain/visualCheck";
 import { cameraSupported, useCameraMotion } from "../lib/useCameraMotion";
 import { loadPoseDetector, type PoseDetector } from "../lib/poseLandmarker";
@@ -21,10 +21,10 @@ const workflowLabels: Record<VisualWorkflow, { title: string; body: string }> = 
   recovery_context: { title: "Recovery and fatigue context", body: "Your sleep, stress, and energy are added after each check." },
 };
 
-const stageCopy: Record<LifeStage, { eyebrow: string; title: string; body: string }> = {
-  future: { eyebrow: "Movement check · Future traveler", title: "Practise before you fly", body: "Build a personal practice history now so later sessions have something to compare against." },
-  active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent", body: "Use short guided movements to support exercise routines and the first days of adaptation." },
-  retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", body: "Compare today's practice with your own earlier sessions after returning." },
+/** Movement checks are offered to astronauts in space and to retired astronauts back on Earth. */
+const stageCopy: Record<"active" | "retired", { eyebrow: string; title: string; body: string }> = {
+  active: { eyebrow: "Movement check · Active astronaut", title: "Keep your practice consistent", body: "Short guided arm and upper-body movements that work in weightlessness. Anchor yourself first, then compare today's practice with your own earlier sessions." },
+  retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", body: "Compare today's practice with your own earlier sessions now that you are back on Earth. This is practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };
 
 const emptyContext: UserReportedContext = { discomfort: "none", symptoms: "" };
@@ -48,7 +48,8 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   const [step, setStep] = useState<Step>("intro");
   const [mode, setMode] = useState<Mode>(cameraSupported() ? "camera" : "synthetic");
   const [consent, setConsent] = useState(false);
-  const [taskType, setTaskType] = useState<VisualCheckType>("sit_to_stand");
+  const tasks = tasksForStage(stage);
+  const [taskType, setTaskType] = useState<VisualCheckType>(tasks[0]?.type ?? "shoulder_mobility");
   const [quality, setQuality] = useState<{ quality: CameraQuality; notes: string[] } | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [remaining, setRemaining] = useState(0);
@@ -65,6 +66,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   useEffect(() => () => { cancelled.current = true; }, []);
 
   const task = taskFor(taskType);
+  const instructions = taskInstructions(task, stage);
   const ownHistory = useMemo(() => history.filter((check) => check.ownerKey === ownerKey), [history, ownerKey]);
 
   const reset = () => { camera.stop(); setPose("idle"); setStep("intro"); setQuality(null); setFeatures(null); setResult(null); setContext(emptyContext); };
@@ -125,12 +127,14 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     setStep("result");
   };
 
-  const copy = stageCopy[stage];
+  // Movement is not offered to Future travelers. The view is never routed to them, but fail safe if it is ever rendered.
+  if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">Movement checks are not part of this stage</h1><p className="mt-2 text-sm leading-6 text-slate-400">They are offered to astronauts in space and to retired astronauts doing reconditioning practice.</p></section>;
+  const copy = stageCopy[stage === "retired" ? "retired" : "active"];
   return <div className="space-y-7">
     <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1><p className="mt-2 max-w-2xl leading-7 text-slate-400">{copy.body}</p></header>
     <p role="note" className="max-w-3xl rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">{VISUAL_CHECK_DISCLAIMER}</p>
 
-    {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} onBegin={() => void begin()} camera={camera} /> : null}
+    {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} tasks={tasks} stage={stage} onBegin={() => void begin()} camera={camera} /> : null}
 
     {/* The preview element must exist while the camera runs; it is hidden outside camera steps. */}
     <div className={mode === "camera" && (step === "quality" || step === "countdown" || step === "capture") ? "max-w-3xl" : "hidden"}>
@@ -144,7 +148,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
 
     {step === "quality" ? <section className={`${panelClass} max-w-3xl`} aria-labelledby="quality-title">
       <h2 id="quality-title" className="text-xl font-semibold text-white">Lighting and framing check</h2>
-      <p className="mt-2 text-sm text-slate-400">Stand so your whole body fits inside the dashed frame, about two metres from the camera.</p>
+      <p className="mt-2 text-sm text-slate-400">{stage === "active" ? "Anchor yourself so your arms and upper body fit inside the dashed frame, about two metres from the camera." : "Stand so your whole body fits inside the dashed frame, about two metres from the camera."}</p>
       {quality ? <div className="mt-4 space-y-3" role="status">
         <p className="font-semibold text-white">Camera quality: <span className={quality.quality === "good" ? "text-emerald-200" : quality.quality === "limited" ? "text-amber-100" : "text-rose-100"}>{quality.quality}</span></p>
         {quality.notes.length ? <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">{quality.notes.map((note) => <li key={note}>{note}</li>)}</ul> : <p className="text-sm text-slate-300">Lighting and contrast look usable.</p>}
@@ -160,13 +164,13 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
     </section> : null}
 
     {step === "countdown" ? <section className={`${panelClass} max-w-3xl text-center`} aria-live="assertive">
-      <p className="text-sm text-slate-400">{task.instructions}</p>
+      <p className="text-sm text-slate-400">{instructions}</p>
       <p className={`mono-data mt-4 text-7xl font-semibold text-cyan-200 ${reducedMotion ? "" : "animate-pulse"}`} aria-label={`Starting in ${countdown}`}>{Math.max(countdown, 1)}</p>
     </section> : null}
 
     {step === "capture" ? <section className={`${panelClass} max-w-3xl`} aria-live="polite">
       <h2 className="text-xl font-semibold text-white">{task.label}</h2>
-      <p className="mt-2 text-slate-300">{task.instructions}</p>
+      <p className="mt-2 text-slate-300">{instructions}</p>
       <p className="mono-data mt-4 text-4xl text-cyan-200">{remaining}s remaining</p>
       <p className="mt-2 text-sm text-slate-400">Stop at any time if you feel pain or unsteady.</p>
       <SecondaryButton className="mt-4" onClick={reset}>Stop</SecondaryButton>
@@ -180,7 +184,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   </div>;
 }
 
-function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onTaskChange, onBegin, camera }: { mode: Mode; onModeChange: (mode: Mode) => void; consent: boolean; onConsentChange: (value: boolean) => void; taskType: VisualCheckType; onTaskChange: (type: VisualCheckType) => void; onBegin: () => void; camera: ReturnType<typeof useCameraMotion> }) {
+function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onTaskChange, tasks, stage, onBegin, camera }: { tasks: VisualCheckTask[]; stage: LifeStage; mode: Mode; onModeChange: (mode: Mode) => void; consent: boolean; onConsentChange: (value: boolean) => void; taskType: VisualCheckType; onTaskChange: (type: VisualCheckType) => void; onBegin: () => void; camera: ReturnType<typeof useCameraMotion> }) {
   const supported = cameraSupported();
   const blocked = camera.status === "denied" || camera.status === "unavailable" || camera.status === "error";
   return <div className="grid gap-5 lg:grid-cols-2">
@@ -207,7 +211,7 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
     <section className={panelClass} aria-labelledby="task-title">
       <h2 id="task-title" className="text-xl font-semibold text-white">Choose a practice task</h2>
       {(["movement_exercise", "sensorimotor"] as VisualWorkflow[]).map((workflow) => <fieldset key={workflow} className="mt-4"><legend className="text-sm font-semibold text-slate-200">{workflowLabels[workflow].title}</legend><p className="text-xs text-slate-500">{workflowLabels[workflow].body}</p>
-        <div className="mt-2 space-y-2">{VISUAL_CHECK_TASKS.filter((task) => task.workflow === workflow).map((task) => <label key={task.type} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${taskType === task.type ? "border-cyan-200/70 bg-[#123047]" : "border-[#293d59]"}`}><input type="radio" name="visual-task" className="mt-1" checked={taskType === task.type} onChange={() => onTaskChange(task.type)} /><span><span className="font-semibold text-white">{task.label}</span><span className="block text-slate-400">{task.instructions} About {task.durationSeconds} s.</span></span></label>)}</div>
+        <div className="mt-2 space-y-2">{tasks.filter((task) => task.workflow === workflow).map((task) => <label key={task.type} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${taskType === task.type ? "border-cyan-400/70 bg-cyan-400/15" : "border-[#293d59]"}`}><input type="radio" name="visual-task" className="mt-1" checked={taskType === task.type} onChange={() => onTaskChange(task.type)} /><span><span className="font-semibold text-white">{task.label}</span><span className="block text-slate-400">{taskInstructions(task, stage)} About {task.durationSeconds} s.</span></span></label>)}</div>
       </fieldset>)}
       <p className="mt-4 text-xs text-slate-500">{workflowLabels.recovery_context.title}: {workflowLabels.recovery_context.body}</p>
       <PrimaryButton className="mt-5" disabled={mode === "camera" && (!consent || camera.status === "requesting")} onClick={onBegin}>{mode === "camera" ? <Camera size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}{mode === "camera" ? (camera.status === "requesting" ? "Waiting for camera permission…" : "Allow camera and continue") : "Run synthetic demo"}</PrimaryButton>
@@ -291,7 +295,7 @@ function HistoryPanel({ history }: { history: VisualCheck[] }) {
 }
 
 function ModeOption({ checked, disabled, onChange, icon, label, hint }: { checked: boolean; disabled?: boolean; onChange: () => void; icon: ReactNode; label: string; hint: string }) {
-  return <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${checked ? "border-cyan-200/70 bg-[#123047]" : "border-[#293d59]"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}><input type="radio" name="visual-mode" className="mt-1" checked={checked} disabled={disabled} onChange={onChange} /><span><span className="flex items-center gap-2 font-semibold text-white">{icon}{label}</span><span className="block text-slate-400">{hint}</span></span></label>;
+  return <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm ${checked ? "border-cyan-400/70 bg-cyan-400/15" : "border-[#293d59]"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}><input type="radio" name="visual-mode" className="mt-1" checked={checked} disabled={disabled} onChange={onChange} /><span><span className="flex items-center gap-2 font-semibold text-white">{icon}{label}</span><span className="block text-slate-400">{hint}</span></span></label>;
 }
 
 function PrimaryButton({ children, className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
