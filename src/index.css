@@ -722,11 +722,6 @@ input[type="checkbox"] { accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .device-connect-icon.is-active, .device-badge .device-dot, .live-dot { animation: none; } .device-progress > span { transition: none; } }
 
 /* Pattern card */
-.pattern-meter { margin-top: 14px; height: 8px; overflow: hidden; border-radius: 999px; background: rgba(160,190,210,.18); }
-.pattern-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #55e0f4); transition: width .5s ease; }
-.pattern-card[data-tone="different"] .pattern-meter > span { background: #fbbf24; }
-.pattern-card[data-tone="notably_different"] .pattern-meter > span { background: #fb923c; }
-@media (prefers-reduced-motion: reduce) { .pattern-meter > span { transition: none; } }
 
 /* ───── Shared tokens for the compact Trends, question check-in and personal profile ───── */
 :root {
