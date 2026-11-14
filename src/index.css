@@ -63,6 +63,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .btn-square { border-radius: 10px; }
 .btn-square:hover { filter: brightness(1.12); }
+.mission-guide-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 12px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 40%, var(--page-bg));
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.mission-guide-button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.mission-guide-button:active { box-shadow: none; }
+.mission-guide-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 .mono-data { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-variant-numeric: tabular-nums; letter-spacing: -.05em; }
 .field { width: 100%; min-height: 43px; border: 1px solid rgba(196, 218, 236, .16); border-radius: 10px; background: var(--field-bg); padding: .7rem .85rem; color: var(--text-primary); transition: border-color .2s; }
 .field::placeholder { color: var(--muted); }

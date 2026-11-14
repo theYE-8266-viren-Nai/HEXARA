@@ -33,8 +33,8 @@ export function ActiveGuidanceView({ onViewChange }: { onViewChange: (view: View
       <p className="eyebrow">Guidance · Active astronaut</p>
       <h1 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">Your guide to staying well on mission</h1>
       <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">Build a steady routine, understand what OrbitWell is showing, and bring useful context to your crew medical team. Use this educational guide alongside your assigned mission procedures.</p>
-      <nav aria-label="Mission guide sections" className="mt-5 flex flex-wrap gap-2 text-sm">
-        {[["use-horizon", "Using OrbitWell"], ["daily-habits", "Daily habits"], ["changed-readings", "When readings change"]].map(([id, label]) => <a key={id} href={`#${id}`} className="rounded-full border border-slate-700 px-4 py-2 text-slate-300 hover:border-cyan-300/50 hover:text-cyan-200">{label}</a>)}
+      <nav aria-label="Mission guide sections" className="mt-5 flex flex-wrap gap-3 text-sm">
+        {[["use-horizon", "Using OrbitWell"], ["daily-habits", "Daily habits"], ["changed-readings", "When readings change"]].map(([id, label]) => <a key={id} href={`#${id}`} className="mission-guide-button">{label}</a>)}
       </nav>
     </header>
 
