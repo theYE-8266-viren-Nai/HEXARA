@@ -590,7 +590,7 @@ describe("OrbitWell app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
     expect(screen.getByRole("heading", { name: "Keep your practice consistent" })).toBeInTheDocument();
-    expect(screen.getByText(/Camera observations are experimental context only/)).toBeInTheDocument();
+    expect(screen.getByText(/Camera observations are experimental movement context only/)).toBeInTheDocument();
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
     // Only tasks that work without gravity, each with the anchoring reminder.
     expect(screen.getByRole("radio", { name: /Shoulder mobility/ })).toBeInTheDocument();

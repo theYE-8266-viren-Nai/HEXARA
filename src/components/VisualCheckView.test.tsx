@@ -28,6 +28,7 @@ describe("VisualCheckView", () => {
     expect(screen.getByText("Privacy and limits").closest("details")).not.toHaveAttribute("open");
     expect(screen.getAllByText(VISUAL_CHECK_DISCLAIMER).length).toBeGreaterThan(0);
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
+    expect(screen.getByText(/build movement awareness and follow your approved conditioning plan/)).toBeInTheDocument();
   });
 
   it("keeps the first screen short: no group headings, one how-to line, privacy folded away", () => {
@@ -55,6 +56,11 @@ describe("VisualCheckView", () => {
   it("keeps the Retired practice-tracking note on one line", () => {
     render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByText(/not a rehab programme/)).toBeInTheDocument();
+  });
+
+  it("explains the safe movement-awareness stop rule before capture", () => {
+    render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.getByText(/Move slowly and comfortably/)).toBeInTheDocument();
   });
 
   it("preselects a requested offered task and never offers historical standing posture", () => {

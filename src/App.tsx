@@ -17,7 +17,7 @@ import { createPreparationRepository } from "./lib/preparationRepository";
 import { VisualCheckView } from "./components/VisualCheckView";
 import { createVisualCheckRepository } from "./lib/visualCheckRepository";
 import { ownerKeyFor, type VisualCheck, type VisualCheckType } from "./domain/visualCheck";
-import { primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
+import { movementRegionsForTask, primaryMovementRegion, type MovementBodyRegionId } from "./domain/movementBody";
 import { ThemeProvider } from "./lib/theme";
 import { DeviceContext, type BodyDeviceControls } from "./lib/deviceContext";
 import { bodyDeviceTiming, type BodyDeviceId } from "./domain/bodyDevices";
@@ -99,7 +99,7 @@ function HorizonApp() {
   const [movementChecks, setMovementChecks] = useState<VisualCheck[]>([]);
   const [movementHistoryWarning, setMovementHistoryWarning] = useState<string | undefined>();
   const [movementLaunch, setMovementLaunch] = useState<{ task: VisualCheckType; nonce: number } | null>(null);
-  const [bodyFocus, setBodyFocus] = useState<{ region: MovementBodyRegionId; nonce: number } | null>(null);
+  const [bodyFocus, setBodyFocus] = useState<{ regions: MovementBodyRegionId[]; nonce: number } | null>(null);
   const mockDashboard = useMemo(() => mockDashboardRepository.getSnapshot(scenario, { seed, replayCount }), [scenario, seed, replayCount]);
   const dashboard = scenario === "usual" && backendSnapshot ? backendSnapshot : mockDashboard;
   const dataQuality = scenario === "usual" ? backendQuality : scenario === "sensor_disconnected" ? "disconnected" : scenario === "offline" ? "offline" : scenario === "stale" ? "stale" : "current";
@@ -315,7 +315,8 @@ function HorizonApp() {
     setMovementChecks((current) => [check, ...current.filter((item) => item.checkId !== check.checkId)]);
     setMovementHistoryWarning(undefined);
     setMovementLaunch(null);
-    setBodyFocus({ region: primaryMovementRegion(check.checkType), nonce: Date.now() });
+    const regions = movementRegionsForTask(check.checkType);
+    setBodyFocus({ regions: regions.length ? regions : [primaryMovementRegion(check.checkType)], nonce: Date.now() });
     setActiveView("home");
   };
   const changeView = (next: ViewName) => {

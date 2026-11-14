@@ -209,7 +209,8 @@ describe('Human body viewer', () => {
   it('shows all four Retired tasks and displays only derived saved context', async () => {
     const user = userEvent.setup();
     render(<HumanBodyViewer stage="retired" movementChecks={[savedCheck('sit_to_stand')]} initialLayer="movement" initialRegion="knee" />);
-    for (const region of ['Shoulder','Arm','Hip','Knee','Ankle']) expect(await screen.findByRole('button', {name:region})).toBeInTheDocument();
+    await screen.findByRole('button', {name:'Shoulder'});
+    for (const region of ['Shoulder','Arm','Spine','Hip','Knee','Legs','Ankle']) expect(document.querySelector(`button[aria-label="${region}"]`)).not.toBeNull();
     const panel = screen.getByRole('complementary', {name:'Knee movement'});
     expect(panel).toHaveTextContent('Sit-to-stand');
     expect(panel).toHaveTextContent('Repetitions7');
@@ -217,5 +218,15 @@ describe('Human body viewer', () => {
     expect(panel).toHaveTextContent('Synthetic demo');
     expect(panel).toHaveTextContent('Repetition count was similar');
     expect(panel).not.toHaveTextContent('symptom');
+  });
+
+  it('focuses the linked spine, hip, knee, and leg regions with one sit-to-stand result', async () => {
+    render(<HumanBodyViewer stage="retired" movementChecks={[savedCheck('sit_to_stand')]} initialLayer="movement" initialRegions={['spine', 'hip', 'knee', 'movement_legs']} initialFocusKey={1} />);
+    const panel = await screen.findByRole('complementary', {name:'Sit-to-stand movement'});
+    expect(panel).toHaveTextContent('Linked movement context for your spine, hips, knees, and legs.');
+    expect(panel).toHaveTextContent('Notice control, evenness, and pauses');
+    for (const region of ['Spine', 'Hip', 'Knee', 'Legs']) {
+      expect(document.querySelector(`button[aria-label="${region}"]`)).toHaveAttribute('data-movement-focused', 'true');
+    }
   });
 });

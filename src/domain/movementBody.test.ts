@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { latestMovementForRegion, movementRegionsForStage, MOVEMENT_TASK_REGIONS, primaryMovementRegion } from "./movementBody";
+import { latestMovementForRegion, movementRegionsForStage, movementRegionsForTask, MOVEMENT_TASK_REGIONS, primaryMovementRegion } from "./movementBody";
 import { VISUAL_CHECK_DISCLAIMER, type VisualCheck } from "./visualCheck";
 
 const check = (checkType: VisualCheck["checkType"], startedAt: string): VisualCheck => ({
@@ -23,16 +23,18 @@ const check = (checkType: VisualCheck["checkType"], startedAt: string): VisualCh
 describe("movement-to-body mapping", () => {
   it("offers only shoulder and arm in flight, all movement regions after flight, and none before flight", () => {
     expect(movementRegionsForStage("active")).toEqual(["shoulder", "arm"]);
-    expect(movementRegionsForStage("retired")).toEqual(["shoulder", "arm", "hip", "knee", "ankle"]);
-    expect(movementRegionsForStage("future")).toEqual(["shoulder", "arm", "hip", "knee", "ankle"]);
+    expect(movementRegionsForStage("retired")).toEqual(["shoulder", "arm", "spine", "hip", "knee", "movement_legs", "ankle"]);
+    expect(movementRegionsForStage("future")).toEqual([]);
   });
 
   it("maps each offered task to its intended primary and related body regions", () => {
     expect(primaryMovementRegion("shoulder_mobility")).toBe("shoulder");
     expect(primaryMovementRegion("reach_and_return")).toBe("arm");
-    expect(primaryMovementRegion("sit_to_stand")).toBe("knee");
+    expect(primaryMovementRegion("sit_to_stand")).toBe("spine");
     expect(primaryMovementRegion("single_leg_balance")).toBe("ankle");
-    expect(MOVEMENT_TASK_REGIONS.sit_to_stand).toEqual(["hip", "knee", "legs", "back"]);
+    expect(MOVEMENT_TASK_REGIONS.sit_to_stand).toEqual(["spine", "hip", "knee", "movement_legs"]);
+    expect(movementRegionsForTask("sit_to_stand")).toEqual(["spine", "hip", "knee", "movement_legs"]);
+    expect(movementRegionsForTask("standing_posture")).toEqual([]);
   });
 
   it("restores the newest saved session for a region", () => {
