@@ -1,4 +1,5 @@
 import type { MetricCardData, MetricName } from "../types/horizon";
+import { formatDurationHours } from "./formatMetricValue";
 
 /** One display precision per metric so headline, baseline, and chart values always agree. */
 const DECIMALS: Record<MetricName, number> = {
@@ -30,7 +31,14 @@ export function describeDelta(card: MetricCardData): { text: string; direction: 
   const delta = Number((card.value - card.baseline).toFixed(DECIMALS[card.metric]));
   if (Math.abs(delta) < step) return { text: "At your usual", direction: "steady" };
   const sign = delta > 0 ? "+" : "−";
+  if (card.metric === "sleep_hours") {
+    return { text: `${sign}${Math.round(Math.abs(delta) * 60)} min vs usual`, direction: delta > 0 ? "up" : "down" };
+  }
   return { text: `${sign}${formatValue(card.metric, Math.abs(delta))} ${card.unit} vs usual`, direction: delta > 0 ? "up" : "down" };
+}
+
+export function formatDisplayValue(metric: MetricName, value: number, unit: string): string {
+  return metric === "sleep_hours" ? formatDurationHours(value) : `${formatValue(metric, value)} ${unit}`;
 }
 
 /** Rounded y-axis domain and ticks that include the data and baseline, never narrower than the metric's minimum span. */
