@@ -9,7 +9,8 @@ describe("chat response boundary", () => {
     const result = await repository.sendMessage("conversation", "active", "I'm losing blood sugar. Inject insulin?", true);
     expect(invoke).not.toHaveBeenCalled();
     expect(result.data?.source).toBe("built-in");
-    expect(result.data?.content).toContain("do not use it to treat suspected low blood sugar");
+    expect(result.data?.content).toContain("Suspected low sugar: no insulin");
+    expect(result.data?.details).toContain("do not use it to treat suspected low blood sugar");
   });
   it("rejects unsafe output even from an older deployed function", async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { message: { content: "Inject insulin now." } } });

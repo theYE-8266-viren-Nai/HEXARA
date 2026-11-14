@@ -7,10 +7,10 @@ import { offlineChatReply, stageName, type ChatContextSummary, type ChatMessage 
 import { getEmergencySupport, type EmergencySupport, type EmergencyTopic } from "../../supabase/functions/_shared/emergencySupport";
 import { RobotAvatar } from "./RobotAvatar";
 
-const suggestions = (stage: LifeStage | null) => ["I'm not feeling well", "I need help now", stage === "future" ? "How do I build a personal baseline?" : stage === "retired" ? "How can I prepare for long-term follow-up?" : "How can I support my wellbeing today?"];
-const localMessage = (content: string, support?: EmergencySupport): ChatMessage => ({ id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString(), status: "complete", source: "built-in", supportTopic: support?.topic, resources: support?.resources });
+const suggestions = (stage: LifeStage | null) => stage === "retired" ? ["I miss the view of Earth", "Life after the mission feels different", "I want to reconnect with people", "I need help now"] : ["I'm not feeling well", "I need help now", stage === "future" ? "How do I build a personal baseline?" : "How can I support my wellbeing today?"];
+const localMessage = (content: string, support?: EmergencySupport): ChatMessage => ({ id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString(), status: "complete", source: "built-in", supportTopic: support?.topic, details: support?.details, resources: support?.resources });
 
-export function ChatWidget({ stage, client, userId, context, avatarSrc }: { stage: LifeStage | null; client: SupabaseClient | null; userId: string | null; context?: ChatContextSummary; avatarSrc?: string }) {
+export function ChatWidget({ stage, client, userId, context, avatarSrc, openRequest }: { stage: LifeStage | null; client: SupabaseClient | null; userId: string | null; context?: ChatContextSummary; avatarSrc?: string; openRequest?: number }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,6 +27,7 @@ export function ChatWidget({ stage, client, userId, context, avatarSrc }: { stag
   const messageList = useRef<HTMLDivElement>(null);
   const epoch = useRef(0);
   const sending = useRef(false);
+  const lastOpenRequest = useRef(openRequest ?? 0);
   const hydrated = useRef(false);
   const repository = useMemo(() => createChatRepository(client, userId), [client, userId]);
 
@@ -64,6 +65,7 @@ export function ChatWidget({ stage, client, userId, context, avatarSrc }: { stag
   }, [open, stage, repository]);
 
   useEffect(() => { if (open) question.current?.focus(); }, [open]);
+  useEffect(() => { if ((openRequest ?? 0) > lastOpenRequest.current) setOpen(true); lastOpenRequest.current = openRequest ?? 0; }, [openRequest]);
   useEffect(() => {
     const list = messageList.current;
     if (list) list.scrollTop = list.scrollHeight;
@@ -110,7 +112,7 @@ export function ChatWidget({ stage, client, userId, context, avatarSrc }: { stag
       setMessages((current) => [...current, result.data ?? localMessage(offlineChatReply(stage, trimmed))]);
     } catch {
       if (isCurrent()) {
-        setWarning("Cloud chat is unavailable. This reply is built in and has not been saved remotely.");
+        setWarning("AI unavailable. Built-in reply; not saved remotely.");
         setMessages((current) => [...current, localMessage(offlineChatReply(stage, trimmed))]);
       }
     } finally { if (isCurrent()) { sending.current = false; setBusy(false); } }
@@ -127,15 +129,15 @@ export function ChatWidget({ stage, client, userId, context, avatarSrc }: { stag
     {open ? <section id="orbit-chat" className="chat-panel" data-pet-state={petState} role="dialog" aria-modal="false" aria-labelledby="orbit-title" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }}>
       <header>
         <RobotAvatar imageSrc={avatarSrc} />
-        <div className="chat-heading"><p className="eyebrow">YOUR HORIZON CHAT PET</p><h2 id="orbit-title">ORBIT <span>AI</span></h2><p className="chat-pet-status" role="status"><span aria-hidden="true" />{petState === "support" ? "Here with you in chat" : busy ? "Thinking about your question…" : "I'm listening"}</p></div>
+        <div className="chat-heading"><h2 id="orbit-title">ORBIT <span>AI</span></h2><p className="chat-pet-status" role="status"><span aria-hidden="true" />{petState === "support" ? "Here to help" : busy ? "Thinking…" : "I'm listening"}</p></div>
         <button type="button" className="icon-button" onClick={close} aria-label="Close chat"><X size={18} /></button>
       </header>
-      <div className="chat-safety-note"><ShieldCheck size={14} aria-hidden="true" /><p>Not a doctor or emergency service. In an emergency, reach your crew medic now.</p></div>
+      <div className="chat-safety-note"><ShieldCheck size={14} aria-hidden="true" /><p>AI only. No diagnosis/doses. No one contacted.</p></div>
       <div className="chat-messages" ref={messageList}>
         {loading ? <p className="chat-meta" role="status">Loading saved conversation…</p> : null}
-        {messages.length === 0 ? <div className="chat-empty"><div className="chat-pet-intro"><RobotAvatar imageSrc={avatarSrc} /><span className="chat-pet-greeting">Hey, I'm ORBIT.</span></div><h3>How are you feeling?</h3><p>Tell me what's happening, ask about your day, or just say hello. You don't need to choose a condition first.</p><p className="chat-stage-label">{stage ? stageName(stage) : "Space traveler"} support</p>{suggestions(stage).map((suggestion) => <button disabled={(busy || loading) && !getEmergencySupport(suggestion)} key={suggestion} type="button" onClick={() => void send(suggestion)}>{suggestion}<ArrowUpRight size={14} aria-hidden="true" /></button>)}</div> : null}
+        {messages.length === 0 ? <div className="chat-empty"><div className="chat-pet-intro"><RobotAvatar imageSrc={avatarSrc} /><span className="chat-pet-greeting">Hey, I'm ORBIT.</span></div><h3>{stage === "retired" ? "There's room for your story here." : "How are you feeling?"}</h3><p>{stage === "retired" ? "Share a memory, a change in perspective, or just how today feels. Start anywhere." : "Tell me what's happening."}</p><p className="chat-stage-label">{stage ? stageName(stage) : "Space traveler"} support</p>{suggestions(stage).map((suggestion) => <button disabled={(busy || loading) && !getEmergencySupport(suggestion)} key={suggestion} type="button" onClick={() => void send(suggestion)}>{suggestion}<ArrowUpRight size={14} aria-hidden="true" /></button>)}</div> : null}
         <div className="chat-transcript" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
-          {messages.map((message) => <div key={message.id} className={`chat-message ${message.role}`}><small>{message.role === "user" ? "You" : message.source === "built-in" ? "ORBIT · Built-in guidance" : "ORBIT · AI response"}</small><p>{message.content}</p>{message.resources?.length ? <details className="chat-references"><summary>First-aid references</summary><span>Earth guidance; onboard procedures take precedence.</span>{message.resources.map((resource) => <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">{resource.label}<ArrowUpRight size={11} aria-hidden="true" /></a>)}</details> : null}</div>)}
+          {messages.map((message) => <div key={message.id} className={`chat-message ${message.role}`}><small>{message.role === "user" ? "You" : message.source === "built-in" ? "Built-in" : "AI"}</small><p>{message.content}</p>{message.details || message.resources?.length ? <details className="chat-references"><summary>More guidance</summary>{message.details ? <p>{message.details}</p> : null}<span>Onboard procedures take precedence.</span>{message.resources?.map((resource) => <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">{resource.label}<ArrowUpRight size={11} aria-hidden="true" /></a>)}</details> : null}</div>)}
           {busy ? <p className="chat-meta" role="status">ORBIT is thinking…</p> : null}
         </div>
         {supportTopic ? <div className="chat-followups" aria-label="Continue the conversation">{followUps.map((text) => <button key={text} type="button" onClick={() => void send(text)}>{text}</button>)}<button type="button" onClick={everydayChat}>Return to everyday chat</button></div> : null}
