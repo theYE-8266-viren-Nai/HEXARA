@@ -23,9 +23,38 @@ describe("VisualCheckView", () => {
 
   it("shows privacy limits and the camera disclaimer before any capture", () => {
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
-    expect(screen.getByRole("heading", { name: "Camera privacy and limits" })).toBeInTheDocument();
+    expect(screen.getByText("Privacy and limits")).toBeInTheDocument();
+    // The details are folded away until the person opens them, but stay in the page.
+    expect(screen.getByText("Privacy and limits").closest("details")).not.toHaveAttribute("open");
     expect(screen.getAllByText(VISUAL_CHECK_DISCLAIMER).length).toBeGreaterThan(0);
     expect(screen.getByText(/never recorded or uploaded/)).toBeInTheDocument();
+  });
+
+  it("keeps the first screen short: no group headings, one how-to line, privacy folded away", () => {
+    render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.queryByText(/Recovery and fatigue context/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Movement and exercise")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(5);
+    // Only the selected task shows its how-to line.
+    expect(screen.getAllByText(/Stand up and sit down/)).toHaveLength(1);
+    expect(screen.queryByText(/Raise both arms overhead/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Allow camera and continue|Run synthetic demo/ })).toBeInTheDocument();
+  });
+
+  it("shows the how-to line of whichever task is chosen, and keeps the anchor reminder for Active", async () => {
+    const user = userEvent.setup();
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(2);
+    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /Reach-and-return/ }));
+    expect(screen.getByText(/Reach forward to one side/)).toBeInTheDocument();
+    expect(screen.queryByText(/Raise both arms overhead/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+  });
+
+  it("keeps the Retired practice-tracking note on one line", () => {
+    render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.getByText(/not a rehab programme/)).toBeInTheDocument();
   });
 
   it("falls back to synthetic mode when the camera is unavailable", () => {
@@ -42,7 +71,7 @@ describe("VisualCheckView", () => {
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     const start = screen.getByRole("button", { name: "Allow camera and continue" });
     expect(start).toBeDisabled();
-    await user.click(screen.getByRole("checkbox", { name: /choose to allow it/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Allow my camera for this practice/ }));
     await user.click(start);
     expect(await screen.findByText("Camera permission was denied.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Use synthetic demo" }));
