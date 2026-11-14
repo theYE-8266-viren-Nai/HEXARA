@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
-import { HeartPulse, Moon, Radiation } from "lucide-react";
 
 /**
  * Full-page space backdrop for the start page: a drifting star field (canvas), a glowing Earth horizon,
- * orbit rings with moving satellites, a floating NASA astronaut, occasional shooting stars and a few example
- * readouts that show what OrbitWell does. Decorative only; all motion stops for people who prefer reduced motion.
+ * orbit rings with moving satellites, a floating NASA astronaut and occasional shooting stars. Decorative only; all motion stops for people who prefer reduced motion.
  */
 export function LandingScene() {
   const root = useRef<HTMLDivElement>(null);
@@ -77,21 +75,6 @@ export function LandingScene() {
     <div className="landing-orbit-system">
       <div className="landing-orbit landing-orbit-a"><span className="landing-satellite" /></div>
       <div className="landing-orbit landing-orbit-b"><span className="landing-satellite landing-satellite-small" /></div>
-      <div className="landing-readout landing-readout-heart">
-        <span className="landing-readout-icon"><HeartPulse size={16} /></span>
-        <div><p className="landing-readout-label">Heart rate</p><p className="landing-readout-value">72 <small>bpm</small></p><p className="landing-readout-note is-good">Within your usual 64–74</p></div>
-        <svg className="landing-ecg" viewBox="0 0 120 32"><path d="M0 18h28l6-12 8 24 7-30 7 22 5-4h59" /></svg>
-      </div>
-      <div className="landing-readout landing-readout-sleep">
-        <span className="landing-readout-icon"><Moon size={16} /></span>
-        <div><p className="landing-readout-label">Sleep · this week</p><p className="landing-readout-value">5.8 <small>h</small></p><p className="landing-readout-note is-watch">Below your usual 3 nights in a row</p></div>
-        <span className="landing-bars"><i /><i /><i /><i /><i className="is-low" /><i className="is-low" /><i className="is-low" /></span>
-      </div>
-      <div className="landing-readout landing-readout-rad">
-        <span className="landing-readout-icon"><Radiation size={16} /></span>
-        <div><p className="landing-readout-label">Radiation dose</p><p className="landing-readout-value">0.42 <small>mSv/day</small></p><p className="landing-readout-note is-good">Within usual range</p></div>
-      </div>
-      <p className="landing-example-tag">Example readings · synthetic data</p>
     </div>
   </div>;
 }
