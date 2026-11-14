@@ -1,4 +1,4 @@
-const CACHE_NAME = "orbitwell-shell-v1";
+const CACHE_NAME = "orbitwell-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -27,6 +27,15 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Pages load from the network first so a new deploy shows up right away; the saved copy is only for offline use.
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok) { const copy = response.clone(); void caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy)); }
+      return response;
+    }).catch(() => caches.match("/index.html")));
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {
