@@ -406,18 +406,13 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
   });
 
-  it("persists the simulation seed and replays events locally", async () => {
+  it("no longer shows the simulation seed or replay controls on Profile", async () => {
     const user = userEvent.setup();
     await openWorkspace();
-
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
-    const seed = screen.getByRole("spinbutton", { name: "Simulation seed" });
-    await user.clear(seed);
-    await user.type(seed, "31415");
-    await user.click(screen.getByRole("button", { name: "Replay events" }));
-
-    expect(window.localStorage.getItem("horizon:seed")).toBe("31415");
-    expect(screen.getByText("Replay 1 · mock run")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Demo scenario" })).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "Simulation seed" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Replay events" })).not.toBeInTheDocument();
   });
 
   it("asks in-flight questions one at a time and summarises the answers", async () => {

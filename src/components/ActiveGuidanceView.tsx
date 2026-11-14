@@ -69,7 +69,6 @@ export function ActiveGuidanceView({ onViewChange }: { onViewChange: (view: View
             <li><strong className="block text-slate-200">During the workday</strong>Protect planned meals, exercise, and recovery time. Raise concerns that interfere with your tasks.</li>
             <li><strong className="block text-slate-200">Before sleep</strong>Note relevant context in Wellbeing and prepare for the next scheduled check-in.</li>
           </ol>
-          <p className="mt-5 border-t border-slate-700 pt-4 text-xs leading-6 text-slate-400">Suggested organization for using this demo—not an official crew schedule or a completion score.</p>
         </aside>
       </div>
     </section>
@@ -85,7 +84,6 @@ export function ActiveGuidanceView({ onViewChange }: { onViewChange: (view: View
           ["Record the agreed follow-up", "Bring the dates, affected signals, quality limitations, and your own observations to the check-in. Follow the medical team's advice and record the next review in your approved mission system; OrbitWell does not schedule or send it."],
         ].map(([title, body], i) => <li key={title} className="flex items-start gap-3"><span className="mt-0.5 font-mono text-sm text-cyan-200">0{i + 1}</span><div><h3 className="font-semibold text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></li>)}
       </ol>
-      <p className="mt-5 border-t border-slate-700 pt-4 text-sm leading-6 text-slate-400">Do not change medication, exercise limits, fluid targets, or radiation procedures based on an app status or AI explanation.</p>
     </section>
 
   </div>;
