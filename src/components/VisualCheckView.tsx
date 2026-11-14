@@ -57,7 +57,8 @@ export function VisualCheckView({ stage, profileId, repository, seed, onRequestC
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const [pose, setPose] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
   const [skeleton, setSkeleton] = useState(false);
-  useEffect(() => () => { cancelled.current = true; }, []);
+  // StrictMode (the dev server) mounts, unmounts and mounts again, so the flag must be reset on every mount, not only set on unmount.
+  useEffect(() => { cancelled.current = false; return () => { cancelled.current = true; }; }, []);
 
   const task = taskFor(taskType);
   const instructions = taskInstructions(task, stage);
