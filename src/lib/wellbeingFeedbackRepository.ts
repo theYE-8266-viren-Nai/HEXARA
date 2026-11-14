@@ -12,8 +12,11 @@ export const FEEDBACK_ERROR_TEXT: Record<string, string> = {
   not_configured: "AI feedback is not set up yet.",
   model_missing: "AI feedback is not set up yet.",
   model_invalid: "AI feedback is not set up yet.",
+  paid_model_blocked: "AI feedback is paused: only free AI models are allowed, and the one chosen is not free.",
   authentication_required: "Sign in again to get AI feedback.",
   rate_limited: "Too many requests. Please wait a moment.",
+  upstream_credit: "AI feedback is paused because the AI service has no credit left. The built-in steps above still apply.",
+  upstream_auth: "The AI service did not accept its key, so AI feedback is paused.",
 };
 export const GENERIC_FEEDBACK_ERROR = "AI feedback is unavailable right now.";
 export const friendlyFeedbackError = (code: string | undefined) => (code && FEEDBACK_ERROR_TEXT[code]) || GENERIC_FEEDBACK_ERROR;

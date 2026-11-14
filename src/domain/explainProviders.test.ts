@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, extractText, extractUpstreamMessage, completeSentences, retryWhenUnsafe, type AttemptOutcome } from "../../supabase/functions/_shared/providers";
+import { ANTHROPIC_MODEL, OPENROUTER_MAX_TOKENS, buildProviderRequest, chooseProvider, isFreeModel, extractText, extractUpstreamMessage, completeSentences, retryWhenUnsafe, type AttemptOutcome } from "../../supabase/functions/_shared/providers";
 import { buildSystemPrompt, buildUserPrompt, type ExplainRequest } from "../../supabase/functions/_shared/validate";
 
 const summary: ExplainRequest = { stage: "active", level: "different", patternScore: 60, dataQuality: "good", source: "api", audience: "traveler", drivers: [{ metricLabel: "Sleep", direction: "lower", changePct: -12 }] };
@@ -11,8 +11,10 @@ describe("provider choice", () => {
     expect(choice).toEqual({ ok: true, provider: "openrouter", apiKey: SECRET, model: "vendor/some-model:free" });
   });
 
-  it("falls back to Anthropic when only its key is set", () => {
-    expect(chooseProvider({ ANTHROPIC_API_KEY: SECRET })).toEqual({ ok: true, provider: "anthropic", apiKey: SECRET, model: ANTHROPIC_MODEL });
+  it("uses Anthropic (which is paid) only when the owner deliberately allows paid models", () => {
+    expect(chooseProvider({ ANTHROPIC_API_KEY: SECRET })).toEqual({ ok: false, error: "paid_model_blocked" });
+    expect(chooseProvider({ ANTHROPIC_API_KEY: SECRET, ALLOW_PAID_MODELS: "false" })).toEqual({ ok: false, error: "paid_model_blocked" });
+    expect(chooseProvider({ ANTHROPIC_API_KEY: SECRET, ALLOW_PAID_MODELS: "true" })).toEqual({ ok: true, provider: "anthropic", apiKey: SECRET, model: ANTHROPIC_MODEL });
   });
 
   it("says what is missing instead of guessing a model", () => {
@@ -24,15 +26,15 @@ describe("provider choice", () => {
 
   it("accepts the free router and up to three fallback models, and rejects more", () => {
     expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openrouter/free" })).toMatchObject({ ok: true, model: "openrouter/free" });
-    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "a/one:free, b/two:free ,c/three" })).toMatchObject({ ok: true, model: "a/one:free,b/two:free,c/three" });
-    for (const model of ["a/1,b/2,c/3,d/4", "a/1,,b/2", "a/1,", ",a/1", "a/1,bad model"])
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "a/one:free, b/two:free ,c/three:free" })).toMatchObject({ ok: true, model: "a/one:free,b/two:free,c/three:free" });
+    for (const model of ["a/1:free,b/2:free,c/3:free,d/4:free", "a/1,,b/2", "a/1,", ",a/1", "a/1,bad model"])
       expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: model }), model).toEqual({ ok: false, error: "model_invalid" });
   });
 
   it("rejects model ids with unexpected characters", () => {
     for (const model of ["bad model", "vendor/model;rm -rf", "a".repeat(101), "../etc", "vendor/model\nx", "-leading"])
       expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: model }), model).toEqual({ ok: false, error: "model_invalid" });
-    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: " vendor/model-1.5:beta " })).toMatchObject({ ok: true, model: "vendor/model-1.5:beta" });
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: " vendor/model-1.5:free " })).toMatchObject({ ok: true, model: "vendor/model-1.5:free" });
   });
 });
 
@@ -172,5 +174,42 @@ describe("retry when a reply is unusable", () => {
     const { calls, attempt } = sequence({ kind: "unsafe" }, { kind: "text", text: "never reached" });
     expect(await retryWhenUnsafe(attempt, { elapsedMs: () => 9_000, retryBeforeMs: 8_000 })).toEqual({ kind: "unsafe", attempts: 1 });
     expect(calls.count).toBe(1);
+  });
+});
+
+describe("free models only (never spends credit)", () => {
+  it("recognises exactly the free ids", () => {
+    for (const id of ["openrouter/free", "google/gemma-4-31b-it:free", "a/b:free"]) expect(isFreeModel(id), id).toBe(true);
+    for (const id of ["openrouter/auto", "openai/gpt-4o-mini", "anthropic/claude-haiku-5-5", "google/gemma-4-31b-it", "vendor/model:free-trial", "free/model", "a/b:FREE", ""]) expect(isFreeModel(id), id).toBe(false);
+  });
+
+  it("refuses a paid OpenRouter model before any request could be made", () => {
+    for (const model of ["openai/gpt-4o-mini", "anthropic/claude-haiku-5-5", "google/gemma-4-31b-it", "openrouter/auto"])
+      expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: model }), model).toEqual({ ok: false, error: "paid_model_blocked" });
+  });
+
+  it("refuses a fallback list if ANY model in it is paid", () => {
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "a/one:free,openai/gpt-4o-mini" })).toEqual({ ok: false, error: "paid_model_blocked" });
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "a/one:free,b/two:free" })).toMatchObject({ ok: true });
+  });
+
+  it("does not quietly fall back to a paid Anthropic key when the OpenRouter model is blocked", () => {
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openai/gpt-4o-mini", ANTHROPIC_API_KEY: "other" })).toEqual({ ok: false, error: "paid_model_blocked" });
+  });
+
+  it("allows paid models only with the explicit owner switch", () => {
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openai/gpt-4o-mini", ALLOW_PAID_MODELS: "true" })).toMatchObject({ ok: true, model: "openai/gpt-4o-mini" });
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openai/gpt-4o-mini", ALLOW_PAID_MODELS: "yes" })).toEqual({ ok: false, error: "paid_model_blocked" });
+    expect(chooseProvider({ OPENROUTER_API_KEY: SECRET, OPENROUTER_MODEL: "openai/gpt-4o-mini", ALLOW_PAID_MODELS: " TRUE " })).toMatchObject({ ok: true });
+  });
+
+  it("the functions that use the shared chooser pass the owner switch through, and none can hard-code paid models", () => {
+    const sources = import.meta.glob("../../supabase/functions/*/index.ts", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+    const usingChooser = Object.entries(sources).filter(([, code]) => code.includes("chooseProvider("));
+    const names = usingChooser.map(([path]) => path.split("/").slice(-2)[0]);
+    expect(names).toEqual(expect.arrayContaining(["explain-pattern", "wellbeing-feedback"]));
+    for (const [path, code] of usingChooser.filter(([path]) => !path.includes("chat-assistant"))) expect(code, path).toContain('ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS")');
+    // Without the switch the chooser blocks paid models, so a function that does not pass it is strict by default.
+    for (const [path, code] of usingChooser) expect(code, path).not.toMatch(/ALLOW_PAID_MODELS:\s*["'`]true/);
   });
 });

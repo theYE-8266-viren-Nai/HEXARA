@@ -11,9 +11,16 @@ export type ProviderName = "openrouter" | "anthropic";
 
 export type ProviderChoice =
   | { ok: true; provider: ProviderName; apiKey: string; model: string }
-  | { ok: false; error: "not_configured" | "model_missing" | "model_invalid" };
+  | { ok: false; error: "not_configured" | "model_missing" | "model_invalid" | "paid_model_blocked" };
 
-export interface ProviderEnv { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; ANTHROPIC_API_KEY?: string }
+export interface ProviderEnv { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; ANTHROPIC_API_KEY?: string; ALLOW_PAID_MODELS?: string }
+
+/**
+ * FREE ONLY BY DEFAULT. A model counts as free when it is OpenRouter's free router or its id ends in ":free". Anything else, and every
+ * Anthropic call, can cost money, so it is refused unless the owner deliberately sets the secret ALLOW_PAID_MODELS=true. The refusal
+ * happens before any request is sent, so a paid model put in OPENROUTER_MODEL by mistake can never spend credit.
+ */
+export const isFreeModel = (id: string): boolean => id === "openrouter/free" || id.endsWith(":free");
 
 export const ANTHROPIC_MODEL = "claude-haiku-5-5";
 const MAX_MODELS = 3;
@@ -24,16 +31,18 @@ const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:+\-/]{0,99}$/;
 const clean = (value: string | undefined) => (value ?? "").trim();
 
 export function chooseProvider(env: ProviderEnv): ProviderChoice {
+  const allowPaid = clean(env.ALLOW_PAID_MODELS).toLowerCase() === "true";
   const openrouterKey = clean(env.OPENROUTER_API_KEY);
   if (openrouterKey) {
     // One model id, or up to three separated by commas: OpenRouter tries the next one if the first fails or is rate limited.
     const models = clean(env.OPENROUTER_MODEL).split(",").map((item) => item.trim());
     if (models.length === 1 && !models[0]) return { ok: false, error: "model_missing" };
     if (models.length > MAX_MODELS || models.some((item) => !MODEL_ID.test(item))) return { ok: false, error: "model_invalid" };
+    if (!allowPaid && !models.every(isFreeModel)) return { ok: false, error: "paid_model_blocked" };
     return { ok: true, provider: "openrouter", apiKey: openrouterKey, model: models.join(",") };
   }
   const anthropicKey = clean(env.ANTHROPIC_API_KEY);
-  if (anthropicKey) return { ok: true, provider: "anthropic", apiKey: anthropicKey, model: ANTHROPIC_MODEL };
+  if (anthropicKey) return allowPaid ? { ok: true, provider: "anthropic", apiKey: anthropicKey, model: ANTHROPIC_MODEL } : { ok: false, error: "paid_model_blocked" };
   return { ok: false, error: "not_configured" };
 }
 

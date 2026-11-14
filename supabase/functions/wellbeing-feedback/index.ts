@@ -18,7 +18,7 @@ Deno.serve(async (request) => {
   let body: Record<string, unknown>; try { body = JSON.parse(raw); } catch { return json(400, { error: "invalid_json" }); }
   const stage = typeof body.stage === "string" ? body.stage : ""; const headline = typeof body.headline === "string" ? body.headline.slice(0, 240) : ""; const concern = typeof body.concern === "string" ? body.concern : ""; const lines = Array.isArray(body.lines) ? body.lines.filter((line): line is string => typeof line === "string").slice(0, 8).map((line) => line.slice(0, 240)) : [];
   if (!stages.has(stage) || !headline || !["steady", "watch", "hard"].includes(concern) || !lines.length) return json(400, { error: "invalid_request" });
-  const provider = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") });
+  const provider = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY"), ALLOW_PAID_MODELS: Deno.env.get("ALLOW_PAID_MODELS") });
   if (!provider.ok) return json(503, { error: provider.error });
   const user = `Stage: ${stage}\nOverall check-in state: ${concern}\nSummary headline: ${headline}\nThemes the traveler selected:\n${lines.map((line) => `- ${line}`).join("\n")}\n\nGive only the useful numbered next steps.`;
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 40_000); const started = Date.now();
@@ -34,6 +34,9 @@ Deno.serve(async (request) => {
     };
     const outcome = await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 20_000 });
     if (outcome.kind === "text") return json(200, { text: outcome.text });
-    return json(502, { error: outcome.kind === "unsafe" ? "unsafe_output" : "upstream_error", ...(outcome.kind === "error" && outcome.message ? { upstreamMessage: outcome.message } : {}) });
+    if (outcome.kind === "unsafe") return json(502, { error: "unsafe_output" });
+    // Only a clear code and the status are passed on, never the provider's own wording.
+    const code = outcome.status === 402 ? "upstream_credit" : outcome.status === 429 ? "rate_limited" : outcome.status === 401 || outcome.status === 403 ? "upstream_auth" : "upstream_error";
+    return json(502, { error: code, upstreamStatus: outcome.status });
   } catch { return json(502, { error: controller.signal.aborted ? "upstream_timeout" : "upstream_unavailable" }); } finally { clearTimeout(timer); }
 });
