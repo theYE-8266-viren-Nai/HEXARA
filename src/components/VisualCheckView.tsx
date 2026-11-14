@@ -22,7 +22,7 @@ const stageCopy: Record<LifeStage, { eyebrow: string; title: string; note?: stri
   retired: { eyebrow: "Movement check · Post-mission", title: "Track your reconditioning practice", note: "Practice tracking, not a rehab programme: follow the plan from your own rehab or medical team." },
 };
 
-const emptyContext: UserReportedContext = { discomfort: "none", symptoms: "" };
+const emptyContext: UserReportedContext = { discomfort: "none", steadiness: "steady", symptoms: "" };
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -229,19 +229,18 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
 }
 
 function ContextStep({ context, onChange, onSubmit, synthetic }: { context: UserReportedContext; onChange: (context: UserReportedContext) => void; onSubmit: () => void; synthetic: boolean }) {
-  const scale = (key: "exertion" | "stress" | "energy", label: string, hint: string) => <label className="block text-sm font-semibold text-slate-200">{label}<span className="ml-2 text-xs font-normal text-slate-500">{hint}</span>
+  const scale = (key: "exertion", label: string, hint: string) => <label className="block text-sm font-semibold text-slate-200">{label}<span className="ml-2 text-xs font-normal text-slate-500">{hint}</span>
     <select className="field mt-2" value={context[key] ?? ""} onChange={(event) => onChange({ ...context, [key]: event.target.value ? Number(event.target.value) : undefined })}><option value="">Prefer not to say</option>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>;
   return <form className={`${panelClass} max-w-3xl`} aria-labelledby="context-title" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
     <h2 id="context-title" className="text-xl font-semibold text-white">How did that feel?</h2>
-    <p className="mt-2 text-sm text-slate-400">{synthetic ? "Synthetic movement result generated. " : "Movement capture finished and the camera is off. "}Your answers add recovery and fatigue context. All fields are optional.</p>
+    <p className="mt-2 text-sm text-slate-400">{synthetic ? "Synthetic movement result generated. " : "Movement capture finished and the camera is off. "}Use these optional answers to describe how the movement felt; they do not create a health score.</p>
     <div className="mt-5 grid gap-4 sm:grid-cols-2">
       <label className="block text-sm font-semibold text-slate-200">Discomfort
         <select className="field mt-2" value={context.discomfort} onChange={(event) => onChange({ ...context, discomfort: event.target.value as UserReportedContext["discomfort"] })}><option value="none">None</option><option value="mild">Mild</option><option value="pain">Pain</option><option value="severe_or_worsening">Severe or worsening</option></select></label>
-      {scale("exertion", "Exertion", "1 easy · 5 very hard")}
-      <label className="block text-sm font-semibold text-slate-200">Sleep last night<span className="ml-2 text-xs font-normal text-slate-500">hours</span><input type="number" min={0} max={14} step={0.5} className="field mt-2" value={context.sleepHours ?? ""} onChange={(event) => onChange({ ...context, sleepHours: event.target.value ? Number(event.target.value) : undefined })} /></label>
-      {scale("stress", "Stress", "1 low · 5 high")}
-      {scale("energy", "Energy", "1 low · 5 high")}
-      <label className="block text-sm font-semibold text-slate-200 sm:col-span-2">Anything else you noticed?<textarea className="field mt-2 min-h-20" value={context.symptoms} onChange={(event) => onChange({ ...context, symptoms: event.target.value })} placeholder="Optional note in your own words" /></label>
+      {scale("exertion", "Effort", "1 easy · 5 very hard")}
+      <label className="block text-sm font-semibold text-slate-200">Steadiness
+        <select className="field mt-2" value={context.steadiness ?? "steady"} onChange={(event) => onChange({ ...context, steadiness: event.target.value as UserReportedContext["steadiness"] })}><option value="steady">Steady</option><option value="slightly_unsteady">A little unsteady</option><option value="very_unsteady">Very unsteady</option></select></label>
+      <label className="block text-sm font-semibold text-slate-200 sm:col-span-2">What did you notice?<textarea className="field mt-2 min-h-20" value={context.symptoms} onChange={(event) => onChange({ ...context, symptoms: event.target.value })} placeholder="Optional note in your own words" /></label>
     </div>
     <PrimaryButton className="mt-5" type="submit"><Check size={16} aria-hidden="true" />See observation summary</PrimaryButton>
   </form>;
@@ -250,7 +249,7 @@ function ContextStep({ context, onChange, onSubmit, synthetic }: { context: User
 function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewMedic }: { check: VisualCheck; onRepeat: () => void; repository: VisualCheckRepository; onSavedToBody?: (check: VisualCheck) => void; onRequestCrewMedic?: () => void }) {
   const [save, setSave] = useState<{ state: "idle" | "saving" | "saved" | "failed"; reason?: string }>({ state: "idle" });
   const note = combinedContextNote(check.userReportedSymptoms, check.comparisonSummary);
-  const escalate = check.userReportedSymptoms.discomfort === "pain" || check.userReportedSymptoms.discomfort === "severe_or_worsening";
+  const escalate = check.userReportedSymptoms.discomfort === "pain" || check.userReportedSymptoms.discomfort === "severe_or_worsening" || check.userReportedSymptoms.steadiness === "very_unsteady";
   const saveCloud = async () => {
     setSave({ state: "saving" });
     const outcome = await repository.saveCloud(check);
@@ -285,7 +284,7 @@ function CrewSummaryComposer({ check }: { check: VisualCheck }) {
   const [copied, setCopied] = useState(false);
   const text = composeCrewSummary(check, fields);
   const toggle = (key: keyof CrewSummaryFields) => { setFields((current) => ({ ...current, [key]: !current[key] })); setCopied(false); };
-  const labels: Record<keyof CrewSummaryFields, string> = { task: "Task performed", symptoms: "Reported symptoms", comparison: "Change from my baseline", cameraLimits: "Camera limitations", context: "Sleep, stress, and energy" };
+  const labels: Record<keyof CrewSummaryFields, string> = { task: "Task performed", symptoms: "Comfort and note", comparison: "Change from my baseline", cameraLimits: "Camera limitations", context: "Movement context" };
   return <section className={panelClass} aria-labelledby="crew-summary-title">
     <div className="flex items-start gap-3"><ClipboardList className="mt-1 shrink-0 text-cyan-200" aria-hidden="true" /><div>
       <h2 id="crew-summary-title" className="text-xl font-semibold text-white">Crew medic summary</h2>

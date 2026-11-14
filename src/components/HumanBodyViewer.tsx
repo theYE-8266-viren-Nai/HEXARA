@@ -5,7 +5,7 @@ import { bodyRegions, enabledRegions, type BodyHotspot, type BodyRegionId } from
 import { BODY_DEVICES, type BodyDeviceId } from '../domain/bodyDevices';
 import type { MotionReadings } from '../domain/motionSensor';
 import {
-  MOVEMENT_REGION_TASK, MOVEMENT_TASK_REGIONS, isMovementRegion, latestMovementForRegion,
+  MOVEMENT_TASK_REGIONS, isMovementRegion, latestMovementForRegion, movementTaskForRegion,
   movementRegionsForStage, type BodyLayer, type MovementBodyRegionId,
 } from '../domain/movementBody';
 import { taskFor, type VisualCheck, type VisualCheckType } from '../domain/visualCheck';
@@ -122,7 +122,8 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
   const movementRegion = region && isMovementRegion(region.id) ? region.id : null;
   const related = region ? metrics.filter(metric => region.metrics.some(name => name === metric.metric)) : [];
   const canShowReadings = ['ready', 'stale', 'insufficient_baseline'].includes(signalState);
-  const selectedMovement = movementRegion ? latestMovementForRegion(movementChecks, movementRegion) : undefined;
+  const selectedTask = movementRegion ? movementTaskForRegion(movementRegion, stage) : undefined;
+  const selectedMovement = movementRegion && selectedTask ? latestMovementForRegion(movementChecks, movementRegion, selectedTask) : undefined;
 
   return <section className="body-viewer" aria-label="Body signals" onKeyDown={event => { if (event.key === 'Escape' && selected) { event.stopPropagation(); closePanel(); } }}>
     <header className="body-viewer-header body-viewer-header-compact">
@@ -138,7 +139,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
       <div ref={host} className="body-viewer-canvas" />
       {state === 'ready' ? hotspots.filter(point => availableRegions.some(regionItem => regionItem.id === point.id)).map(point => {
         const item = bodyRegions.find(candidate => candidate.id === point.id)!;
-        const check = isMovementRegion(item.id) ? latestMovementForRegion(movementChecks, item.id) : undefined;
+        const check = isMovementRegion(item.id) ? latestMovementForRegion(movementChecks, item.id, movementTaskForRegion(item.id, stage)) : undefined;
         const movementState = !check ? 'none' : check.completionStatus !== 'completed' || check.observedFeatures.cameraQuality !== 'good' ? 'limited' : 'available';
         const connected = item.layer !== 'signals' || connectedIds.has(item.id);
         return <button key={point.id} type="button" ref={node => { dotButtons.current[point.id] = node; }}
@@ -154,9 +155,9 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
     <div className="body-region-menu"><button className="btn-primary" type="button" aria-expanded={menuOpen} aria-controls="body-region-options" onClick={() => setMenuOpen(open => !open)}>Choose a body region</button>{menuOpen ? <div id="body-region-options">{availableRegions.map(item => { const connected = item.layer !== 'signals' || connectedIds.has(item.id); return <button type="button" className="body-control body-region-option" data-connected={connected ? 'true' : 'false'} key={item.id} aria-pressed={selected === item.id} onClick={() => toggle(item.id)}>{layer === 'signals' ? <span className="body-region-dot" aria-hidden="true" /> : null}{item.label}<span className="sr-only">{connected ? '' : ', not connected'}</span></button>; })}</div> : null}</div>
     {region ? <aside id="body-region-signals" className="body-region-panel tech-card" data-side="right" aria-labelledby="body-region-title">
       {(() => {
-        const selectedTask = movementRegion ? MOVEMENT_REGION_TASK[movementRegion] : undefined;
+        const selectedTask = movementRegion ? movementTaskForRegion(movementRegion, stage) : undefined;
         const combined = layer === 'movement' && focusedRegions.length > 1 && selectedTask ? taskFor(selectedTask).label : `${region.label} movement`;
-        const note = combined === 'Sit-to-stand' ? 'Linked movement context for your spine, hips, knees, and legs. These derived numbers help you notice your own practice; they do not measure spinal health, strength, or injury.' : region.note;
+        const note = combined === 'Sit-to-stand' || combined === 'Anchored lower-body flexion' ? 'Linked movement context for your spine, hips, knees, and legs. These derived numbers help you notice your own practice; they do not measure spinal health, strength, or injury.' : region.note;
         const panelTitle = layer === 'movement'
           ? focusedRegions.length > 1 && selectedTask
             ? `${taskFor(selectedTask).label} movement`
@@ -168,7 +169,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
         const needed = BODY_DEVICES.find(item => item.id === region.device)!;
         return <div className="body-unpaired"><p className="body-signal-notice" role="status">Not connected. Pair the {needed.name} to see {region.label.toLowerCase()} signals.</p>
           <button type="button" className="btn-primary" disabled={Boolean(pairingDevice)} onClick={() => onPairDevice?.(needed.id)}>{pairingDevice === needed.id ? 'Pairing…' : `Pair ${needed.name}`}</button></div>;
-      })() : layer === 'signals' && 'motion' in region && motion ? <div className="body-region-readings">{motion[region.motion].map(reading => <div className="body-reading" key={reading.label}><h4>{reading.label}</h4><p>{reading.value}</p><small>{reading.usual} · {reading.note}</small></div>)}</div> : layer === 'movement' && movementRegion ? <MovementRegionPanel region={movementRegion} check={selectedMovement} warning={movementWarning} onStart={() => onStartMovement ? onStartMovement(MOVEMENT_REGION_TASK[movementRegion]) : onViewChange?.('movement')} /> : region.metrics.length ? <>
+      })() : layer === 'signals' && 'motion' in region && motion ? <div className="body-region-readings">{motion[region.motion].map(reading => <div className="body-reading" key={reading.label}><h4>{reading.label}</h4><p>{reading.value}</p><small>{reading.usual} · {reading.note}</small></div>)}</div> : layer === 'movement' && movementRegion && selectedTask ? <MovementRegionPanel region={movementRegion} taskType={selectedTask} check={selectedMovement} warning={movementWarning} onStart={() => onStartMovement ? onStartMovement(selectedTask) : onViewChange?.('movement')} /> : region.metrics.length ? <>
         {!canShowReadings ? <p className="body-signal-notice" role="status">{signalState === 'loading' ? 'Waiting for the current source to finish syncing.' : signalState === 'unpaired' ? 'No device paired. Connect a source to see readings for this region.' : 'Readings unavailable. The source is offline, disconnected, or has insufficient reliable data.'}</p> : <>
           {signalState === 'stale' ? <p className="body-signal-notice" role="status">These readings are stale. Review the source and last sync before interpreting them.</p> : null}
           {signalState === 'insufficient_baseline' ? <p className="body-signal-notice">Not enough history for a personal baseline. Current readings are shown without a comparison.</p> : null}
@@ -191,8 +192,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
   </section>;
 }
 
-function MovementRegionPanel({ region, check, warning, onStart }: { region: MovementBodyRegionId; check?: VisualCheck; warning?: string; onStart: () => void }) {
-  const taskType = MOVEMENT_REGION_TASK[region];
+function MovementRegionPanel({ region, taskType, check, warning, onStart }: { region: MovementBodyRegionId; taskType: keyof typeof MOVEMENT_TASK_REGIONS; check?: VisualCheck; warning?: string; onStart: () => void }) {
   const task = taskFor(taskType);
   const affected = MOVEMENT_TASK_REGIONS[taskType].map((id) => bodyRegions.find((item) => item.id === id)?.label).filter(Boolean).join(', ');
   const ranges = check?.observedFeatures.jointAngleRanges ? Object.entries(check.observedFeatures.jointAngleRanges) : [];

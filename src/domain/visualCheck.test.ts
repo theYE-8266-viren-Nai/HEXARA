@@ -95,10 +95,32 @@ describe("support and safety language", () => {
     expect(supportRecommendationFor({ ...ctx, discomfort: "severe_or_worsening" }, comparison)).toMatch(/contact the crew medic now/);
     expect(supportRecommendationFor({ ...ctx, discomfort: "pain" }, comparison)).toMatch(/does not interpret the video/);
   });
-  it("links sleep, stress, and movement changes without naming a condition", () => {
-    const note = combinedContextNote({ ...ctx, sleepHours: 5, stress: 4 }, { trend: "different", statements: [], priorSessionsUsed: 2 });
-    expect(note).toBe("Your recent sleep, stress, and movement practice changed together. Review the pattern and consider discussing it with a crew medic.");
-    expect(combinedContextNote({ ...ctx, sleepHours: 5, stress: 4 }, { trend: "similar", statements: [], priorSessionsUsed: 2 })).toBeUndefined();
+  it("describes movement self-report context without naming a condition", () => {
+    const context = { ...ctx, exertion: 4, steadiness: "slightly_unsteady" as const, discomfort: "mild" as const };
+    const note = combinedContextNote(context, { trend: "different", statements: [], priorSessionsUsed: 2 });
+    expect(note).toBe("Your movement notes include effort 4/5, some unsteadiness, mild discomfort, a difference from earlier practice. This is context for your own practice, not a medical finding.");
+    expect(combinedContextNote(ctx, { trend: "similar", statements: [], priorSessionsUsed: 2 })).toBeUndefined();
+  });
+  it("uses comfort, effort, and steadiness in the derived summary", () => {
+    const result = buildVisualCheck({
+      checkId: "id",
+      ownerKey: "retired:a",
+      stage: "retired",
+      task: squat,
+      startedAt: "2026-11-02T10:00:00Z",
+      cameraConsent: false,
+      features: generateSyntheticFeatures(squat, 1),
+      context: { ...ctx, exertion: 3, steadiness: "steady", discomfort: "none", symptoms: "Used a chair for confidence." },
+      history: [],
+      isSynthetic: true,
+    });
+    expect(result.observationSummary).toEqual(expect.arrayContaining(["You marked the effort as 3 out of 5.", "You marked your steadiness as steady."]));
+    expect(result.observationSummary).not.toContain(expect.stringContaining("sleep"));
+    expect(composeCrewSummary(result, { task: false, symptoms: false, comparison: false, cameraLimits: false, context: true })).toContain("effort 3/5");
+  });
+  it("stops and recommends human support when steadiness is very low", () => {
+    const comparison = { trend: "similar" as const, statements: [], priorSessionsUsed: 1 };
+    expect(supportRecommendationFor({ ...ctx, steadiness: "very_unsteady" }, comparison)).toMatch(/Stop the practice/);
   });
   it("never produces diagnostic language across all tasks and contexts", () => {
     const contexts: UserReportedContext[] = [ctx, { ...ctx, discomfort: "pain" }, { ...ctx, discomfort: "severe_or_worsening" }, { discomfort: "mild", sleepHours: 4, stress: 5, energy: 1, exertion: 5, symptoms: "" }];
@@ -132,7 +154,7 @@ describe("crew summary and persistence row", () => {
 describe("which Movement tasks each stage is offered", () => {
   it("gives astronauts in space only the tasks that work without gravity", () => {
     const offered = tasksForStage("active").map((task) => task.type);
-    expect(offered.sort()).toEqual(["reach_and_return", "shoulder_mobility"]);
+    expect(offered.sort()).toEqual(["anchored_lower_body_flexion", "reach_and_return", "shoulder_mobility"]);
     expect(offered.sort()).toEqual([...IN_ORBIT_TASK_TYPES].sort());
     for (const gravityTask of ["sit_to_stand", "standing_posture", "single_leg_balance"]) expect(offered).not.toContain(gravityTask);
   });

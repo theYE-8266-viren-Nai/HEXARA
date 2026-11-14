@@ -45,7 +45,8 @@ describe("VisualCheckView", () => {
   it("shows the how-to line of whichever task is chosen, and keeps the anchor reminder for Active", async () => {
     const user = userEvent.setup();
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
-    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(2);
+    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(3);
+    expect(screen.getByText(/slowly bend and extend your hips and knees/)).toBeInTheDocument();
     expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Reach-and-return/ }));
     expect(screen.getByText(/Reach forward to one side/)).toBeInTheDocument();

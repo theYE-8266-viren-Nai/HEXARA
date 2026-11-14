@@ -67,13 +67,13 @@ The bootstrap corpus contains 26 official sources across human spaceflight, ISS,
 
 ## Free OpenRouter configuration
 
-ORBIT uses `OPENROUTER_MODEL=openrouter/free`. This keeps model usage free when OpenRouter has an eligible free route, but availability, latency, limits, and the selected underlying model can change. Horizon does not silently switch to a paid model. If the free route is unavailable or returns invalid cited JSON, the UI reports that cloud research is unavailable; it does not invent a response.
+ORBIT uses a free OpenRouter chat model. The current production setting is `google/gemma-4-31b-it:free`, which avoids the shared `openrouter/free` router quota. Availability, latency, and model-specific limits can still change. Horizon does not silently switch to a paid model. Gemma is requested in JSON mode and Horizon still validates the answer and citation IDs before showing it. If the free model is unavailable or returns invalid cited JSON, the UI reports that cloud research is unavailable; it does not invent a response.
 
 Required Supabase secrets:
 
 ```text
 OPENROUTER_API_KEY
-OPENROUTER_MODEL=openrouter/free
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
 NASA_INGEST_SECRET
 ```
 

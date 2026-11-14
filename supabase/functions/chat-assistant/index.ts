@@ -94,7 +94,10 @@ Deno.serve(async (request) => {
     let parsed: ReturnType<typeof parseGroundedAnswer>;
     let upstreamMessage: string | undefined;
     for (let attempt = 0; attempt < 2 && !parsed; attempt += 1) {
-      const structured = model !== "openrouter/free";
+      // Gemma's free OpenRouter endpoint supports JSON mode but not JSON-Schema
+      // enforcement. We still validate the parsed answer and citation IDs below.
+      const gemmaJsonMode = /^google\/gemma-/i.test(model);
+      const structured = model !== "openrouter/free" && !gemmaJsonMode;
       const messages = attempt === 0 ? [{ role: "system", content: system }, { role: "user", content: prompt }] : [{ role: "user", content: `${system}\n\n${prompt}` }];
       const requestBody: Record<string, unknown> = {
         model,
@@ -102,7 +105,9 @@ Deno.serve(async (request) => {
         max_tokens: 700,
         messages,
       };
-      if (structured) {
+      if (gemmaJsonMode) {
+        requestBody.response_format = { type: "json_object" };
+      } else if (structured) {
         requestBody.response_format = {
           type: "json_schema",
           json_schema: {
