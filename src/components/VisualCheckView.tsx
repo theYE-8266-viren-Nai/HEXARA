@@ -131,6 +131,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
     <div className="max-w-2xl space-y-1 text-xs leading-5">
       <p role="note" className="flex items-start gap-2 text-amber-100"><Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{VISUAL_CHECK_DISCLAIMER}</p>
       {copy.note ? <p className="pl-6 text-slate-400">{copy.note}</p> : null}
+      <p className="pl-6 text-slate-300">This practice helps you notice how evenly and comfortably you move. Use it to build movement awareness and follow your approved conditioning plan; it cannot assess spine, bone, muscle, or joint health.</p>
     </div>
 
     {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} tasks={tasks} stage={stage} onBegin={() => void begin()} camera={camera} /> : null}
@@ -171,7 +172,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
       <h2 className="text-xl font-semibold text-white">{task.label}</h2>
       <p className="mt-2 text-slate-300">{instructions}</p>
       <p className="mono-data mt-4 text-4xl text-cyan-200">{remaining}s remaining</p>
-      <p className="mt-2 text-sm text-slate-400">Stop at any time if you feel pain or unsteady.</p>
+      <p className="mt-2 text-sm text-slate-400">Move slowly and comfortably. Stop if you feel pain, dizziness, or unsteadiness, and contact your approved support person when needed.</p>
       <SecondaryButton className="mt-4" onClick={reset}>Stop</SecondaryButton>
     </section> : null}
 
@@ -198,6 +199,8 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
         </label>;
       })}</div>
     </fieldset>
+
+    <p className="text-sm text-slate-400">Move slowly and comfortably. Stop if you feel pain, dizziness, or unsteadiness, and contact your approved support person when needed.</p>
 
     <fieldset>
       <legend className="sr-only">Mode</legend>

@@ -38,17 +38,21 @@ readable but cannot start a new session.
 | --- | --- | --- |
 | Shoulder | Shoulder mobility | `shoulder_muscles_l` |
 | Arm | Reach-and-return | `upper_arm_muscles_l` |
+| Spine | Sit-to-stand | `back_muscles_r` |
 | Hip | Sit-to-stand | `pelvis` |
 | Knee | Sit-to-stand | `patella_l` |
+| Legs | Sit-to-stand | `quadriceps_l` |
 | Ankle | Single-leg balance | `foot_l` |
 
 Selecting a Movement marker shows the newest cloud-saved derived summary for
 that task, or opens Movement with the task preselected. `Save and show on body`
 returns to Home only after Supabase confirms the write, then opens the mapped
-region. Failed writes remain on the result screen for retry. The panel never
-shows symptom notes and never interprets movement as strength, injury, stability,
-readiness, or diagnosis. Cyan means saved context exists; amber means partial
-capture or limited tracking quality, not a health warning.
+region. A saved sit-to-stand result focuses the Spine, Hip, Knee, and Legs
+markers together and shows one combined observation panel. Failed writes remain
+on the result screen for retry. The panel never shows symptom notes and never
+interprets movement as strength, spinal health, injury risk, stability, readiness,
+or diagnosis. Cyan means saved context exists; amber means partial capture or
+limited tracking quality, not a health warning.
 
 Spine/back-muscle dots appear on the back; rotate to either 180-degree limit to
 reach them. Front-only markers hide on the back to avoid showing through the body.

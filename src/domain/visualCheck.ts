@@ -14,7 +14,7 @@ import type { LifeStage } from "../types/horizon";
 import { mulberry32 } from "../lib/prng";
 import type { JointName } from "./poseFeatures";
 
-export const VISUAL_CHECK_DISCLAIMER = "Camera observations are experimental context only. They are not medical measurements, diagnosis, or flight clearance.";
+export const VISUAL_CHECK_DISCLAIMER = "Camera observations are experimental movement context only. They are not medical measurements, diagnosis, injury prediction, or flight clearance.";
 
 export type VisualCheckType = "standing_posture" | "shoulder_mobility" | "sit_to_stand" | "single_leg_balance" | "reach_and_return";
 export type VisualWorkflow = "movement_exercise" | "sensorimotor" | "recovery_context";
