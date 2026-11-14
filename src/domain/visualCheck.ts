@@ -40,12 +40,12 @@ export const taskFor = (type: VisualCheckType) => VISUAL_CHECK_TASKS.find((task)
 /**
  * Where the person is decides what is sensible. In weightlessness standing up, standing still and balancing on one leg
  * mean nothing, so Active astronauts get only the tasks that work without gravity. Retired astronauts are back on Earth
- * and get the full set as reconditioning practice. Future travelers get none.
+ * and get the full set as reconditioning practice. Future travelers can use the same simple practice set.
  */
 export const IN_ORBIT_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reach_and_return"];
 export const RETIRED_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reach_and_return", "sit_to_stand", "single_leg_balance"];
 
-export const tasksForStage = (stage: LifeStage): VisualCheckTask[] => (stage === "active" ? VISUAL_CHECK_TASKS.filter((task) => IN_ORBIT_TASK_TYPES.includes(task.type)) : stage === "retired" ? VISUAL_CHECK_TASKS.filter((task) => RETIRED_TASK_TYPES.includes(task.type)) : []);
+export const tasksForStage = (stage: LifeStage): VisualCheckTask[] => (stage === "active" ? VISUAL_CHECK_TASKS.filter((task) => IN_ORBIT_TASK_TYPES.includes(task.type)) : VISUAL_CHECK_TASKS.filter((task) => RETIRED_TASK_TYPES.includes(task.type)));
 
 /** The instructions to show, with the anchoring reminder added for astronauts in space. */
 export const taskInstructions = (task: VisualCheckTask, stage: LifeStage): string => (stage === "active" ? `${ANCHOR_NOTE} ${task.instructions}` : task.instructions);

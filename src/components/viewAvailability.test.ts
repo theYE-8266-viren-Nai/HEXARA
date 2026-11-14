@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { viewAvailable, type ViewName } from "./AppShell";
 
 describe("which views each stage can open", () => {
-  it("hides Movement from Future travelers only", () => {
-    expect(viewAvailable("movement", "future")).toBe(false);
+  it("offers Movement to all stages", () => {
+    expect(viewAvailable("movement", "future")).toBe(true);
     expect(viewAvailable("movement", "active")).toBe(true);
     expect(viewAvailable("movement", "retired")).toBe(true);
   });

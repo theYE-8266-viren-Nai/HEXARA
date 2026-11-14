@@ -22,7 +22,7 @@ export const MOVEMENT_TASK_REGIONS: Record<OfferedMovementType, readonly BodyReg
 };
 
 export const movementRegionsForStage = (stage: LifeStage): MovementBodyRegionId[] =>
-  stage === "active" ? ["shoulder", "arm"] : stage === "retired" ? ["shoulder", "arm", "hip", "knee", "ankle"] : [];
+  stage === "active" ? ["shoulder", "arm"] : ["shoulder", "arm", "hip", "knee", "ankle"];
 
 export const primaryMovementRegion = (task: VisualCheckType): MovementBodyRegionId => {
   switch (task) {

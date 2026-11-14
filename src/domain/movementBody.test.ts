@@ -24,7 +24,7 @@ describe("movement-to-body mapping", () => {
   it("offers only shoulder and arm in flight, all movement regions after flight, and none before flight", () => {
     expect(movementRegionsForStage("active")).toEqual(["shoulder", "arm"]);
     expect(movementRegionsForStage("retired")).toEqual(["shoulder", "arm", "hip", "knee", "ankle"]);
-    expect(movementRegionsForStage("future")).toEqual([]);
+    expect(movementRegionsForStage("future")).toEqual(["shoulder", "arm", "hip", "knee", "ankle"]);
   });
 
   it("maps each offered task to its intended primary and related body regions", () => {
