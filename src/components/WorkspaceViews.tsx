@@ -1,8 +1,10 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { lazy, Suspense, useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import { Activity, AlertTriangle, Apple, ArrowRight, ArrowUpRight, Bluetooth, Bone, CalendarDays, CircleHelp, Compass, Droplets, FileText, Heart, HeartPulse, MessageCircleHeart, Minus, Moon, Orbit, Radio, Rocket, RotateCcw, ShieldCheck, Sparkles, Timer, Watch, WifiOff } from "lucide-react";
 import { MetricMetadata, MetricTile } from "./MetricTile";
 import { formatValue } from "../lib/formatMetric";
 import { ActiveGuidanceView } from "./ActiveGuidanceView";
+
+const HumanBodyViewer = lazy(() => import('./HumanBodyViewer'));
 import { StatusChip } from "./StatusChip";
 import { TrendChart } from "./TrendChart";
 import type { DashboardSource } from "../lib/backendDashboardRepository";
@@ -58,8 +60,9 @@ export function StageSelectionView({ loading, warning, onSelect }: { loading?: b
   </main>;
 }
 
-export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, onViewChange, pattern }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; onViewChange: (view: ViewName) => void; pattern?: ReactNode }) {
-  const ingest = useDevice()?.ingest ?? null;
+export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality, loading, source, warning, solarEvents, onViewChange }: { profile: TravelerProfile; stage: LifeStage; scenario: SimulationScenario; metrics: MetricCardData[]; alert: Alert | null; dataQuality: DataQualityState; loading: boolean; source?: DashboardSource; warning?: string; solarEvents?: SolarEventResult | null; onViewChange: (view: ViewName) => void }) {
+  const device = useDevice();
+  const ingest = device?.ingest ?? null;
   const unreliable = ingest?.quality === "poor";
   const dataUnavailable = dataQuality === "disconnected" || dataQuality === "offline" || unreliable;
   const stale = dataQuality === "stale";
@@ -72,7 +75,7 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
   const actionLabel = dataUnavailable ? "Reconnect data" : stale ? "Review data quality" : alert ? "Take the optional wellbeing check-in" : "Check in with yourself";
   const actionNote = dataUnavailable ? "This demo scenario shows how missing data is handled. Nothing is inferred while the source is offline." : "A short check-in adds context to the signals. Skipping it does not count as feeling well.";
   const stageContent = stage === "future" ? { title: "Build your starting pattern", description: "Practise simple check-ins and learn what to expect before a first mission." } : stage === "retired" ? { title: "Keep the long view", description: "Review long-term signals and wellbeing context after flying." } : { title: "How are you doing today?", description: "Use the simulated signals as context for your next small action." };
-  const radiation = stage !== "retired" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
+  const radiation = stage === "future" ? metrics.find((metric) => metric.metric === "radiation_dose") : undefined;
 
   return <div className="page">
     <header className="page-header">
@@ -83,6 +86,8 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
       </div>
       <div className="page-meta"><span className="scenario-pill"><Radio size={13} aria-hidden="true" />{scenarioLabel(scenario)}<span>Simulated</span></span><DeviceBadge /></div>
     </header>
+    {stage === 'active' ? <Suspense fallback={<section className="body-viewer-loading" aria-label="Body overview">Loading body overview…</section>}><HumanBodyViewer key={profile.id} metrics={metrics} alert={alert} onViewChange={onViewChange}
+      signalState={loading ? 'loading' : device?.status.phase === 'idle' ? 'unpaired' : dataUnavailable ? 'unavailable' : stale ? 'stale' : dataQuality === 'insufficient_baseline' ? 'insufficient_baseline' : 'ready'} /></Suspense> : null}
     {loading ? <LoadingPanel /> : <DeviceIdleGate stage={stage}><>
       <section data-tone={tone} className="tech-card status-card" aria-labelledby="status-title">
         <div className="status-card-main">
@@ -96,27 +101,15 @@ export function HomeView({ profile, stage, scenario, metrics, alert, dataQuality
         </div>
       </section>
 
-      {stage === "retired" ? <RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /> : <section aria-labelledby="signals-title">
+      {stage === "retired" ? <RetiredWearableSignals metrics={metrics} dataUnavailable={dataUnavailable} onViewTrends={() => onViewChange("trends")} /> : stage === "future" ? <section aria-labelledby="signals-title">
         <div className="section-head">
           <div><h2 id="signals-title">Your signals</h2><p>Latest reading compared with your 30-day personal baseline.</p></div>
           <button type="button" onClick={() => onViewChange("trends")} className="btn-link">See all trends <ArrowRight size={14} aria-hidden="true" /></button>
         </div>
         <div className="metric-grid">{metrics.slice(0, 6).map((metric) => <MetricTile key={metric.metric} metric={metric} flagged={alert?.metric === metric.metric} onOpen={() => onViewChange("trends")} />)}</div>
-      </section>}
+      </section> : null}
 
-      {pattern}
-
-      <div className={radiation ? "home-columns" : undefined}>
-        {radiation ? <RadiationPanel metric={radiation} solarEvents={solarEvents} /> : null}
-        <section className="tech-card panel" aria-labelledby="timeline-title">
-          <h2 id="timeline-title">Recent activity</h2>
-          <ol className="timeline">
-            <li><p>Simulation started</p><span>{scenarioLabel(scenario)} pattern selected</span></li>
-            <li><p>Personal baseline loaded</p><span>30-day rolling comparison</span></li>
-            {alert ? <li data-tone="watch"><p>Pattern flagged for review</p><span>See the reason in Trends</span></li> : null}
-          </ol>
-        </section>
-      </div>
+      {radiation ? <RadiationPanel metric={radiation} solarEvents={solarEvents} /> : null}
     </></DeviceIdleGate>}
     <footer className="home-footer">
       {loading ? null : <DataTrustStrip />}
