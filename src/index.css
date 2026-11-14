@@ -1230,4 +1230,7 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .device-connect-card h2 { margin: 0 0 18px; font-size: 20px; font-weight: 600; }
 .device-connect-card .btn-primary { min-height: 48px; padding: 0 22px; }
 
-.device-connect-card .wearable-connect-bar { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.home-device-meta { flex-direction: column; align-items: flex-end; }
+.home-device-meta .device-connect-card { padding: 20px; width: max-content; max-width: 100%; text-align: left; }
+.home-device-meta .device-connect-card h2 { font-size: 18px; margin-bottom: 14px; }
+@media (max-width: 640px) { .home-device-meta { align-items: flex-start; } }
