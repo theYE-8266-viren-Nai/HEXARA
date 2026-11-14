@@ -22,7 +22,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "recharts": "^3.10.1",
-    "tailwindcss": "^4.3.5"
+    "tailwindcss": "^4.3.5",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
@@ -30,6 +31,7 @@
     "@testing-library/user-event": "^14.6.9",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "^5.0.2",
     "jsdom": "^31.0.0",
     "typescript": "^5.8.3",
