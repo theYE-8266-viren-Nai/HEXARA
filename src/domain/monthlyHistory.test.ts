@@ -21,6 +21,13 @@ describe("monthly personal history", () => {
     expect(month.metrics.every((metric) => metric.direction === "insufficient")).toBe(true);
   });
 
+  it("limits the history to the profile journey window", () => {
+    const observations = generateSyntheticData(42).observations.filter((observation) => observation.person_id === "traveler-01");
+    const months = summarizeMonthlyHistory(observations, { from: "2026-03-01", to: "2026-05-31" });
+    expect(months.map((month) => month.month)).toEqual(["2026-03", "2026-04", "2026-05"]);
+    expect(months.some((month) => month.month === "2026-01" || month.month === "2026-06")).toBe(false);
+  });
+
   it("uses personal-pattern wording only", () => {
     const months = summarizeMonthlyHistory(generateSyntheticData(42).observations.filter((observation) => observation.person_id === "traveler-01"));
     const text = months.map((month) => month.personalSummary).join(" ").toLowerCase();

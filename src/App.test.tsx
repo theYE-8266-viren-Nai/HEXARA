@@ -284,7 +284,7 @@ describe("OrbitWell app shell", () => {
     // The card is mounted for every stage; only Active has the local 30-day history to score here.
     expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
     if (stage === "active") {
-      expect(await screen.findByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Explain in plain English" })).toBeInTheDocument();
     } else {
       // Demo-only profiles have no stored history yet, so the card says so instead of scoring.
       expect(screen.getByText("Pattern view paused")).toBeInTheDocument();
@@ -834,7 +834,7 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(await screen.findByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
     expect(screen.getByText("PATTERN ACROSS SIGNALS")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Explain this pattern" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Explain in plain English" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recent activity" })).not.toBeInTheDocument();
   });
 
