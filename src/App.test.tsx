@@ -228,30 +228,32 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });
 
-  it("shows wearable-supported activity cards on the retired Home view", async () => {
+  it("shows retired Home readings only after selecting their body regions", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace("retired");
 
-    expect(await screen.findByRole("heading", { name: "Wearable activity, at a glance" })).toBeInTheDocument();
-    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
-    expect(screen.getByText("Mobility")).toBeInTheDocument();
-    expect(screen.getByText("Walking steadiness · Simulated · Updated today")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Review your body signals" })).toBeInTheDocument();
+    expect(screen.queryByText("Sleep duration")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mobility")).not.toBeInTheDocument();
     expect(screen.queryByText("Estimated stress level")).not.toBeInTheDocument();
-    expect(screen.getByText("Exercise minutes")).toBeInTheDocument();
-    expect(screen.getByText(/Usual: .* h/)).toBeInTheDocument();
-    expect(screen.getByText("Usual: 90% walking steadiness")).toBeInTheDocument();
-    expect(screen.getByText("Usual: 25 min")).toBeInTheDocument();
-    expect(screen.getByText("Connected measurements")).toBeInTheDocument();
-    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
-    expect(screen.getByText("Usual: 62 bpm")).toBeInTheDocument();
-    expect(screen.getByText("Usual: 45 ms")).toBeInTheDocument();
-    expect(screen.getByText("Usual: 97.5%")).toBeInTheDocument();
-    expect(screen.queryByText("Skin temperature")).not.toBeInTheDocument();
+    expect(screen.queryByText("Exercise minutes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connected measurements")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
     expect(screen.queryByText("Radiation dose")).not.toBeInTheDocument();
     expect(screen.queryByText("Wrist-temperature trend")).not.toBeInTheDocument();
     expect(screen.queryByText("Radiation context")).not.toBeInTheDocument();
 
+    await user.click(await screen.findByRole("button", { name: "Brain" }));
+    expect(screen.getByText("Sleep duration")).toBeInTheDocument();
+    expect(screen.getByText(/Usual: .* h/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close Brain signals" }));
+    await user.click(screen.getByRole("button", { name: "Heart" }));
+    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
+    expect(screen.getByText("HRV")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close Heart signals" }));
+    await user.click(screen.getByRole("button", { name: "Lungs" }));
+    expect(screen.getByText("SpO₂")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     expect(screen.getByRole("heading", { name: "Your wearable trends over time" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Radiation dose" })).not.toBeInTheDocument();

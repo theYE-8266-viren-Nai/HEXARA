@@ -1,4 +1,4 @@
-import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, Orbit, ShieldCheck, UserRound, X } from "lucide-react";
+import { Activity, Camera, LogOut, ChartNoAxesCombined, Compass, HeartHandshake, Menu, ShieldCheck, UserRound, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { LifeStage } from "../types/horizon";
 import { ThemeToggle } from "./ThemeToggle";
@@ -21,7 +21,7 @@ const navigation: Array<{ id: ViewName; label: string; icon: typeof Activity }> 
 ];
 
 export function Brand() {
-  return <div className="brand"><span className="brand-symbol"><Orbit size={25} strokeWidth={1.5} aria-hidden="true" /></span><div><p className="brand-name">Orbit<span>Well</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
+  return <div className="brand"><span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 180 100" fill="none"><path d="M43 90C13 90 7 74 13 58 23 31 76 8 129 5c27-2 44 4 46 18 2 13-6 27-22 37" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/><path d="M28 51h43l9-1 8-19 9 36 8-53 11 56 8-22 7 3h26" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="157" cy="7" r="6" fill="var(--accent)"/></svg></span><div><p className="brand-name">Orbit<span>Well</span></p><p className="brand-caption">SPACE · HEALTH · HUMAN</p></div></div>;
 }
 
 export function SafetyDisclaimer({ landing = false }: { landing?: boolean }) {

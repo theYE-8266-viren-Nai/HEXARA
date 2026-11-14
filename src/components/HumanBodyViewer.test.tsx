@@ -119,7 +119,7 @@ describe('Human body viewer', () => {
     expect(screen.queryByRole('button', {name:'Heart'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name:'Back'}));
     const back = screen.getByRole('complementary', {name:'Back signals'});
-    expect(back).toHaveAttribute('data-side','left');
+    expect(back).toHaveAttribute('data-side','right');
     expect(back).toHaveTextContent('Upright posture');
     expect(back).not.toHaveTextContent('Sit-to-stand');
     await user.click(screen.getByRole('button', {name:'Back'}));
@@ -134,7 +134,7 @@ describe('Human body viewer', () => {
     for (const [label, readings] of Object.entries(expected)) {
       await user.click(screen.getByRole('button', {name:label}));
       const panel = screen.getByRole('complementary', {name:`${label} signals`});
-      expect(panel).toHaveAttribute('data-side', ['Brain','Chest'].includes(label) ? 'left' : 'right');
+      expect(panel).toHaveAttribute('data-side', 'right');
       for (const text of readings.has) expect(panel).toHaveTextContent(text);
       for (const text of readings.not) expect(panel).not.toHaveTextContent(text);
       fireEvent.keyDown(screen.getByRole('group', {name:'Rotatable 3D human figure'}), {key:'Escape'});

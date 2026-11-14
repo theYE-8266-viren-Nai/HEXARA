@@ -143,7 +143,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
       {state !== 'ready' ? <div className="body-viewer-notice" role="status">{state === 'loading' ? <><span className="loading-dot" />Loading 3D body…</> : <><strong>3D view unavailable</strong><span>Enable WebGL or choose a body region below to review its available information.</span><button type="button" className="body-control" onClick={() => setAttempt(a => a + 1)}>Try again</button></>}</div> : null}
       {state === 'ready' ? <span className="body-viewer-orientation">{Math.abs(angle) < 15 ? 'Front view' : Math.abs(angle) > 165 ? 'Back view' : 'Side view'} · {Math.abs(angle)}°{angle < 0 ? ' left' : angle > 0 ? ' right' : ''}</span> : null}
     </div>
-    {region ? <aside id="body-region-signals" className="body-region-panel tech-card" data-side={['brain', 'chest', 'back'].includes(region.id) ? 'left' : 'right'} aria-labelledby="body-region-title">
+    {region ? <aside id="body-region-signals" className="body-region-panel tech-card" data-side="right" aria-labelledby="body-region-title">
       <div className="body-region-heading"><div><p className="eyebrow">Selected region</p><h3 id="body-region-title" aria-live="polite">{region.label} {layer === 'movement' ? 'movement' : 'signals'}</h3></div><button type="button" className="body-panel-close" onClick={closePanel} aria-label={`Close ${region.label} ${layer === 'movement' ? 'movement' : 'signals'}`}>×</button></div>
       <p className="body-region-note">{region.note}</p>
       {layer === 'signals' && !connectedIds.has(region.id) && 'device' in region ? (() => {
