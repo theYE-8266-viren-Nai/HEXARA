@@ -994,3 +994,16 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .account-card-step { position: relative; overflow: hidden; max-width: 720px; }
 .account-card-step .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 767px) { .account-card-step .field-grid { grid-template-columns: 1fr; } }
+
+/* Body overview: Find devices */
+.body-devices { display: grid; justify-items: center; gap: 10px; margin: 6px auto 4px; width: 100%; max-width: 760px; }
+.body-devices-summary { font-size: 13px; color: var(--muted); }
+.body-device-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; margin: 4px 0 0; padding: 0; list-style: none; }
+.body-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); text-align: left; }
+.body-device[data-paired] { border-color: color-mix(in srgb, var(--tone-normal) 55%, transparent); }
+.body-device-text { min-width: 0; }
+.body-device-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.body-device-badge { padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: var(--tone-normal); background: var(--tone-normal-bg); }
+.body-device-meta, .body-device-parts { margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.body-device .btn-secondary { flex-shrink: 0; }
+@media (max-width: 767px) { .body-device-list { grid-template-columns: 1fr; } }
