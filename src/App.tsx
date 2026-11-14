@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell, type ViewName } from "./components/AppShell";
+import { AppShell, viewAvailable, type ViewName } from "./components/AppShell";
 import { GuidanceView, HomeView, ProfileView, StageSelectionView, TrendsView, WellbeingView } from "./components/WorkspaceViews";
 import { createHorizonRepository } from "./data/repository";
 import { createBackendDashboardRepository, type DashboardSource } from "./lib/backendDashboardRepository";
@@ -227,8 +227,10 @@ function HorizonApp() {
   const ownProfile = account?.profile && account.profile.stage === stage ? account.profile : null;
   const shownProfile = ownProfile ? { ...profile, name: ownProfile.fullName, missionDay: missionDayFrom(ownProfile.journey.launchDate) ?? profile.missionDay } : profile;
 
+  // A view that is not offered to this stage (Movement for Future travelers) falls back to Home.
+  const view: ViewName = viewAvailable(activeView, stage) ? activeView : "home";
   const content = (() => {
-    switch (activeView) {
+    switch (view) {
       case "trends":
         return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} />;
       case "movement":
@@ -246,5 +248,5 @@ function HorizonApp() {
   })();
 
   const chatContext: ChatContextSummary = { stage, dataQuality, source: viewSource, signals: liveMetrics.slice(0, 6).map((metric) => ({ label: metric.label, trend: metric.trend })) };
-  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={activeView} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
+  return <DeviceContext.Provider value={{ status: deviceStatus, metrics: liveMetrics, ingest: liveIngest, alertBasis, bluetooth: bluetoothControls, webhook }}><AppShell activeView={view} onViewChange={setActiveView} stage={stage} onStageChange={setStageAndProfile} account={account} onLogOut={() => void logOut()} chat={{ client: supabase, userId, context: chatContext }}>{content}</AppShell></DeviceContext.Provider>;
 }
