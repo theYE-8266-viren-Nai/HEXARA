@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, Check, RotateCcw, UserRound } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { summarizeCheckIn, visibleQuestions, type CheckInAnswers } from "../domain/wellbeingCheckIn";
 import { usePersistedState } from "../lib/usePersistedState";
 import type { LifeStage } from "../types/horizon";
@@ -81,18 +81,16 @@ function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeSt
   const getFeedback = async () => {
     setFeedbackBusy(true); setFeedbackWarning(undefined);
     const result = await createWellbeingFeedbackRepository(client).generate({ stage, headline: summary.headline, concern: summary.overall, lines: summary.lines.map((line) => line.text) });
-    if (result.text) setFeedback(result.text); else setFeedbackWarning(result.warning ?? result.error ?? "AI feedback is unavailable. Built-in guidance is still shown below.");
+    if (result.text) setFeedback(result.text); else setFeedbackWarning(result.warning ?? result.error ?? "AI feedback is unavailable. Try again.");
     setFeedbackBusy(false);
   };
+  useEffect(() => { void getFeedback(); }, []);
   return <section className="tech-card checkin-summary" data-tone={summary.overall} aria-labelledby="checkin-summary-title">
     <div className="checkin-summary-head">
       <div><p className="checkin-count">Your wellbeing summary · {when}</p><h2 id="checkin-summary-title">{summary.headline}</h2></div>
       <button type="button" className="btn-secondary" onClick={onRestart}><RotateCcw size={15} aria-hidden="true" /> New check-in</button>
     </div>
-    {summary.talkTo ? <div className="notice" data-tone="watch" role="note"><div className="notice-row"><UserRound size={18} aria-hidden="true" /><p>{summary.talkTo}</p></div></div> : null}
-    {summary.lines.length ? <div><h3 className="checkin-subhead">What you told us</h3><ul className="checkin-lines">{summary.lines.map((line, index) => <li key={index} data-concern={line.concern}>{line.text}</li>)}</ul></div> : <p className="panel-note">You skipped every question, so there's nothing to summarise yet.</p>}
-    {saved.note ? <div><h3 className="checkin-subhead">Your note</h3><p className="checkin-note">{saved.note}</p></div> : null}
-    <div className="checkin-feedback"><div className="checkin-section-head"><div><h3 className="checkin-subhead">What might help</h3><p className="panel-note">Start with the suggestions that fit today.</p></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : "Get AI feedback"}</button></div>{feedback ? <article className="ai-feedback" aria-live="polite"><p className="ai-feedback-label">ORBIT · AI feedback</p><p>{feedback}</p><small>Based only on the themes you selected. Educational guidance, not medical advice.</small></article> : null}{feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}<div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div></div>
-    <p className="panel-footnote">This summary comes from your own answers. It is not a medical assessment or diagnosis.</p>
+    <div className="checkin-feedback"><div className="checkin-section-head"><div><p className="ai-feedback-label">ORBIT · AI feedback</p><h3 className="checkin-subhead">Your next steps</h3></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : "Try again"}</button></div>{feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing feedback from this check-in…</p> : null}{feedback ? <article className="ai-feedback" aria-live="polite"><p>{feedback}</p><small>AI-assisted educational guidance, not medical advice or diagnosis.</small></article> : null}{feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}</div>
+    <p className="panel-footnote">Only the selected check-in themes are sent to the Horizon AI feedback function. Your private note is not sent.</p>
   </section>;
 }

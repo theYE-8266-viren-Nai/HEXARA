@@ -14,4 +14,11 @@ describe("wellbeing feedback repository", () => {
     expect(result.text).toBeUndefined();
     expect(result.error).toBe("offline");
   });
+
+  it("surfaces the function's safe JSON error detail", async () => {
+    const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: { error: "model_missing" }, error: { message: "Edge Function returned a non-2xx status code" } }) } } as never;
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage: "future", headline: "A steady check-in", concern: "steady", lines: ["Sleep was steady."] });
+    expect(result.text).toBeUndefined();
+    expect(result.error).toBe("model_missing");
+  });
 });
