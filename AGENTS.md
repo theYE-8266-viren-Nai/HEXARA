@@ -124,6 +124,12 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 
 ### 🟡 Active Focus
 
+### 🟢 Wellbeing AI Feedback
+
+- **Check-in feedback:** The wellbeing summary now keeps its deterministic suggestions as a fallback and offers an on-demand `Get AI feedback` action after the user completes questions.
+- **OpenRouter boundary:** `supabase/functions/wellbeing-feedback` sends only the selected summary themes, never the private note or raw readings; output is bounded and passed through the shared non-diagnostic safety guard.
+- **Verification:** The live Edge Function returned tailored next steps for sleep/workload themes; focused repository tests pass and the production build passes. The full branch suite still has unrelated Movement/retired-flow failures.
+
 > **AGENT NOTE:** The user explicitly authorized frontend work with typed mock data while the backend contract is pending. Do not connect live Supabase data until Agent 1 publishes the shared repository contract.
 
 - **Immediate task:** Try Movement with a real webcam (good and poor light, phone held upright) using the installed pose runtime. Decide whether the real-camera results justify further tuning.
