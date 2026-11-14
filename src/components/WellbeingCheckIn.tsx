@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, RotateCcw, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { summarizeCheckIn, visibleQuestions, type CheckInAnswers } from "../domain/wellbeingCheckIn";
 import { usePersistedState } from "../lib/usePersistedState";
@@ -90,7 +90,15 @@ function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeSt
       <div><p className="checkin-count">Your wellbeing summary · {when}</p><h2 id="checkin-summary-title">{summary.headline}</h2></div>
       <button type="button" className="btn-secondary" onClick={onRestart}><RotateCcw size={15} aria-hidden="true" /> New check-in</button>
     </div>
-    <div className="checkin-feedback"><div className="checkin-section-head"><div><p className="ai-feedback-label">ORBIT · AI feedback</p><h3 className="checkin-subhead">Your next steps</h3></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : "Try again"}</button></div>{feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing feedback from this check-in…</p> : null}{feedback ? <article className="ai-feedback" aria-live="polite"><p>{feedback}</p><small>AI-assisted educational guidance, not medical advice or diagnosis.</small></article> : null}{feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}</div>
+    {summary.talkTo ? <div className="notice" data-tone="watch" role="note"><div className="notice-row"><UserRound size={18} aria-hidden="true" /><p>{summary.talkTo}</p></div></div> : null}
+    <div className="checkin-feedback"><div className="checkin-section-head"><div><p className="ai-feedback-label">ORBIT · AI feedback</p><h3 className="checkin-subhead">Your next steps</h3></div><button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{feedbackBusy ? "Thinking…" : feedback ? "Refresh AI feedback" : "Try again"}</button></div>{feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing feedback from this check-in…</p> : null}{feedback ? <article className="ai-feedback" aria-live="polite"><p>{feedback}</p><small>AI-assisted educational guidance, not medical advice or diagnosis.</small></article> : null}{feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}
+      {!feedback && !feedbackBusy ? <div className="builtin-steps" data-testid="builtin-steps">
+        {summary.lines.length ? <><h4 className="checkin-subhead">What you told us</h4><ul className="checkin-lines">{summary.lines.map((line, index) => <li key={index} data-concern={line.concern}>{line.text}</li>)}</ul></> : <p className="panel-note">You skipped every question, so there's nothing to summarise yet.</p>}
+        <h4 className="checkin-subhead">What might help</h4>
+        <div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div>
+        <small className="panel-note">Built-in steps from your own answers, not medical advice or diagnosis.</small>
+      </div> : null}
+    </div>
     <p className="panel-footnote">Only the selected check-in themes are sent to the Horizon AI feedback function. Your private note is not sent.</p>
   </section>;
 }

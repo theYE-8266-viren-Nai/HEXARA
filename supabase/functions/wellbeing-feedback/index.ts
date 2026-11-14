@@ -21,11 +21,19 @@ Deno.serve(async (request) => {
   const provider = chooseProvider({ OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"), OPENROUTER_MODEL: Deno.env.get("OPENROUTER_MODEL"), ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") });
   if (!provider.ok) return json(503, { error: provider.error });
   const user = `Stage: ${stage}\nOverall check-in state: ${concern}\nSummary headline: ${headline}\nThemes the traveler selected:\n${lines.map((line) => `- ${line}`).join("\n")}\n\nGive only the useful numbered next steps.`;
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15_000); const started = Date.now();
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 40_000); const started = Date.now();
   try {
-    const attempt = async (): Promise<AttemptOutcome> => { const upstream = buildProviderRequest(provider, system, user); const response = await fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal }); if (!response.ok) return { kind: "error", status: response.status, message: response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined }; const text = completeSentences(extractText(provider.provider, await response.json())); return isAllowedChatOutput(text) ? { kind: "text", text } : { kind: "unsafe" }; };
-    const outcome = await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 8_000 });
+    const send = (mergeSystem: boolean) => { const upstream = buildProviderRequest(provider, system, user, { mergeSystem }); return fetch(upstream.url, { method: "POST", headers: upstream.headers, body: upstream.body, signal: controller.signal }); };
+    const attempt = async (): Promise<AttemptOutcome> => {
+      let response = await send(false);
+      // Some models reject a separate system message with a 400; try once more with the instructions inside the user message.
+      if (response.status === 400 && provider.provider === "openrouter") response = await send(true);
+      if (!response.ok) return { kind: "error", status: response.status, message: response.status >= 400 && response.status < 500 ? extractUpstreamMessage(await response.json().catch(() => undefined)) : undefined };
+      const text = completeSentences(extractText(provider.provider, await response.json()));
+      return isAllowedChatOutput(text) ? { kind: "text", text } : { kind: "unsafe" };
+    };
+    const outcome = await retryWhenUnsafe(attempt, { elapsedMs: () => Date.now() - started, retryBeforeMs: 20_000 });
     if (outcome.kind === "text") return json(200, { text: outcome.text });
     return json(502, { error: outcome.kind === "unsafe" ? "unsafe_output" : "upstream_error", ...(outcome.kind === "error" && outcome.message ? { upstreamMessage: outcome.message } : {}) });
-  } catch { return json(502, { error: "upstream_unavailable" }); } finally { clearTimeout(timer); }
+  } catch { return json(502, { error: controller.signal.aborted ? "upstream_timeout" : "upstream_unavailable" }); } finally { clearTimeout(timer); }
 });
