@@ -228,6 +228,24 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .orbital-photo { position: absolute; width: 185%; height: 150%; max-width: none; left: -42.5%; top: -16%; object-fit: cover; object-position: 50% 50%; mix-blend-mode: screen; }
 .orbital-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 17, 26, .1) 30%, transparent 48%, rgba(8, 15, 25, .5) 70%, #0a141f 100%); }
 .orbital-topline { position: absolute; top: 24px; left: 25px; right: 25px; display: flex; justify-content: space-between; align-items: center; color: #a0bac9; }
+.space-loader { display: flex; align-items: center; justify-content: center; gap: 18px; min-width: 0; color: var(--text-primary); }
+.space-loader-art { position: relative; display: block; flex: 0 0 64px; width: 64px; height: 64px; }
+.space-loader-orbit { position: absolute; inset: 7px; border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent); border-radius: 50%; transform: rotate(-25deg) scaleY(.58); }
+.space-loader-orbit::after { content: ""; position: absolute; left: 50%; top: -5px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: space-orbit 2s linear infinite; transform-origin: 0 30px; }
+.space-loader-planet { position: absolute; inset: 20px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #8ce7ed, #247a96 60%, #123b55); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent); }
+.space-loader-signal { position: absolute; inset: 3px; border: 1px solid var(--accent); border-radius: 50%; animation: space-signal 1.8s ease-out infinite; }
+.space-loader-copy { display: grid; gap: 4px; font-size: 14px; line-height: 1.5; text-align: left; }
+.space-loader-copy strong { font-weight: 600; }
+.space-loader-copy > span { color: var(--text-secondary); font-size: 12px; }
+@keyframes space-orbit { to { transform: rotate(360deg); } }
+@keyframes space-signal { from { transform: scale(.65); opacity: .55; } to { transform: scale(1.15); opacity: 0; } }
+@media (max-width: 480px) { .space-loader { flex-direction: column; gap: 8px; } .space-loader-copy { text-align: center; } }
+@media (prefers-reduced-motion: reduce) { .space-loader-orbit::after, .space-loader-signal { animation: none; } .space-loader-signal { opacity: .35; } }
+.orbital-visual { position: relative; min-width: 0; height: 602px; overflow: hidden; isolation: isolate; color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 25px; background: radial-gradient(ellipse at 70% 45%, #193845, #0e1e2a 68%); box-shadow: 0 30px 80px rgba(0, 0, 0, .22); touch-action: pan-y; }
+.orbital-visual::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at var(--orbital-light-x, 50%) var(--orbital-light-y, 40%), rgba(90, 205, 225, .18), transparent 39%); animation: orbital-glow 8s ease-in-out infinite; }
+.orbital-photo { position: absolute; width: 185%; height: 150%; max-width: none; left: calc(-42.5% + var(--orbital-shift-x, 0px)); top: calc(-16% + var(--orbital-shift-y, 0px)); object-fit: cover; object-position: 50% 50%; mix-blend-mode: screen; transform-origin: 50% 42%; transition: left .45s ease-out, top .45s ease-out; animation: orbital-drift 9s ease-in-out infinite; pointer-events: none; }
+.orbital-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(8, 17, 26, .1) 30%, transparent 48%, rgba(8, 15, 25, .5) 70%, #0a141f 100%); }
+.orbital-topline { position: absolute; z-index: 2; top: 24px; left: 25px; right: 25px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #a0bac9; }
 .orbital-topline > span { display: flex; align-items: center; gap: 7px; font-size: 8px; letter-spacing: .13em; }
 .orbit-path { position: absolute; border: 1px solid rgba(164, 213, 233, .12); border-radius: 50%; width: 76%; aspect-ratio: 1; left: 12%; top: 11%; transform: rotate(-35deg) scaleY(.57); pointer-events: none; }
 .orbit-path-two { transform: rotate(48deg) scaleY(.57); }
