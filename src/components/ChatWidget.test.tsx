@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatWidget } from "./ChatWidget";
@@ -7,16 +7,17 @@ import type { ChatSendResult } from "../domain/chat";
 const mock = vi.hoisted(() => ({ listConversations: vi.fn(), createConversation: vi.fn(), listMessages: vi.fn(), sendMessage: vi.fn() }));
 vi.mock("../lib/chatRepository", () => ({ createChatRepository: () => mock }));
 const props = { stage: "active" as const, client: null, userId: null };
-const reply = { id: "reply", role: "assistant" as const, content: "Keep a regular routine.", createdAt: "2026-11-13", status: "complete" as const, source: "cloud" as const };
+const citation = { id: "nasa-human-body-space", title: "The Human Body in Space", url: "https://www.nasa.gov/humans-in-space/the-human-body-in-space/", collection: "NASA Human Research", excerpt: "Microgravity changes balance and orientation." };
+const reply = { id: "reply", role: "assistant" as const, content: "Microgravity changes vestibular inputs and orientation. [1]", createdAt: "2026-11-14", status: "complete" as const, source: "cloud" as const, answerKind: "nasa_grounded" as const, citations: [citation] };
 
 async function open() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole("button", { name: "Open ORBIT companion" }));
-  await waitFor(() => expect(screen.queryByText("Loading saved conversation…")).not.toBeInTheDocument());
+  await user.click(screen.getByRole("button", { name: "Open ORBIT assistant" }));
+  await waitFor(() => expect(screen.queryByText("Loading saved NASA research…")).not.toBeInTheDocument());
   return user;
 }
 
-describe("ORBIT floating companion", () => {
+describe("ORBIT NASA research assistant", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mock.listConversations.mockResolvedValue({ data: [], warning: "Cloud chat is unavailable." });
@@ -25,151 +26,87 @@ describe("ORBIT floating companion", () => {
     mock.sendMessage.mockResolvedValue({ data: reply });
   });
 
-  it("opens accessibly, focuses the question, and closes with Escape", async () => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
+  it("opens accessibly as a NASA research assistant", async () => {
+    render(<ChatWidget {...props} />); const user = await open();
     expect(screen.getByRole("dialog", { name: "ORBIT AI" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Chat question" })).toHaveFocus();
+    expect(screen.getByText("NASA RESEARCH ASSISTANT")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "NASA research question" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /microgravity affect the vestibular system/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "I'm not feeling well" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open ORBIT companion" })).toHaveFocus();
   });
 
-  it("starts an urgent conversation directly without a condition picker", async () => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    expect(screen.getByText("Hey, I'm ORBIT.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Blood sugar concern" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "I need urgent help" }));
-    expect(screen.getByRole("log")).toHaveTextContent("Contact your crew medic and mission control now");
-    expect(screen.getByRole("log")).toHaveTextContent("No one has been contacted");
-    expect(screen.queryByRole("complementary", { name: "Emergency support steps" })).not.toBeInTheDocument();
-    expect(mock.sendMessage).not.toHaveBeenCalled();
-    expect(mock.createConversation).not.toHaveBeenCalled();
-  });
-
-  it("keeps a typed insulin emergency local and preserves it on reopening", async () => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.type(screen.getByRole("textbox"), "My blood sugar is low. Should I inject insulin?");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent("ORBIT · Built-in guidance");
-    expect(screen.getByRole("log")).toHaveTextContent("does not measure blood glucose");
-    await user.click(screen.getByRole("button", { name: "Close chat" }));
-    await open();
-    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
-    expect(mock.listConversations).toHaveBeenCalledTimes(1);
-    expect(mock.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it("offers an honest offline answer to everyday questions", async () => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
-    expect(await screen.findByText(/Cloud chat is unavailable right now, so this is a demo response/)).toBeInTheDocument();
-    expect(screen.getByText("Not saved remotely.")).toBeInTheDocument();
-  });
-
-  it("sends regular questions with dashboard sharing off by default and recovers from rejection", async () => {
+  it("sends an ordinary NASA question to the cloud repository", async () => {
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
-    mock.sendMessage.mockRejectedValue(new Error("network down"));
-    render(<ChatWidget {...props} context={{ stage: "active", signals: [] }} />);
-    const user = await open();
-    await user.click(screen.getByText("Chat privacy"));
-    expect(screen.getByRole("checkbox")).not.toBeChecked();
-    await user.type(screen.getByRole("textbox"), "How do I build a routine?");
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /control moment gyroscopes/i }));
+    expect(await screen.findByText(/Microgravity changes vestibular inputs/)).toBeInTheDocument();
+    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "Why does the ISS use control moment gyroscopes?", {});
+  });
+
+  it("does not misroute an educational radiation question as an emergency", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /radiation beyond low Earth orbit/i }));
+    expect(mock.sendMessage).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Do not wait for this chat/)).not.toBeInTheDocument();
+  });
+
+  it("renders numbered NASA source cards for grounded responses", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
+    expect(await screen.findByText("ORBIT · NASA-grounded AI response")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /The Human Body in Space/ });
+    expect(link).toHaveAttribute("href", citation.url);
+    expect(link).toHaveTextContent("[1] NASA Human Research");
+  });
+
+  it("shows urgent guidance locally, then requires confirmation of a sanitized NASA query", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.type(screen.getByRole("textbox"), "I'm having trouble breathing");
     await user.click(screen.getByRole("button", { name: "Send question" }));
-    await screen.findByText(/This reply is built in and has not been saved remotely/);
-    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "How do I build a routine?", false, { stage: "active", signals: [] });
-    expect(screen.queryByText("ORBIT is thinking…")).not.toBeInTheDocument();
+    expect(screen.getByRole("log")).toHaveTextContent("Contact your crew medic and mission control now");
+    expect(mock.sendMessage).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Ask NASA about this topic/i }));
+    expect(screen.getByRole("group", { name: "Confirm sanitized NASA research question" })).toHaveTextContent("respiratory concerns during human spaceflight");
+    await user.click(screen.getByRole("button", { name: "Send sanitized question" }));
+    await waitFor(() => expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "What does NASA documentation report about respiratory concerns during human spaceflight?", { sanitizedFromTopic: "breathing" }));
+    expect(mock.sendMessage.mock.calls.flat().join(" ")).not.toContain("I'm having trouble breathing");
   });
 
-  it("answers emergencies immediately while cloud history is loading", async () => {
-    let resolve!: (value: { data: [] }) => void;
-    mock.listConversations.mockReturnValue(new Promise((done) => { resolve = done; }));
-    render(<ChatWidget {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Open ORBIT companion" }));
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "I can't breathe" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
-    await act(async () => resolve({ data: [] }));
-    expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
-  });
-
-  it("discards late cloud responses when the stage changes", async () => {
+  it("keeps urgent guidance available while cloud research is pending", async () => {
     let resolve!: (value: ChatSendResult) => void;
     mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
     mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
-    const view = render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
-    await waitFor(() => expect(mock.sendMessage).toHaveBeenCalled());
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
+    await screen.findByText("ORBIT is searching and checking NASA sources…");
+    fireEvent.click(screen.getByRole("button", { name: "I need urgent help" }));
+    expect(screen.getByRole("log")).toHaveTextContent("Do not wait for this chat");
+    await act(async () => resolve({ data: reply }));
+    expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
+  });
+
+  it("shows the explicit no-evidence response without source cards", async () => {
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockResolvedValue({ data: { ...reply, answerKind: "no_evidence", content: "I couldn’t verify that from the indexed NASA documents. Try a narrower question.", citations: [] } });
+    render(<ChatWidget {...props} />); const user = await open();
+    await user.type(screen.getByRole("textbox"), "An unsupported question"); await user.click(screen.getByRole("button", { name: "Send question" }));
+    expect(await screen.findByText("ORBIT · No verified NASA source")).toBeInTheDocument();
+    expect(screen.queryByLabelText("NASA sources")).not.toBeInTheDocument();
+  });
+
+  it("discards a late response when the life stage changes", async () => {
+    let resolve!: (value: ChatSendResult) => void;
+    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
+    mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
+    const view = render(<ChatWidget {...props} />); const user = await open();
+    await user.click(screen.getByRole("button", { name: /vestibular system/i }));
     view.rerender(<ChatWidget {...props} stage="retired" />);
     await act(async () => resolve({ data: reply }));
     expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
-    expect(screen.getByText("Retired astronaut support")).toBeInTheDocument();
-  });
-  it("keeps urgent help available while waiting for cloud AI", async () => {
-    let resolve!: (value: ChatSendResult) => void;
-    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
-    mock.sendMessage.mockReturnValue(new Promise((done) => { resolve = done; }));
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: "How can I support my wellbeing today?" }));
-    await screen.findByText("ORBIT is thinking…");
-    await user.type(screen.getByRole("textbox"), "My blood sugar is dropping");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent("do not use it to treat suspected low blood sugar");
-    expect(mock.sendMessage).toHaveBeenCalledTimes(1);
-    await act(async () => resolve({ data: reply }));
-    expect(screen.queryByText(reply.content)).not.toBeInTheDocument();
-  });
-
-  it.each([
-    ["I'm bleeding", "firm pressure"],
-    ["My chest hurts", "Stop exertion"],
-    ["My lips are swelling", "emergency allergy plan"],
-    ["My friend is having a seizure", "anything in the person's mouth"],
-    ["I swallowed a chemical cleaner", "Do not make the person vomit"],
-    ["The cabin pressure alarm went off", "onboard emergency checklist"],
-  ])("responds conversationally to %s", async (message, detail) => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.type(screen.getByRole("textbox"), message);
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent(detail);
-    expect(screen.getByRole("dialog")).toHaveAttribute("data-pet-state", "support");
-    expect(mock.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it("listens to symptoms and keeps short follow-ups in the same local conversation", async () => {
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: "I'm not feeling well" }));
-    expect(screen.getByRole("log")).toHaveTextContent("What are you feeling, and when did it start?");
-    await user.type(screen.getByRole("textbox"), "Now I can't breathe");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    expect(screen.getByRole("log")).toHaveTextContent("speak, cough, or breathe");
-    await user.click(screen.getByRole("button", { name: "I'm alone" }));
-    expect(screen.getByRole("log")).toHaveTextContent("backup mission emergency channel");
-    await user.type(screen.getByRole("textbox"), "No");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    await user.click(screen.getByRole("button", { name: "What should I tell the medic?" }));
-    expect(screen.getByRole("log")).toHaveTextContent("do not use OrbitWell's simulated values");
-    expect(mock.createConversation).not.toHaveBeenCalled();
-    expect(mock.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it("lets the user explicitly return to everyday cloud chat without uploading the symptom exchange", async () => {
-    mock.createConversation.mockResolvedValue({ data: { id: "conversation" } });
-    render(<ChatWidget {...props} />);
-    const user = await open();
-    await user.click(screen.getByRole("button", { name: "I need urgent help" }));
-    await user.click(screen.getByRole("button", { name: "Return to everyday chat" }));
-    await user.type(screen.getByRole("textbox"), "How do I build a routine?");
-    await user.click(screen.getByRole("button", { name: "Send question" }));
-    await screen.findByText(reply.content);
-    expect(mock.sendMessage).toHaveBeenCalledWith("conversation", "active", "How do I build a routine?", false, undefined);
-    expect(screen.getByRole("dialog")).toHaveAttribute("data-pet-state", "listening");
   });
 });

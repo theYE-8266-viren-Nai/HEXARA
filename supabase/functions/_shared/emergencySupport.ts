@@ -74,3 +74,12 @@ export function getEmergencySupport(message: string, previousTopic?: EmergencyTo
   if (topic === "glucose") return result(`I'm here with you in chat. ${GLUCOSE_GUIDANCE}\n\nOn Earth, contact local emergency services if this is urgent. Is a crewmate or medic with you?`);
   return result(`I'm here with you in chat. ${EMERGENCY_GUIDANCE}\n\n${item.detail}\n\nIf you can reply without delaying help: is a crewmate or medic with you?`);
 }
+
+/** Educational NASA questions may contain hazard words without reporting an active emergency. */
+export function getUrgentSupport(message: string, previousTopic?: EmergencyTopic): EmergencySupport | undefined {
+  if (previousTopic) return getEmergencySupport(message, previousTopic);
+  const text = normalize(message);
+  const educationalQuestion = /^(what|why|how|when|where|which|does|do|is|are|can|could|would|explain|tell me about)\b/.test(text)
+    && /\b(nasa|space|spaceflight|astronaut|spacecraft|mission|iss|microgravity|radiation|orbit|lunar|mars)\b/.test(text);
+  return educationalQuestion ? undefined : getEmergencySupport(message);
+}
