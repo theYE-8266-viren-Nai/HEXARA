@@ -34,9 +34,9 @@ describe("VisualCheckView", () => {
     render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.queryByText(/Recovery and fatigue context/)).not.toBeInTheDocument();
     expect(screen.queryByText("Movement and exercise")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(5);
+    expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(4);
     // Only the selected task shows its how-to line.
-    expect(screen.getAllByText(/Stand up and sit down/)).toHaveLength(1);
+    expect(screen.getAllByText(/Stand up from a stable chair/)).toHaveLength(1);
     expect(screen.queryByText(/Raise both arms overhead/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Allow camera and continue|Run synthetic demo/ })).toBeInTheDocument();
   });
@@ -55,6 +55,13 @@ describe("VisualCheckView", () => {
   it("keeps the Retired practice-tracking note on one line", () => {
     render(<VisualCheckView stage="retired" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByText(/not a rehab programme/)).toBeInTheDocument();
+  });
+
+  it("preselects a requested offered task and never offers historical standing posture", () => {
+    render(<VisualCheckView stage="retired" profileId="p1" seed={42} initialTask="single_leg_balance" repository={createVisualCheckRepository(null, null)} />);
+    expect(screen.getByRole("radio", { name: /Single-leg balance/ })).toBeChecked();
+    expect(screen.queryByText(/Standing posture/)).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/squat/i);
   });
 
   it("falls back to synthetic mode when the camera is unavailable", () => {
@@ -106,6 +113,33 @@ describe("VisualCheckView", () => {
     await user.click(screen.getByRole("button", { name: "Save summary to cloud" }));
     expect(await screen.findByText(/Not saved to cloud: permission denied/)).toBeInTheDocument();
     expect(screen.queryByText(/^Saved\./)).not.toBeInTheDocument();
+  });
+
+  it("returns a confirmed cloud result to the body only after save succeeds", async () => {
+    const user = userEvent.setup();
+    const onSavedToBody = vi.fn();
+    const repository = createVisualCheckRepository(null, null);
+    repository.saveCloud = vi.fn().mockResolvedValue({ ok: true });
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} initialTask="reach_and_return" repository={repository} onSavedToBody={onSavedToBody} />);
+    await runSynthetic(user);
+    await user.click(screen.getByRole("button", { name: "See observation summary" }));
+    expect(onSavedToBody).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Save and show on body" }));
+    await waitFor(() => expect(onSavedToBody).toHaveBeenCalledOnce());
+    expect(onSavedToBody.mock.calls[0][0]).toMatchObject({ checkType: "reach_and_return", isSynthetic: true });
+  });
+
+  it("keeps the result open for retry when Save and show on body fails", async () => {
+    const user = userEvent.setup();
+    const onSavedToBody = vi.fn();
+    render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(failingClient(), "user-1")} onSavedToBody={onSavedToBody} />);
+    await runSynthetic(user);
+    await user.click(screen.getByRole("button", { name: "See observation summary" }));
+    await user.click(screen.getByRole("button", { name: "Save and show on body" }));
+    expect(await screen.findByText(/Not saved to cloud: permission denied/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Observation summary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save and show on body" })).toBeEnabled();
+    expect(onSavedToBody).not.toHaveBeenCalled();
   });
 
   it("routes reported severe symptoms to the crew medic", async () => {

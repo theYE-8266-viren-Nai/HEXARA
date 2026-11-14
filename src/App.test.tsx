@@ -547,7 +547,8 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Movement" })[0]);
     expect(screen.getByRole("heading", { name: "Track your reconditioning practice" })).toBeInTheDocument();
     expect(screen.getByText(/not a rehab programme: follow the plan from your own rehab or medical team/)).toBeInTheDocument();
-    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Standing posture/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    for (const task of [/Sit-to-stand/, /Shoulder mobility/, /Single-leg balance/, /Reach-and-return/]) expect(screen.getByRole("radio", { name: task })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Standing posture/ })).not.toBeInTheDocument();
     // The how-to line (including the stop-if-unsteady safety line) shows for the selected task.
     await user.click(screen.getByRole("radio", { name: /Single-leg balance/ }));
     expect(screen.getByText(/Stop if you feel unsteady/)).toBeInTheDocument();
