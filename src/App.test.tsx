@@ -430,7 +430,7 @@ describe("OrbitWell app shell", () => {
     const user = userEvent.setup();
     await openWorkspace();
 
-    expect(screen.getByRole("heading", { name: "How are you doing today?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Explore your signals" })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Demo scenario" }), "recovery_concern");
     await waitForSignals();
