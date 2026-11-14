@@ -157,9 +157,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .movement-comparison { display: grid; gap: 5px; color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
 .movement-comparison strong { color: var(--text-primary); }
 .movement-related-regions { color: var(--text-subtle); font-size: 11px; line-height: 1.7; }
-.body-region-menu { max-width: 600px; margin: 20px auto 0; text-align: center; font-size: 12px; color: var(--text-secondary); }
-.body-region-menu > button { cursor: pointer; width: fit-content; margin: 0 auto; text-decoration: underline; text-underline-offset: 4px; }
-.body-region-menu > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
+.body-region-menu { position: absolute; top: 60px; left: 16px; z-index: 6; max-width: min(235px, calc(100% - 32px)); text-align: left; color: var(--text-secondary); }
+.body-region-menu > button { cursor: pointer; min-height: 42px; font-family: inherit; font-size: 14px; font-weight: 600; }
+.body-region-menu > div { display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: 10px; padding: 10px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px #0003; }
+.body-region-menu > div > button { text-align: left; justify-content: flex-start; }
+@media (max-width: 480px) { .body-viewer-range { gap: 5px; } }
 .body-region-menu button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-text); }
 .body-viewer-footer { text-align: center; border-top: none; }
 @media (max-width: 1100px) { .body-region-panel { position: static; width: 100%; max-width: 470px; max-height: none; margin: 12px auto 0; } }
@@ -1222,3 +1224,10 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .bt-switch-thumb { top: 3px; left: 3px; width: 16px; height: 16px; }
 .bt-switch[aria-checked="true"] .bt-switch-thumb { transform: translateX(16px); }
 .wearable-dropdown { top: calc(100% + 6px); }
+
+.device-connect-card { display: flex; align-items: flex-start; gap: 18px; max-width: 740px; }
+.device-connect-card > svg { flex-shrink: 0; margin-top: 3px; color: var(--text-secondary); }
+.device-connect-card h2 { margin: 0 0 18px; font-size: 20px; font-weight: 600; }
+.device-connect-card .btn-primary { min-height: 48px; padding: 0 22px; }
+
+.device-connect-card .wearable-connect-bar { background: var(--accent); color: var(--on-accent); border-color: transparent; }
