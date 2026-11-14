@@ -154,16 +154,16 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByText(/Test Future traveler · Future traveler/)).toBeInTheDocument();
   });
 
-  it("remembers a logged-in astronaut but still opens on the start page", async () => {
+  it("keeps the start page for a logged-in astronaut, then opens their workspace in one click", async () => {
     const user = userEvent.setup();
     const first = await openWorkspace("retired", { pair: false });
     first.unmount();
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole("heading", { name: "Choose your mission stage" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retired astronaut" }));
-    expect(screen.getByRole("heading", { name: /Welcome back, Test/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Continue/ }));
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 

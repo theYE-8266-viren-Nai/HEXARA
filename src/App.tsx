@@ -183,16 +183,10 @@ function HorizonApp() {
       const auth = await ensureAnonymousSession(supabase);
       if (cancelled) return;
       setUserId(auth.userId);
-      // Returning astronauts go straight to their saved workspace; the stage picker is for new or signed-out users.
+      // A signed-in astronaut is remembered, but every visit starts on the start page; their own stage card opens the workspace in one click.
       const existing = await accounts.current();
       if (cancelled) return;
       setAccount(existing);
-      if (existing?.profile) {
-        const matchingProfile = profiles.find((candidate) => candidate.stage === existing.profile!.stage) ?? profiles[0];
-        setProfileId(matchingProfile.id);
-        setStage(existing.profile.stage);
-        setActiveView("home");
-      }
       setCloudWarning(auth.warning);
       if (auth.userId) {
         // The saved stage is kept in the cloud, but every visit starts on the stage picker.
