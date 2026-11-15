@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import {
   VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, movementStatusFor, ownerKeyFor, taskFor, taskInstructions, taskSteps, ANCHOR_NOTE, tasksForStage,
   type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckTask, type VisualCheckType,
@@ -209,7 +209,6 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
       <legend className="sr-only">Mode</legend>
       <div className="grid gap-2 sm:grid-cols-2">
         <ModeOption checked={mode === "camera"} disabled={!supported} onChange={() => onModeChange("camera")} icon={<Camera size={16} aria-hidden="true" />} label="Use my camera" hint={supported ? undefined : "Not available in this browser"} />
-        <ModeOption checked={mode === "synthetic"} onChange={() => onModeChange("synthetic")} icon={<Sparkles size={16} aria-hidden="true" />} label="Synthetic demo" hint="No camera needed" />
       </div>
     </fieldset>
 
