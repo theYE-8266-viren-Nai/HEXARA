@@ -5,6 +5,7 @@ import { usePersistedState } from "../lib/usePersistedState";
 import type { LifeStage } from "../types/horizon";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasSampleHistory } from "../domain/wellbeingHistory";
+import { RotatingEarth, type EarthTextureMode } from "./RotatingEarth";
 
 type CompletedCheckIn = { answers: CheckInAnswers; note: string; completedAt: string; sample?: boolean };
 type SavedCheckIn = CompletedCheckIn | null;
@@ -43,6 +44,7 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
   const [journalCheckInActive, setJournalCheckInActive] = useState(false);
   const [selectedJournalDate, setSelectedJournalDate] = useState(() => toDateKey(new Date()));
   const [historyDate, setHistoryDate] = useState<string | null>(null);
+  const [earthTextureMode, setEarthTextureMode] = usePersistedState<EarthTextureMode>("horizon:earth-texture-mode", "navy");
   const [weekStart, setWeekStart] = useState(() => sundayOf(new Date()));
   const questions = visibleQuestions(stage, answers);
   const onNoteStep = step >= questions.length;
@@ -86,7 +88,7 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
       <div><p className="page-kicker">{copy.kicker}</p><h1>{copy.title}</h1>{copy.lede ? <p className="page-lede">{copy.lede}</p> : null}</div>
       {!journalOpen ? <button type="button" className="btn-secondary wellbeing-history-button" onClick={() => setJournalOpen(true)}><BookOpen size={16} aria-hidden="true" />Back to history</button> : null}
     </header>
-    {journalOpen ? <section className="journal-calendar" aria-labelledby="journal-title">
+    {journalOpen ? <section className="journal-calendar" aria-labelledby={stage !== "retired" ? "journal-title" : undefined} aria-label={stage === "retired" ? "Wellbeing history and check-in" : undefined}>
       {historyDate ? <div className="journal-history-page">
         <div className="journal-history-page-head"><button type="button" className="btn-secondary" onClick={() => setHistoryDate(null)}><ArrowLeft size={15} aria-hidden="true" /> Back to days</button><p className="checkin-count">WELLBEING HISTORY</p><h2>{new Date(`${historyDate}T12:00:00`).toLocaleDateString(undefined, { dateStyle: "full" })}</h2></div>
         {historyDateCheckIns.map((assessment) => { const summary = summarizeCheckIn(stage, assessment.answers); const questionsForAssessment = visibleQuestions(stage, assessment.answers); return <article className="journal-history-card" key={assessment.completedAt}>{assessment.sample ? null : <div><p className="checkin-count">Completed {new Date(assessment.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p><h4>{summary.headline}</h4></div>}{assessment.answers.overallMood ? <p><strong>Overall mood:</strong> {["", "Very unpleasant", "Unpleasant", "Neutral", "Pleasant", "Very pleasant"][Number(assessment.answers.overallMood)]}</p> : null}<dl>{questionsForAssessment.map((question) => { const answer = assessment.answers[question.id]; const selectedOptions = question.options.filter((option) => Array.isArray(answer) ? answer.includes(option.id) : answer === option.id).map((option) => option.label); return selectedOptions.length ? <div key={question.id}><dt>{question.prompt}</dt><dd>{selectedOptions.join(", ")}</dd></div> : null; })}</dl>{assessment.note ? <div className="journal-history-note"><strong>Your private note</strong><p>{assessment.note}</p></div> : null}{!assessment.sample ? <button type="button" className="btn-link" aria-label="Delete check-in" onClick={() => deleteCheckIn(assessment.completedAt)}><Trash2 size={15} aria-hidden="true" /> Delete check-in</button> : null}</article>; })}
@@ -95,10 +97,15 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
       </div> : <>
       <div className="journal-week-heading"><button type="button" className="btn-secondary" aria-label="Previous week" onClick={() => moveWeek(-1)}><ChevronLeft size={18} /></button><h2>{weekMonthLabel}</h2><button type="button" className="btn-secondary" aria-label="Next week" onClick={() => moveWeek(1)}><ChevronRight size={18} /></button></div>
       <div className="journal-week-strip" aria-label="Recent days">{journalWeek.map((date) => { const key = toDateKey(date); const hasEntry = journalEntries.some((entry) => toDateKey(new Date(entry.createdAt)) === key) || visibleCheckIns.some((item) => toDateKey(new Date(item.completedAt)) === key); return <button type="button" key={key} className="journal-week-day" data-today={key === todayKey || undefined} data-selected={key === selectedJournalDate || undefined} data-has-history={hasEntry || undefined} aria-pressed={key === selectedJournalDate} aria-label={`${date.toLocaleDateString(undefined, { dateStyle: "full" })}${hasEntry ? ", history available" : ", no saved history"}`} onClick={() => { setSelectedJournalDate(key); setHistoryDate(null); }}><span>{new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date).slice(0, 1)}</span><strong>{date.getDate()}</strong><i aria-hidden="true">{hasEntry ? "✓" : ""}</i></button>; })}</div>
-      <h2 id="journal-title" className="journal-prompt">How have you been feeling?</h2>
-      <div className="journal-checkin-ring">
+      {stage !== "retired" ? <h2 id="journal-title" className="journal-prompt">How have you been feeling?</h2> : null}
+      <div className="journal-checkin-ring" data-stage={stage}>
+        {stage === "retired" ? <RotatingEarth mode={earthTextureMode} /> : null}
         <span className="journal-orbit-track" aria-hidden="true"><span className="journal-orbit-satellite" /></span>
-        <button type="button" onClick={selectedDateHasHistory ? () => setHistoryDate(selectedJournalDate) : selectedJournalDate === todayKey ? startJournalCheckIn : undefined} disabled={selectedJournalDate !== todayKey && !selectedDateHasHistory} aria-label={selectedDateHasHistory ? "Check history for selected day" : selectedJournalDate === todayKey ? "Check in for today" : "No check-in saved for selected day"}><span aria-hidden="true">{selectedDateHasHistory ? "↗" : selectedJournalDate === todayKey ? "+" : "·"}</span><small>{selectedDateHasHistory ? "Check history" : selectedJournalDate === todayKey ? "Check in" : "No history"}</small></button>
+        <button type="button" onClick={selectedDateHasHistory ? () => setHistoryDate(selectedJournalDate) : selectedJournalDate === todayKey ? startJournalCheckIn : undefined} disabled={selectedJournalDate !== todayKey && !selectedDateHasHistory} aria-label={selectedDateHasHistory ? "Check history for selected day" : selectedJournalDate === todayKey ? "Check in for today" : "No check-in saved for selected day"}>
+          {stage === "retired" ? <span className="journal-earth-copy"><strong>It’s a great day on Earth.</strong><em>Take a moment to notice how being home feels.</em></span> : null}
+          <span className="journal-checkin-action-icon" aria-hidden="true">{selectedDateHasHistory ? "↗" : selectedJournalDate === todayKey ? "+" : "·"}</span>
+          <small>{selectedDateHasHistory ? "Check history" : selectedJournalDate === todayKey ? "Check in" : "No history"}</small>
+        </button>
       </div>
       <p className="journal-private-note">Select a day to view its history. Your journal stays on this device.</p>
       </>}
@@ -145,6 +152,10 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
         </div>
       </div>}
     </section>}
+    {stage === "retired" && journalOpen && !historyDate ? <div className="earth-texture-toggle-outside"><div className="earth-texture-toggle" role="group" aria-label="Earth appearance">
+      <button type="button" aria-pressed={earthTextureMode === "navy"} onClick={() => setEarthTextureMode("navy")}>Deep navy ocean</button>
+      <button type="button" aria-pressed={earthTextureMode === "nasa"} onClick={() => setEarthTextureMode("nasa")}>NASA Blue Marble</button>
+    </div></div> : null}
   </div>;
 }
 

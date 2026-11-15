@@ -6,6 +6,8 @@ Horizon is a research demo health companion for space travelers. It uses synthet
 
 ### 🟢 Currently Built
 
+- **Former Astronaut Earth check-in (2026-11-15):** Replaced the Former Astronaut wellbeing orbit ring with a complete 3D Earth and the reflection “It’s a great day on Earth,” while preserving the live accessible check-in action and leaving Future/Active visuals unchanged. A compact centered two-option control below the wellbeing card switches between a custom deep-navy-ocean texture and NASA Blue Marble. Both textures wrap real sphere geometry rotating around an upright north–south axis, so linear surface speed decreases naturally toward the poles; the whole globe remains visible without an artificial teal atmosphere, border, or glow, and reduced-motion preferences freeze it. Texture URLs and the offline cache are versioned to prevent stale appearance assets. Focused journal tests and production build pass.
+
 - **Future three-part guidance navigation and changed-reading guidance (2026-11-15):** Astronaut in Training Guidance now follows the Active-stage three-part shortcut pattern: Using OrbitWell, one combined Training guidance section, and When readings change. Added a responsive four-step changed-reading panel with trainee-appropriate advice for checking data quality, interpreting trends, contacting support, and recording follow-up. The focused guidance test and production build pass; the existing bundle-size warning remains.
 
 - **Astronaut in Training terminology (2026-11-15):** Replaced the user-facing Future astronaut/Future traveler stage name with "Astronaut in Training" across stage selection, account flows, workspace headings, profile mapping, Movement copy, chat naming, and matching tests. Production build passes.

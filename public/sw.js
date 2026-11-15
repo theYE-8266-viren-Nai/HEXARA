@@ -1,10 +1,12 @@
-const CACHE_NAME = "orbitwell-shell-v2";
+const CACHE_NAME = "orbitwell-shell-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/images/orbit-companion.png",
   "/images/nasa-spacewalk.jpg",
+  "/images/orbitwell-earth-texture-natural.png",
+  "/images/nasa-blue-marble-texture.png",
   "/models/human/body.glb",
   "/mediapipe/pose_landmarker_lite.task",
   "/mediapipe/vision_bundle.mjs",

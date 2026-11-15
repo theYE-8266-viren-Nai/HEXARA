@@ -6,6 +6,29 @@ import { WellbeingCheckIn } from "./WellbeingCheckIn";
 describe("WellbeingCheckIn journal", () => {
   beforeEach(() => window.localStorage.clear());
 
+  it("uses the Earth reflection only for the Former Astronaut check-in", () => {
+    const retired = render(<WellbeingCheckIn stage="retired" client={null} />);
+    expect(screen.getByText("It’s a great day on Earth.")).toBeInTheDocument();
+    expect(screen.getByText("Take a moment to notice how being home feels.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Deep navy ocean" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "NASA Blue Marble" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("heading", { name: "How have you been feeling?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check in for today" }).closest(".journal-checkin-ring")).toHaveAttribute("data-stage", "retired");
+    retired.unmount();
+
+    render(<WellbeingCheckIn stage="active" client={null} />);
+    expect(screen.queryByText("It’s a great day on Earth.")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How have you been feeling?" })).toBeInTheDocument();
+  });
+
+  it("switches between the two Former Astronaut Earth appearances", async () => {
+    render(<WellbeingCheckIn stage="retired" client={null} />);
+    const nasa = screen.getByRole("button", { name: "NASA Blue Marble" });
+    await userEvent.click(nasa);
+    expect(nasa).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Deep navy ocean" })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it.each(["future", "active", "retired"] as const)("keeps sample history but hides its label and headline for the %s stage", async (stage) => {
     render(<WellbeingCheckIn stage={stage} client={null} />);
     await userEvent.click(screen.getByRole("button", { name: "Previous week" }));
