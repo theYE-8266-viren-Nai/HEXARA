@@ -1592,3 +1592,5 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 /* Badge at the far right end of the top bar (logo stays on the left). */
 .landing-topbar { justify-content: space-between; }
 @media (max-width: 599px) { .landing-topbar { justify-content: flex-start; } }
+/* Trends: the live-sync badge sits under Connect wearables, like Home. */
+.trends-header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
