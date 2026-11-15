@@ -1409,6 +1409,15 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 }
 @media (prefers-reduced-motion: reduce) { .app-sidebar, .app-body { transition: none; } }
 .trend-device-note { font-size: 13px; color: var(--muted); }
+.trend-pairing-gate { display: flex; align-items: flex-start; gap: 16px; max-width: 760px; }
+.trend-pairing-gate > svg { flex: 0 0 auto; margin-top: 3px; color: var(--accent-text); }
+.trend-pairing-gate h2 { margin: 4px 0 8px; color: var(--text-primary); font-size: 22px; font-weight: 600; line-height: 1.25; }
+.trend-pairing-progress { margin: 0; color: var(--accent-text); font-size: 16px; font-weight: 600; }
+.trend-pairing-help { margin: 14px 0 0; color: var(--text-secondary); font-size: 13px; }
+.trend-pairing-action { margin-top: 18px; display: inline-flex; align-items: center; gap: 8px; }
+.trend-pairing-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0; padding: 0; list-style: none; }
+.trend-pairing-list > li { padding: 6px 9px; border: 1px solid var(--glass-border); border-radius: 99px; background: var(--surface-inset); color: var(--text-secondary); font-size: 12px; }
+@media (max-width: 640px) { .trend-pairing-gate { gap: 12px; } .trend-pairing-gate h2 { font-size: 19px; } }
 
 /* ───── Landing page: full-page space scene ─────
    Always dark (it is a night sky); every animation stops for reduced motion. */

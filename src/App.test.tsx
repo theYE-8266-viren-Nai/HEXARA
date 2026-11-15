@@ -333,6 +333,7 @@ describe("OrbitWell app shell", () => {
     window.localStorage.setItem("horizon:scenario", JSON.stringify("stale"));
     await openWorkspace();
     await waitForSignals();
+    await pairWearable("active", BODY_DEVICES.slice(1).map((device) => device.name));
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
     expect(screen.getByText(/These readings are stale/)).toBeInTheDocument();
@@ -361,16 +362,54 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Reconnect it from Profile/)).toBeInTheDocument();
   });
 
-  it("shows Trends for the paired wearables only, without requiring every device", async () => {
+  it("locks Trends until every Active wearable is paired", async () => {
     const user = userEvent.setup();
     await openWorkspace("active");
     await waitForSignals();
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
 
-    expect(await screen.findByText(/Showing charts from: Astroskin shirt\./)).toBeInTheDocument();
-    expect(screen.queryByText("Complete device pairing to view trends")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "HRV" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Sleep" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Complete wearable pairing to view trends" })).toBeInTheDocument();
+    expect(screen.getByText("1 of 4 devices connected")).toBeInTheDocument();
+    expect(screen.getByText("Actiwatch")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "HRV" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "A signal needs review" })).not.toBeInTheDocument();
+    expect(screen.getByText("Use Connect wearables above to finish pairing.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Go to Home to connect wearables" }));
+    expect(await screen.findByRole("heading", { name: "Explore your signals" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toBeInTheDocument();
+  });
+
+  it("shows the complete Trends dashboard after all Active wearables are paired", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active", { pair: false });
+    await pairWearable("active", BODY_DEVICES.map((device) => device.name));
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+
+    expect(await screen.findByRole("heading", { name: "HRV" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sleep" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Radiation dose" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Complete wearable pairing to view trends" })).not.toBeInTheDocument();
+  });
+
+  it("requires all four offered devices for Future Trends", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("future", { pair: false });
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(screen.getByText("0 of 4 devices connected")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "HRV" })).not.toBeInTheDocument();
+  });
+
+  it("requires all three offered devices for Retired Trends", async () => {
+    const user = userEvent.setup();
+    const first = await openWorkspace("retired", { pair: false });
+    expect(screen.getByRole("heading", { name: "Keep the long view" })).toBeInTheDocument();
+    await pairWearable("retired", ["Actiwatch"]);
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    expect(screen.getByText(/of 3 devices connected/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Mobility" })).not.toBeInTheDocument();
+    first.unmount();
   });
 
   it("keeps Connect wearables on Trends after pairing, and shows wearables on Profile without pairing controls", async () => {
@@ -396,6 +435,7 @@ describe("OrbitWell app shell", () => {
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
     await openWorkspace();
     await waitForSignals();
+    await pairWearable("active", BODY_DEVICES.slice(1).map((device) => device.name));
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     await user.click(screen.getByRole("button", { name: "Show alert reason" }));
 
@@ -493,6 +533,7 @@ describe("OrbitWell app shell", () => {
 
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
     expect(screen.getByText("Watch")).toBeInTheDocument();
+    await pairWearable("active", BODY_DEVICES.slice(1).map((device) => device.name));
     await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
     await user.click(screen.getByRole("button", { name: "Show alert reason" }));
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
