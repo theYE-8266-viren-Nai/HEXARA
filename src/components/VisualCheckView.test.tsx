@@ -12,7 +12,6 @@ function failingClient() {
 }
 
 async function runSynthetic(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
   await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
   await screen.findByRole("heading", { name: "How did that feel?" }, { timeout: 3000 });
 }
@@ -78,7 +77,7 @@ describe("VisualCheckView", () => {
     vi.stubGlobal("navigator", { ...navigator, mediaDevices: undefined });
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByRole("radio", { name: /Use my camera/ })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: /Synthetic demo/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Run synthetic demo" })).toBeInTheDocument();
   });
 
   it("explains a denied camera permission and offers the synthetic demo", async () => {
@@ -92,7 +91,7 @@ describe("VisualCheckView", () => {
     await user.click(start);
     expect(await screen.findByText("Camera permission was denied.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Use synthetic demo" }));
-    expect(screen.getByRole("radio", { name: /Synthetic demo/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Run synthetic demo" })).toBeInTheDocument();
   });
 
   it("completes the synthetic flow, compares with own history, and composes a crew summary without sending it", async () => {
@@ -180,7 +179,6 @@ describe("VisualCheckView", () => {
     for (const [reduced, expectPulse] of [[true, false], [false, true]] as const) {
       media(reduced);
       const { unmount } = render(<VisualCheckView stage="active" profileId={`rm-${reduced}`} seed={42} repository={createVisualCheckRepository(null, null)} />);
-      await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
       await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
       const countdown = await screen.findByLabelText(/Starting in/);
       expect(countdown.className.includes("animate-pulse"), `reduced=${reduced}`).toBe(expectPulse);
