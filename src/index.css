@@ -1520,3 +1520,15 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .trends-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .trends-header .wearable-dropdown { left: auto; right: 0; }
 .device-connect-hint { margin-top: 4px; font-size: 13px; color: var(--muted); }
+
+/* Start page top bar: the logo with the "Health companion for astronauts" badge beside it, and it stays
+   at the top while the page scrolls (full-width blurred band behind it). */
+.landing-topbar { position: sticky; top: 0; z-index: 20; justify-content: flex-start; gap: 20px; flex-wrap: wrap; }
+.landing-topbar::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw); background: rgba(5, 11, 20, .97); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.landing-topbar .landing-eyebrow { font-size: 11px; padding: 5px 11px; }
+.landing-title { margin-top: 0; }
+@media (max-width: 899px) {
+  .landing-topbar { gap: 8px 14px; padding: 10px 0; min-height: 0; }
+}
+/* "clip" (not "hidden") keeps the page from scrolling sideways without breaking the sticky top bar. */
+.onboarding.landing-space { overflow-x: clip; overflow-y: visible; }
