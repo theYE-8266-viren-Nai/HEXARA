@@ -1494,3 +1494,8 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
    While the list is open it sits above the floating ORBIT chat button. */
 .profile-wearables-head .wearable-dropdown { left: auto; right: 0; }
 .wearable-connect:has(.wearable-dropdown) { z-index: 60; }
+/* Optional, on-request AI feedback under the wellbeing summary. */
+.checkin-ai-feedback { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--glass-border); }
+.checkin-ai-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.checkin-ai-head h3 { margin: 0; color: var(--text-primary); font-size: 15px; font-weight: 600; }
+.checkin-ai-feedback .ai-feedback { margin: 0; }

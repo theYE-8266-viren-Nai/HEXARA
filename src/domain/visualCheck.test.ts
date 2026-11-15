@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  tasksForStage, taskInstructions, ANCHOR_NOTE, IN_ORBIT_TASK_TYPES,
+  tasksForStage, taskInstructions, taskSteps, ANCHOR_NOTE, IN_ORBIT_TASK_TYPES,
   VISUAL_CHECK_DISCLAIMER, VISUAL_CHECK_TASKS, assessCameraQuality, buildVisualCheck, combinedContextNote, compareWithPersonalHistory, composeCrewSummary, extractMovementFeatures,
   frameStats, generateSyntheticFeatures, isNonDiagnostic, movementStatusFor, ownerKeyFor, supportRecommendationFor, taskFor, type MotionSample, type ObservedFeatures, type UserReportedContext, type VisualCheck,
 } from "./visualCheck";
@@ -182,7 +182,11 @@ describe("which Movement tasks each stage is offered", () => {
   });
 
   it("adds the anchoring reminder only in space, and keeps the balance task's own safety line on Earth", () => {
-    for (const task of tasksForStage("active")) expect(taskInstructions(task, "active")).toBe(`${ANCHOR_NOTE} ${task.instructions}`);
+    for (const task of tasksForStage("active")) expect(taskInstructions(task, "active")).toMatch(task.type === "anchored_lower_body_flexion" ? /^Hook your feet into the restraint/ : new RegExp(`^${ANCHOR_NOTE.replace(/[.,]/g, "\\$&")} `));
+    // Each in-orbit task has its own steps, so the choices never read alike.
+    const steps = tasksForStage("active").map((task) => taskSteps(task, "active"));
+    expect(new Set(steps.map((text) => text.split(" ").slice(0, 4).join(" "))).size).toBe(steps.length);
+    expect(steps.every((text) => !text.includes(ANCHOR_NOTE))).toBe(true);
     for (const task of tasksForStage("retired")) expect(taskInstructions(task, "retired")).toBe(task.instructions);
     for (const task of tasksForStage("future")) expect(taskInstructions(task, "future")).toBe(task.instructions);
     expect(taskInstructions(taskFor("single_leg_balance"), "retired")).toMatch(/near a support you can hold. Stop if you feel unsteady/);
