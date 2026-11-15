@@ -41,9 +41,10 @@ export function StageSelectionView({ loading, warning, onSelect, onOpenGroundDem
   return <main className="onboarding landing-space">
     <LandingScene />
     <div className="onboarding-container landing-content">
-      <header className="onboarding-topbar landing-topbar"><Brand /><p className="landing-eyebrow"><span className="landing-live-dot" /> Health companion for astronauts</p></header>
+      <header className="onboarding-topbar landing-topbar"><Brand /></header>
       <div className="landing-hero">
         <section className="landing-copy" aria-labelledby="journey-title">
+          <p className="landing-eyebrow landing-rise"><span className="landing-live-dot" /> Health companion for astronauts</p>
           <h1 id="journey-title" className="landing-title landing-rise">Far from Earth.<br /><span>Close to your health.</span></h1>
           <p className="landing-intro landing-rise">OrbitWell tracks your vital signs against your own baseline and tells you what changed.</p>
           <h2 id="stage-options-title" className="landing-stage-title landing-rise">Choose your mission stage</h2>
