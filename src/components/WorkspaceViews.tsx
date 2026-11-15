@@ -21,7 +21,6 @@ import { astronautRecord, initials } from "../data/astronautProfiles";
 import { displayValue, initialsOf, profileGroups, validateProfile, type AstronautProfile } from "../domain/astronautAccount";
 import type { Account } from "../lib/accountRepository";
 import { ProfileFields } from "./AccountViews";
-import { WebhookCard } from "./WebhookCard";
 import { CONNECT_PHASES } from "../domain/deviceSimulator";
 import { deviceTiming } from "../lib/useDeviceStream";
 import { formatMetricValue } from "../lib/formatMetricValue";
@@ -231,16 +230,6 @@ export function ProfileView({ profile, profiles, stage, scenario, seed, replayCo
       <div className="panel-head"><h2 id="wearable-title">Wearable</h2></div>
       <div className="mt-3"><DeviceCard stage={stage} onResetScenario={() => onScenarioChange("usual")} /></div>
     </section>
-    <details className="tech-card panel demo-controls">
-      <summary><span>Demo controls</span><span className="demo-controls-hint">Switch scenario and data sources for the presentation</span></summary>
-      {loading ? <LoadingPanel /> : null}
-      <div className="demo-controls-grid">
-        <div className="space-y-4">
-          <FieldLabel label="Demo scenario"><select value={scenario} onChange={(event) => onScenarioChange(event.target.value as SimulationScenario)} className="field" aria-label="Demo scenario"><option value="usual">Usual day</option><option value="recovery_concern">Recovery concern</option><option value="sensor_disconnected">Sensor disconnected</option><option value="stale">Stale data</option><option value="offline">Offline mode</option></select></FieldLabel>
-        </div>
-        <div className="space-y-4"><BluetoothCard /><WebhookCard /></div>
-      </div>
-    </details>
   </div>;
 }
 
@@ -465,7 +454,6 @@ function RetiredGuidanceView({ onViewChange, onOpenChat }: { onViewChange: (view
   </div>;
 }
 
-function FieldLabel({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) { return <label className="block"><span className="flex items-baseline justify-between gap-3 text-sm font-semibold text-slate-200"><span>{label}</span>{hint ? <span className="text-xs font-normal text-slate-500">{hint}</span> : null}</span><span className="mt-2 block">{children}</span></label>; }
 function DataNotice({ title, body }: { title: string; body: string }) { return <section className={`${panelClass} flex max-w-2xl items-start gap-3`} role="status"><WifiOff className="mt-1 shrink-0 text-slate-300" /><div><h2 className="font-semibold text-white">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{body}</p></div></section>; }
 function DataSourceStatus({ source, warning }: { source?: DashboardSource; warning?: string }) {
   if (!source) return null;
@@ -536,24 +524,6 @@ function DeviceBadge() {
 function missionLabel(profile: TravelerProfile, stage: LifeStage) { return stage === "future" ? "Pre-mission" : stage === "retired" ? "Post-mission" : `Mission day ${profile.missionDay}`; }
 function stageLabel(stage: LifeStage) { return stage === "future" ? "Astronaut in Training" : stage === "retired" ? "Former astronaut" : "Active astronaut"; }
 function scenarioLabel(scenario: SimulationScenario) { return scenario === "usual" ? "Usual day" : scenario === "recovery_concern" ? "Recovery concern" : scenario === "sensor_disconnected" ? "Sensor disconnected" : scenario === "stale" ? "Stale data" : "Offline mode"; }
-
-function BluetoothCard() {
-  const bt = useDevice()?.bluetooth;
-  if (!bt) return null;
-  const busy = bt.phase === "requesting";
-  const title = bt.phase === "streaming" ? (bt.ready ? `Live · ${bt.deviceName}` : `Connected · ${bt.deviceName}`) : bt.phase === "signal_lost" ? "Signal lost" : bt.phase === "unsupported" ? "Not supported in this browser" : "Not connected";
-  return <div className="rounded-2xl border border-slate-700 bg-slate-950/40 p-4" aria-labelledby="bluetooth-card-title">
-    <div className="flex items-center gap-2"><Bluetooth size={16} className="text-cyan-200" aria-hidden="true" /><p id="bluetooth-card-title" className="text-sm text-slate-400">Bluetooth heart-rate device</p></div>
-    <p className="mt-1 text-lg font-semibold text-white">{title}</p>
-    <p className="mt-2 text-sm leading-6 text-slate-400">{bt.phase === "streaming" && bt.ready ? "Receiving clean readings. Heart rate (and HRV, if the device sends beat-to-beat data) come from this device; other signals stay simulated." : bt.phase === "unsupported" ? (bt.message ?? "Web Bluetooth works in Chrome and Edge on desktop and Android. OrbitWell keeps using the simulated wearable.") : bt.message ?? "Connect a chest strap or watch that broadcasts heart rate. OrbitWell cleans its readings like any other source. Heart rate and HRV come from the device; other signals stay simulated. Nothing is saved or uploaded."}</p>
-    {bt.phase === "streaming" && !bt.ready ? <p className="mt-2 text-sm text-slate-400" role="status">Collecting readings… a few seconds of clean data are needed before they appear on Home.</p> : null}
-    <div className="mt-3 flex flex-wrap gap-3">
-      {bt.phase === "streaming" ? <button type="button" onClick={bt.disconnect} className="rounded-xl border border-slate-500/50 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">Disconnect device</button>
-        : bt.phase === "unsupported" ? null
-        : <button type="button" disabled={busy} onClick={() => void bt.connect()} className="rounded-xl border border-cyan-300/40 px-4 py-2 text-sm font-bold text-cyan-100 hover:bg-cyan-300/10 disabled:opacity-60">{busy ? "Waiting for device…" : bt.phase === "signal_lost" || bt.phase === "error" ? "Try again" : "Connect Bluetooth heart-rate device"}</button>}
-    </div>
-  </div>;
-}
 
 function DeviceCard({ onResetScenario, stage }: { onResetScenario: () => void; stage?: LifeStage }) {
   const context = useDevice();
