@@ -46,12 +46,15 @@ describe("VisualCheckView", () => {
     const user = userEvent.setup();
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(3);
-    expect(screen.getByText(/slowly bend and extend your hips and knees/)).toBeInTheDocument();
-    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+    expect(screen.getByText(/slowly bend your hips and knees and straighten them/)).toBeInTheDocument();
+    // The anchoring reminder appears once above the list, not repeated at the start of every task.
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/)).toHaveLength(1);
+    await user.click(screen.getByRole("radio", { name: /Shoulder mobility/ }));
+    expect(screen.getByText(/Move both arms together so your body stays still/)).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Reach-and-return/ }));
-    expect(screen.getByText(/Reach forward to one side/)).toBeInTheDocument();
+    expect(screen.getByText(/Keep one hand on the handrail and reach forward/)).toBeInTheDocument();
     expect(screen.queryByText(/Raise both arms overhead/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/)).toHaveLength(1);
   });
 
   it("keeps the Retired practice-tracking note on one line", () => {
