@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, CameraOff, Check, ClipboardList, Copy, Info, LockKeyhole, Play, RotateCcw, ShieldCheck } from "lucide-react";
 import {
-  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, movementStatusFor, ownerKeyFor, taskFor, taskInstructions, tasksForStage,
+  VISUAL_CHECK_DISCLAIMER, buildVisualCheck, combinedContextNote, composeCrewSummary, extractMovementFeatures, generateSyntheticFeatures, movementStatusFor, ownerKeyFor, taskFor, taskInstructions, taskSteps, ANCHOR_NOTE, tasksForStage,
   type CameraQuality, type CrewSummaryFields, type ObservedFeatures, type UserReportedContext, type VisualCheck, type VisualCheckTask, type VisualCheckType,
 } from "../domain/visualCheck";
 import { cameraSupported, useCameraMotion } from "../lib/useCameraMotion";
@@ -126,7 +126,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
   // Movement is not offered to Future travelers. The view is never routed to them, but fail safe if it is ever rendered.
   if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">No movement checks are available</h1></section>;
   const copy = stageCopy[stage];
-  return <div className="space-y-7">
+  return <div className="movement-page space-y-7">
     <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1></header>
     <div className="max-w-2xl space-y-1 text-xs leading-5">
       <p role="note" className="flex items-start gap-2 text-amber-100"><Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{VISUAL_CHECK_DISCLAIMER}</p>
@@ -134,6 +134,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
       <p className="pl-6 text-slate-300">This practice helps you notice how evenly and comfortably you move. Use it to build movement awareness and follow your approved conditioning plan; it cannot assess spine, bone, muscle, or joint health.</p>
     </div>
 
+    <div className="movement-practice-column">
     {step === "intro" ? <IntroStep mode={mode} onModeChange={setMode} consent={consent} onConsentChange={setConsent} taskType={taskType} onTaskChange={setTaskType} tasks={tasks} stage={stage} onBegin={() => void begin()} camera={camera} /> : null}
 
     {/* The preview element must exist while the camera runs; it is hidden outside camera steps. */}
@@ -179,6 +180,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
     {step === "context" && features ? <ContextStep context={context} onChange={setContext} onSubmit={finish} synthetic={mode === "synthetic"} /> : null}
 
     {step === "result" && result ? <ResultStep check={result} onRepeat={reset} repository={repository} onSavedToBody={onSavedToBody} onRequestCrewMedic={onRequestCrewMedic} /> : null}
+    </div>
 
     <HistoryPanel history={ownHistory} />
   </div>;
@@ -190,12 +192,13 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
   return <section className={`${panelClass} max-w-2xl space-y-6`} aria-label="Start a movement check">
     <fieldset>
       <legend className="text-sm font-semibold text-slate-200">Practice task</legend>
+      {stage === "active" ? <p className="mt-2 text-sm text-slate-400">{ANCHOR_NOTE}</p> : null}
       <div className="mt-3 space-y-2">{tasks.map((task) => {
         const selected = taskType === task.type;
         return <label key={task.type} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition ${selected ? "border-cyan-400/70 bg-cyan-400/15" : "border-[#293d59] hover:border-cyan-200/40"}`}>
           <input type="radio" name="visual-task" className="mt-1" checked={selected} onChange={() => onTaskChange(task.type)} />
           <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-3"><span className="font-semibold text-white">{task.label}</span><span className="shrink-0 font-mono text-xs text-slate-400">{task.durationSeconds} s</span></span>
-            {selected ? <span className="mt-1 block text-slate-400">{taskInstructions(task, stage)}</span> : null}</span>
+            {selected ? <span className="mt-1 block text-slate-400">{taskSteps(task, stage)}</span> : null}</span>
         </label>;
       })}</div>
     </fieldset>
@@ -206,7 +209,6 @@ function IntroStep({ mode, onModeChange, consent, onConsentChange, taskType, onT
       <legend className="sr-only">Mode</legend>
       <div className="grid gap-2 sm:grid-cols-2">
         <ModeOption checked={mode === "camera"} disabled={!supported} onChange={() => onModeChange("camera")} icon={<Camera size={16} aria-hidden="true" />} label="Use my camera" hint={supported ? undefined : "Not available in this browser"} />
-        <ModeOption checked={mode === "synthetic"} onChange={() => onModeChange("synthetic")} icon={<Sparkles size={16} aria-hidden="true" />} label="Synthetic demo" hint="No camera needed" />
       </div>
     </fieldset>
 
@@ -260,7 +262,7 @@ function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewM
       onSavedToBody?.(check);
     } else setSave({ state: "failed", reason: outcome.reason });
   };
-  return <div className="grid gap-5 lg:grid-cols-2">
+  return <div className="grid gap-6">
     <section className={panelClass} aria-labelledby="result-title">
       <div className="flex flex-wrap items-center gap-2"><h2 id="result-title" className="text-xl font-semibold text-white">Observation summary</h2>{check.isSynthetic ? <span className="rounded-full border border-purple-300/40 bg-purple-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-100">Synthetic demo result</span> : null}</div>
       <div className="movement-status-box" data-status={movementStatus.status} role={movementStatus.status === "stop_and_check_in" ? "alert" : "status"} aria-live="polite">
@@ -308,7 +310,7 @@ function CrewSummaryComposer({ check }: { check: VisualCheck }) {
 
 function HistoryPanel({ history }: { history: VisualCheck[] }) {
   if (!history.length) return null;
-  return <section className={`${panelClass} max-w-3xl`} aria-labelledby="history-title">
+  return <section className={`${panelClass} movement-history-panel`} aria-labelledby="history-title">
     <div className="flex items-center gap-2"><ShieldCheck className="text-cyan-200" size={18} aria-hidden="true" /><h2 id="history-title" className="text-lg font-semibold text-white">Your practice history</h2></div>
     <p className="mt-1 text-xs text-slate-500">Only your own sessions in this stage and profile. Stored on this device.</p>
     <ul className="mt-3">{history.slice(-6).reverse().map((check) => <li key={check.checkId} className="stream-row flex flex-wrap justify-between gap-2"><span>{new Date(check.startedAt).toLocaleString()} · {taskFor(check.checkType).label}{check.isSynthetic ? " · synthetic" : ""}</span><span>{check.observedFeatures.repetitionCount !== undefined ? `${check.observedFeatures.repetitionCount} reps · ` : ""}{Math.round(check.duration)} s · {check.comparisonSummary.trend.replace("_", " ")}</span></li>)}</ul>

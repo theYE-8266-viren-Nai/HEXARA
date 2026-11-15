@@ -4,10 +4,11 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WearableConnect } from "./WearableConnect";
 import { bodyDeviceTiming, type BodyDeviceId } from "../domain/bodyDevices";
+import type { LifeStage } from "../types/horizon";
 
-function Harness({ onPair = vi.fn(), onUnpair = vi.fn(), paired = new Set<BodyDeviceId>(), pairing = null as BodyDeviceId | null }) {
+function Harness({ stage = "active" as LifeStage, onPair = vi.fn(), onUnpair = vi.fn(), paired = new Set<BodyDeviceId>(), pairing = null as BodyDeviceId | null }) {
   const [open, setOpen] = useState(false);
-  return <><WearableConnect open={open} paired={paired} pairing={pairing} onOpenChange={setOpen} onPair={onPair} onUnpair={onUnpair} /><button type="button">Outside</button></>;
+  return <><WearableConnect stage={stage} open={open} paired={paired} pairing={pairing} onOpenChange={setOpen} onPair={onPair} onUnpair={onUnpair} /><button type="button">Outside</button></>;
 }
 
 describe("Connect wearables button", () => {
@@ -60,5 +61,17 @@ describe("Connect wearables button", () => {
     expect(await screen.findByText("1 of 4 paired")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Disconnect Actiwatch" }));
     expect(onUnpair).toHaveBeenCalledWith("actiwatch");
+  });
+
+  it("omits only the Astroskin shirt for former astronauts", async () => {
+    const user = userEvent.setup();
+    render(<Harness stage="retired" paired={new Set<BodyDeviceId>(["actiwatch"])} />);
+    await user.click(screen.getByRole("button", { name: /Connect wearables/ }));
+    const list = await screen.findByRole("region", { name: "Available wearables" });
+    expect(await within(list).findByText("Actiwatch")).toBeInTheDocument();
+    expect(within(list).queryByText("Astroskin shirt")).not.toBeInTheDocument();
+    for (const name of ["Personal dosimeter", "Motion sensors"]) expect(within(list).getByText(name)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent("1/3");
+    expect(within(list).getByText("1 of 3 paired")).toBeInTheDocument();
   });
 });

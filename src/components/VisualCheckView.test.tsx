@@ -12,7 +12,6 @@ function failingClient() {
 }
 
 async function runSynthetic(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
   await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
   await screen.findByRole("heading", { name: "How did that feel?" }, { timeout: 3000 });
 }
@@ -46,12 +45,15 @@ describe("VisualCheckView", () => {
     const user = userEvent.setup();
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getAllByRole("radio", { name: /\d+ s/ })).toHaveLength(3);
-    expect(screen.getByText(/slowly bend and extend your hips and knees/)).toBeInTheDocument();
-    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+    expect(screen.getByText(/slowly bend your hips and knees and straighten them/)).toBeInTheDocument();
+    // The anchoring reminder appears once above the list, not repeated at the start of every task.
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/)).toHaveLength(1);
+    await user.click(screen.getByRole("radio", { name: /Shoulder mobility/ }));
+    expect(screen.getByText(/Move both arms together so your body stays still/)).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Reach-and-return/ }));
-    expect(screen.getByText(/Reach forward to one side/)).toBeInTheDocument();
+    expect(screen.getByText(/Keep one hand on the handrail and reach forward/)).toBeInTheDocument();
     expect(screen.queryByText(/Raise both arms overhead/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Anchor your feet in a foot restraint/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Anchor your feet in a foot restraint/)).toHaveLength(1);
   });
 
   it("keeps the Retired practice-tracking note on one line", () => {
@@ -75,7 +77,7 @@ describe("VisualCheckView", () => {
     vi.stubGlobal("navigator", { ...navigator, mediaDevices: undefined });
     render(<VisualCheckView stage="active" profileId="p1" seed={42} repository={createVisualCheckRepository(null, null)} />);
     expect(screen.getByRole("radio", { name: /Use my camera/ })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: /Synthetic demo/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Run synthetic demo" })).toBeInTheDocument();
   });
 
   it("explains a denied camera permission and offers the synthetic demo", async () => {
@@ -89,7 +91,7 @@ describe("VisualCheckView", () => {
     await user.click(start);
     expect(await screen.findByText("Camera permission was denied.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Use synthetic demo" }));
-    expect(screen.getByRole("radio", { name: /Synthetic demo/ })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Run synthetic demo" })).toBeInTheDocument();
   });
 
   it("completes the synthetic flow, compares with own history, and composes a crew summary without sending it", async () => {
@@ -177,7 +179,6 @@ describe("VisualCheckView", () => {
     for (const [reduced, expectPulse] of [[true, false], [false, true]] as const) {
       media(reduced);
       const { unmount } = render(<VisualCheckView stage="active" profileId={`rm-${reduced}`} seed={42} repository={createVisualCheckRepository(null, null)} />);
-      await user.click(screen.getByRole("radio", { name: /Synthetic demo/ }));
       await user.click(screen.getByRole("button", { name: "Run synthetic demo" }));
       const countdown = await screen.findByLabelText(/Starting in/);
       expect(countdown.className.includes("animate-pulse"), `reduced=${reduced}`).toBe(expectPulse);

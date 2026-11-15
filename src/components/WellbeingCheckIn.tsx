@@ -6,6 +6,7 @@ import type { LifeStage } from "../types/horizon";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasSampleHistory } from "../domain/wellbeingHistory";
 import { RotatingEarth, type EarthTextureMode } from "./RotatingEarth";
+import { createWellbeingFeedbackRepository } from "../lib/wellbeingFeedbackRepository";
 
 type CompletedCheckIn = { answers: CheckInAnswers; note: string; completedAt: string; sample?: boolean };
 type SavedCheckIn = CompletedCheckIn | null;
@@ -31,7 +32,7 @@ const COPY: Record<LifeStage, { kicker: string; title: string; lede: string }> =
   retired: { kicker: "Wellbeing · After flight", title: "A moment for yourself", lede: "Start with your feelings and connections. The questions are optional, one at a time, and your answers stay on this device." },
 };
 
-export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: SupabaseClient | null }) {
+export function WellbeingCheckIn({ stage, client }: { stage: LifeStage; client: SupabaseClient | null }) {
   const [saved, setSaved] = usePersistedState<SavedCheckIn>(`horizon:checkin:${stage}`, null);
   const [checkInHistory, setCheckInHistory] = usePersistedState<CompletedCheckIn[]>(`horizon:checkin-history:${stage}`, []);
   const [journalEntries, setJournalEntries] = usePersistedState<JournalEntry[]>(`horizon:journal:${stage}`, []);
@@ -109,7 +110,7 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
       </div>
       <p className="journal-private-note">Select a day to view its history. Your journal stays on this device.</p>
       </>}
-    </section> : saved && !journalCheckInActive ? <CheckInSummaryView stage={stage} saved={saved} onRestart={restart} /> : <section className="tech-card checkin-card" aria-live="polite">
+    </section> : saved && !journalCheckInActive ? <CheckInSummaryView stage={stage} saved={saved} onRestart={restart} client={client} /> : <section className="tech-card checkin-card" aria-live="polite">
       <div className="checkin-progress" aria-hidden="true"><span style={{ width: `${Math.round((Math.min(step, questions.length) / (questions.length + 1)) * 100)}%` }} /></div>
       {showMoodIntro ? <fieldset className="checkin-question mood-intro" aria-labelledby="mood-intro-title">
         <legend><h2 id="mood-intro-title">How have you felt overall today?</h2></legend>
@@ -159,8 +160,20 @@ export function WellbeingCheckIn({ stage }: { stage: LifeStage; client: Supabase
   </div>;
 }
 
-function CheckInSummaryView({ stage, saved, onRestart }: { stage: LifeStage; saved: NonNullable<SavedCheckIn>; onRestart: () => void }) {
+function CheckInSummaryView({ stage, saved, onRestart, client }: { stage: LifeStage; saved: NonNullable<SavedCheckIn>; onRestart: () => void; client: SupabaseClient | null }) {
   const summary = summarizeCheckIn(stage, saved.answers);
+  const [feedback, setFeedback] = useState<string>();
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackWarning, setFeedbackWarning] = useState<string>();
+  // The AI is never called on its own: nothing is sent to the cloud until the person presses the button,
+  // and only the selected check-in themes are sent (never the private note or wearable readings).
+  const getFeedback = async () => {
+    setFeedbackBusy(true); setFeedbackWarning(undefined);
+    const result = await createWellbeingFeedbackRepository(client).generate({ stage, headline: summary.headline, concern: summary.overall, lines: summary.lines.map((line) => line.text) });
+    if (result.text) setFeedback(result.text); else setFeedbackWarning(result.warning ?? result.error ?? "AI feedback is unavailable right now.");
+    setFeedbackBusy(false);
+  };
+  const buttonLabel = feedbackBusy ? "Thinking…" : feedback ? "Refresh reflection" : feedbackWarning ? "Try again" : "Generate reflection";
   const when = new Date(saved.completedAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
   return <section className="tech-card checkin-summary" data-tone={summary.overall} aria-labelledby="checkin-summary-title">
     <div className="checkin-summary-head">
@@ -174,5 +187,15 @@ function CheckInSummaryView({ stage, saved, onRestart }: { stage: LifeStage; sav
       <div className="checkin-suggestions">{summary.suggestions.map((item) => <article key={item.title}><h4>{item.title}</h4><p>{item.body}</p></article>)}</div>
       <small className="panel-note">Built from your own answers. Not medical advice or diagnosis.</small>
     </div>
+    {summary.lines.length ? <section className="checkin-ai-feedback" aria-labelledby="checkin-ai-title">
+      <div className="checkin-ai-head">
+        <div><p className="ai-feedback-label">ORBIT · AI feedback · Optional</p><h3 id="checkin-ai-title">Want more tailored next steps?</h3></div>
+        <button type="button" className="btn-secondary" onClick={() => void getFeedback()} disabled={feedbackBusy}>{buttonLabel}</button>
+      </div>
+      <p className="panel-note">ORBIT can turn the themes you selected into one or two possible next steps. Your private note and wearable readings are not sent.</p>
+      {feedbackBusy && !feedback ? <p className="panel-note" role="status">ORBIT is preparing a reflection from this check-in…</p> : null}
+      {feedback ? <article className="ai-feedback" aria-live="polite"><p className="ai-feedback-label">AI-assisted reflection</p><p>{feedback}</p><small>Educational only. Not medical advice, diagnosis, or mission guidance.</small></article> : null}
+      {feedbackWarning ? <p className="chat-warning" role="status">{feedbackWarning}</p> : null}
+    </section> : null}
   </section>;
 }

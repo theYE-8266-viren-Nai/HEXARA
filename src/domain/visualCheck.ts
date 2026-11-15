@@ -30,18 +30,18 @@ export interface MovementStatusSummary {
   actionLabel: string;
 }
 
-export interface VisualCheckTask { type: VisualCheckType; label: string; workflow: VisualWorkflow; durationSeconds: number; repetitive: boolean; instructions: string; }
+export interface VisualCheckTask { type: VisualCheckType; label: string; workflow: VisualWorkflow; durationSeconds: number; repetitive: boolean; instructions: string; /** How to do it without gravity, when that differs from the Earth instructions. */ inOrbitInstructions?: string; }
 
 /** Said before every task: without gravity, an unanchored arm movement turns the whole body. */
 export const ANCHOR_NOTE = "Anchor your feet in a foot restraint or hold a handrail first, so you do not drift.";
 
 export const VISUAL_CHECK_TASKS: VisualCheckTask[] = [
   { type: "sit_to_stand", label: "Sit-to-stand", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "Stand up from a stable chair and sit down at a steady, comfortable pace." },
-  { type: "anchored_lower_body_flexion", label: "Anchored lower-body flexion", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "With your feet secured, slowly bend and extend your hips and knees while holding a handrail." },
-  { type: "shoulder_mobility", label: "Shoulder mobility", workflow: "movement_exercise", durationSeconds: 15, repetitive: true, instructions: "Raise both arms overhead and lower them slowly, keeping the movement even." },
+  { type: "anchored_lower_body_flexion", label: "Anchored lower-body flexion", workflow: "movement_exercise", durationSeconds: 20, repetitive: true, instructions: "With your feet secured, slowly bend and extend your hips and knees while holding a handrail.", inOrbitInstructions: "Hook your feet into the restraint and hold the handrail, then slowly bend your hips and knees and straighten them again, like a small squat." },
+  { type: "shoulder_mobility", label: "Shoulder mobility", workflow: "movement_exercise", durationSeconds: 15, repetitive: true, instructions: "Raise both arms overhead and lower them slowly, keeping the movement even.", inOrbitInstructions: "Raise both arms overhead and lower them slowly. Move both arms together so your body stays still instead of turning." },
   { type: "standing_posture", label: "Standing posture", workflow: "movement_exercise", durationSeconds: 10, repetitive: false, instructions: "Stand tall and still, facing the camera, with arms relaxed." },
   { type: "single_leg_balance", label: "Single-leg balance", workflow: "sensorimotor", durationSeconds: 15, repetitive: false, instructions: "Stand on one leg near a support you can hold. Stop if you feel unsteady." },
-  { type: "reach_and_return", label: "Reach-and-return coordination", workflow: "sensorimotor", durationSeconds: 15, repetitive: true, instructions: "Reach forward to one side, return to centre, then reach to the other side." },
+  { type: "reach_and_return", label: "Reach-and-return coordination", workflow: "sensorimotor", durationSeconds: 15, repetitive: true, instructions: "Reach forward to one side, return to centre, then reach to the other side.", inOrbitInstructions: "Keep one hand on the handrail and reach forward to the side with the other, return to centre, then switch hands and reach to the other side." },
 ];
 
 export const taskFor = (type: VisualCheckType) => VISUAL_CHECK_TASKS.find((task) => task.type === type)!;
@@ -56,8 +56,14 @@ export const RETIRED_TASK_TYPES: VisualCheckType[] = ["shoulder_mobility", "reac
 
 export const tasksForStage = (stage: LifeStage): VisualCheckTask[] => (stage === "active" ? VISUAL_CHECK_TASKS.filter((task) => IN_ORBIT_TASK_TYPES.includes(task.type)) : VISUAL_CHECK_TASKS.filter((task) => RETIRED_TASK_TYPES.includes(task.type)));
 
-/** The instructions to show, with the anchoring reminder added for astronauts in space. */
-export const taskInstructions = (task: VisualCheckTask, stage: LifeStage): string => (stage === "active" ? `${ANCHOR_NOTE} ${task.instructions}` : task.instructions);
+/** The task's own steps for this stage: in-orbit wording for astronauts in space, without the shared anchoring reminder. */
+export const taskSteps = (task: VisualCheckTask, stage: LifeStage): string => (stage === "active" ? task.inOrbitInstructions ?? task.instructions : task.instructions);
+
+/**
+ * Full instructions for the capture screens: in space the anchoring reminder comes first, except for the anchored task,
+ * whose own steps already start with anchoring. The task list shows the reminder once instead, so the tasks do not all read alike.
+ */
+export const taskInstructions = (task: VisualCheckTask, stage: LifeStage): string => (stage === "active" && task.type !== "anchored_lower_body_flexion" ? `${ANCHOR_NOTE} ${taskSteps(task, stage)}` : taskSteps(task, stage));
 
 /** Derived, non-identifying features only. No frames, images, or video are ever stored. */
 export interface ObservedFeatures {
