@@ -45,3 +45,54 @@ export function generateSyntheticData(seed = DEFAULT_SEED): DemoDataset {
   }
   return { people, observations, events };
 }
+
+/** Longest window the monthly view generates readings for (about two years), so the replay of alert rules stays quick. */
+export const MAX_WINDOW_DAYS = 731;
+
+const dayMs = 86_400_000;
+const parseDay = (date: string) => Date.parse(`${date}T00:00:00Z`);
+
+/** Which of the four demo travelers a profile id maps to (0 to 3), so each person gets their own steady offsets. */
+export function personIndexFor(profileId: string | undefined): number {
+  const match = /(\d+)$/.exec(profileId ?? '');
+  return match ? Math.min(3, Math.max(0, Number(match[1]) - 1)) : 0;
+}
+
+/**
+ * Simulated daily readings for any date window (first and last day included), using the same rhythm, noise and
+ * demo episodes as `generateSyntheticData`. The three episodes (radiation spike, illness-like, sleep disruption)
+ * sit at the same share of the window as in the 180-day set, so a 180-day window reproduces it exactly.
+ * Every reading is simulated, including days that have not happened yet. A window longer than MAX_WINDOW_DAYS
+ * keeps its most recent days.
+ */
+export function generateWindowObservations(seed: number, personIndex: number, from: string, to: string, personId = `traveler-0${personIndex + 1}`): Observation[] {
+  validateSeed(seed);
+  const start = parseDay(from), end = parseDay(to);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
+  const length = Math.min(MAX_WINDOW_DAYS, Math.round((end - start) / dayMs) + 1);
+  const first = end - (length - 1) * dayMs;
+  const metrics = Object.keys(metricUnits) as MetricName[];
+  const bases = [64, 48, 7.5, 33.2, 98, 0.45];
+  const scales = [3, 5, 0.4, 0.15, 0.5, 0.04];
+  const offsets = [2, 1, 0.1, 0.1, -0.1, 0.01];
+  // Episodes need room to read as episodes, so very short windows have none.
+  const episodes = length >= 30 ? { radiation: Math.round(length * 100 / 180), illness: Math.round(length * 120 / 180), sleep: Math.round(length * 150 / 180) } : null;
+  const p = personIndex;
+  const observations: Observation[] = [];
+  for (let day = 0; day < length; day++) {
+    const observed_on = new Date(first + day * dayMs).toISOString().slice(0, 10);
+    for (const [m, metric] of metrics.entries()) {
+      const noise = (((day * 37 + p * 17 + m * 13 + seed * 7) % 101) - 50) / 50;
+      let value = bases[m] + p * offsets[m] + noise * scales[m];
+      if (episodes) {
+        if (day >= episodes.radiation && day < episodes.radiation + 3 && metric === 'radiation_dose') value += 1.2;
+        if (day >= episodes.illness && day < episodes.illness + 5) value += [14, -15, -1.2, 0.8, -1.5, 0][m];
+        if (day >= episodes.sleep && day < episodes.sleep + 5 && metric === 'sleep_hours') value -= 2;
+      }
+      observations.push({ id: `${personId}-${observed_on}-${metric}-${seed}`, person_id: personId,
+        observed_on, metric, unit: metricUnits[metric], value: Math.round(value * 10000) / 10000,
+        context: 'rest', seed, is_synthetic: true } as Observation);
+    }
+  }
+  return observations;
+}

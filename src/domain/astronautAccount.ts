@@ -39,6 +39,8 @@ const PERSONAL: ProfileField[] = [
 const JOURNEY: Record<LifeStage, { title: string; fields: ProfileField[] }> = {
   future: { title: "Training", fields: [
     { key: "candidateClass", label: "Candidate class", kind: "text", placeholder: "2025" },
+    { key: "trainingStart", label: "Training start date", kind: "date" },
+    { key: "targetLaunch", label: "Target launch date", kind: "date" },
     { key: "trainingPhase", label: "Training phase", kind: "text", placeholder: "Basic training · module 4 of 6" },
     { key: "currentFocus", label: "Current focus", kind: "text", placeholder: "Station systems" },
     { key: "targetAssignment", label: "Target assignment", kind: "text", placeholder: "Expedition 15 (planned 2028)" },
@@ -56,6 +58,7 @@ const JOURNEY: Record<LifeStage, { title: string; fields: ProfileField[] }> = {
     { key: "missionsFlown", label: "Missions flown", kind: "number", placeholder: "3" },
     { key: "timeInSpace", label: "Total time in space", kind: "number", unit: "days", placeholder: "412" },
     { key: "spacewalks", label: "Spacewalks", kind: "text", placeholder: "5 · 31 h 10 min" },
+    { key: "lastLaunch", label: "Last launch date", kind: "date" },
     { key: "lastLanding", label: "Last landing", kind: "date" },
     { key: "currentRole", label: "Current role", kind: "text", placeholder: "Mentor, outreach…" },
   ] },
@@ -114,6 +117,13 @@ export function validateProfile(profile: AstronautProfile): Record<string, strin
         else if (range && (number < range[0] || number > range[1])) errors[`${group.id}.${field.key}`] = `Enter a value between ${range[0]} and ${range[1]}.`;
       }
     }
+  }
+  // An end date before its start date would give an empty or backwards monthly history.
+  const ORDER: Partial<Record<LifeStage, [string, string]>> = { active: ["launchDate", "plannedReturn"], retired: ["lastLaunch", "lastLanding"], future: ["trainingStart", "targetLaunch"] };
+  const order = ORDER[profile.stage];
+  if (order) {
+    const start = (profile.journey[order[0]] ?? "").trim(), end = (profile.journey[order[1]] ?? "").trim();
+    if (start && end && end < start) errors[`journey.${order[1]}`] = "Choose a date on or after the start date.";
   }
   return errors;
 }
