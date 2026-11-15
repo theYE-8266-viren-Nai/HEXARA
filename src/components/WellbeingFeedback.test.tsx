@@ -13,6 +13,9 @@ vi.mock("../lib/wellbeingFeedbackRepository", async (importOriginal) => ({
 /** Answers the first question, skips the rest, and reaches the summary. `pain` answers the discomfort question with the urgent option. */
 async function reachSummary(user: ReturnType<typeof userEvent.setup>, pain = false) {
   render(<WellbeingCheckIn stage="active" client={null} />);
+  // Wellbeing opens on the history calendar: start today's check-in and skip the optional mood screen.
+  await user.click(await screen.findByRole("button", { name: "Check in for today" }));
+  await user.click(screen.getByRole("button", { name: "Skip mood check-in" }));
   await user.click(await screen.findByRole("button", { name: "Broken sleep, still tired" }));
   for (let i = 0; i < 12; i += 1) {
     if (screen.queryByRole("button", { name: "See my summary" })) break;
@@ -22,7 +25,7 @@ async function reachSummary(user: ReturnType<typeof userEvent.setup>, pain = fal
     await user.click(next);
   }
   await user.click(await screen.findByRole("button", { name: "See my summary" }));
-  await screen.findByText(/Wellbeing check-in/);
+  await screen.findByText(/Your wellbeing summary/);
 }
 
 describe("wellbeing summary: AI feedback only when the person asks for it", () => {
@@ -36,10 +39,10 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     expect(generate).not.toHaveBeenCalled();
     const steps = screen.getByTestId("builtin-steps");
     expect(steps).toHaveTextContent("What you told us");
-    expect(steps).toHaveTextContent("Suggested next step");
+    expect(steps).toHaveTextContent("What might help");
+    expect(steps).toHaveTextContent(/broken and you still feel tired/);
+    expect(screen.getByRole("heading", { name: "Want more tailored next steps?" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate reflection" })).toBeEnabled();
-    expect(screen.getByText("Broken sleep, still tired")).toBeInTheDocument();
-    expect(screen.getByText("Sleep and recovery")).toBeInTheDocument();
     expect(screen.getByText(/private note and wearable readings are not sent/)).toBeInTheDocument();
     expect(screen.queryByText(/ORBIT is preparing feedback/)).not.toBeInTheDocument();
   });
@@ -63,7 +66,7 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
     const user = userEvent.setup();
     await reachSummary(user);
     await user.click(screen.getByRole("button", { name: "Generate reflection" }));
-    expect(screen.getByText(/Horizon is preparing a reflection/)).toBeInTheDocument();
+    expect(screen.getByText(/ORBIT is preparing a reflection/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Thinking…" })).toBeDisabled();
     expect(screen.getByTestId("builtin-steps")).toBeInTheDocument();
     finish({ text: "1. Keep your routine going." });
@@ -87,7 +90,8 @@ describe("wellbeing summary: AI feedback only when the person asks for it", () =
   it("does not duplicate the support notice in the summary when pain is reported", async () => {
     generate.mockResolvedValue({ text: "1. Contact your crew medic." });
     await reachSummary(userEvent.setup(), true);
-    expect(screen.queryByText(/Some of your answers are worth talking through/)).not.toBeInTheDocument();
+    // The support notice is shown once, at the top of the summary, and never repeated.
+    expect(screen.getAllByText(/Some of your answers are worth talking through/)).toHaveLength(1);
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(generate).not.toHaveBeenCalled();
   });
