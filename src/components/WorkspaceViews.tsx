@@ -170,14 +170,15 @@ export function TrendsView({ stage = "active", metrics, alert, dataQuality, load
   const [alertOpen, setAlertOpen] = useState(false);
   const retired = stage === "retired";
   // Active and Future pair wearables with "Connect wearables": show only the charts their paired devices measure.
-  const pairedDevices = useDevice()?.bodyDevices?.paired;
+  const wearables = useDevice()?.bodyDevices;
+  const pairedDevices = wearables?.paired;
   const paired = retired ? undefined : pairedDevices;
   const visibleMetrics = retired
     ? [...metrics.filter((metric) => metric.metric !== "radiation_dose" && metric.metric !== "core_temperature"), ...retiredActivityTrends]
     : paired ? metrics.filter((metric) => metricFromPairedDevice(metric.metric, paired)) : metrics;
   const pairedNames = paired ? BODY_DEVICES.filter((item) => paired.has(item.id)).map((item) => item.name) : [];
   const deviceNote = paired && pairedNames.length ? <><p className="trend-device-note" role="note">Showing charts from: {pairedNames.join(", ")}.{pairedNames.length < BODY_DEVICES.length ? " Connect more wearables to see other signals." : ""}</p>{!visibleMetrics.length ? <p className="trend-device-note" role="note">Motion sensor readings appear on the Legs and Back of the body in Home; they have no trend chart.</p> : null}</> : null;
-  return <div className="space-y-7"><header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1>{retired ? null : <><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></>}</header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div>{deviceNote}<div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
+  return <div className="space-y-7"><header className="trends-header"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">Trends</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{retired ? "Your wearable trends over time" : "Your signals over time"}</h1>{retired ? null : <><p className="mt-2 max-w-2xl leading-7 text-slate-400">Each dotted line represents an illustrative 30-day personal baseline. Alerts are marked so you can review what changed and why.</p><div className="mt-3"><DeviceBadge /></div></>}</div>{wearables ? <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} /> : null}</header>{loading ? null : <DataTrustStrip />}{loading ? <LoadingPanel /> : dataUnavailable ? <DataNotice title="Trends are unavailable" body="The simulated source is disconnected. Reconnect it from Profile to resume the trend view." /> : <DeviceIdleGate connectAbove={Boolean(wearables)}><>{alert ? <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4" aria-labelledby="trend-alert-title"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">Alert marker</p><h2 id="trend-alert-title" className="mt-1 text-lg font-semibold text-white">A signal needs review</h2></div><button type="button" aria-expanded={alertOpen} aria-controls="trend-alert-reason" onClick={() => setAlertOpen((open) => !open)} className="rounded-xl border border-amber-200/40 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-200/10">{alertOpen ? "Hide reason" : "Show alert reason"}</button></div>{alertOpen ? <p id="trend-alert-reason" className="mt-4 max-w-3xl text-sm leading-6 text-amber-50">{alert.reason}</p> : null}</section> : null}<div className={`rounded-2xl border px-4 py-3 text-sm ${stale ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-cyan-300/20 bg-cyan-300/5 text-slate-300"}`} role="status">{stale ? "These readings are stale. The charts remain visible for context, but the latest update is older than expected." : "Dotted lines show each metric’s illustrative personal baseline."}</div>{deviceNote}<div className="trend-grid">{visibleMetrics.map((metric) => <article key={metric.metric} className="tech-card trend-card"><div className="trend-card-head"><h2>{metric.label}</h2><p className="trend-value">{formatTrendValue(metric, metric.value)}</p></div><p className="trend-card-note">{metric.plainLanguage}</p><MetricMetadata metric={metric} /><div className="mt-3"><TrendChart metric={metric} compact /></div><div className="trend-card-foot"><span>Usual {formatTrendValue(metric, metric.baseline)}</span>{metric.points.some((point) => point.alert) ? <span className="inline-flex items-center gap-1 text-amber-200"><AlertTriangle size={14} /> Review marker</span> : <span>Within usual range</span>}</div></article>)}</div><MonthlyHistorySection summaries={monthlyHistory} note={monthlyHistoryNote} /></></DeviceIdleGate>}</div>;
 }
 
 const MONTHLY_LABELS: Record<string, string> = { heart_rate: "Resting heart rate", hrv: "HRV", spo2: "SpO₂", sleep_hours: "Sleep", skin_temperature: "Skin temperature", radiation_dose: "Radiation dose" };
@@ -478,7 +479,7 @@ function LoadingPanel() {
 }
 
 /** Shows the pair/reconnect prompt instead of readings when no device is connected. */
-function DeviceIdleGate({ children, hidePrompt = false }: { children: ReactNode; hidePrompt?: boolean }) {
+function DeviceIdleGate({ children, hidePrompt = false, connectAbove = false }: { children: ReactNode; hidePrompt?: boolean; connectAbove?: boolean }) {
   const context = useDevice();
   const device = context?.status;
   const wearables = context?.bodyDevices;
@@ -487,7 +488,7 @@ function DeviceIdleGate({ children, hidePrompt = false }: { children: ReactNode;
     if (hidePrompt) return null;
     return <section className={`${panelClass} device-connect-card`} aria-labelledby="no-device-title">
       <Watch size={26} aria-hidden="true" /><div><h2 id="no-device-title">No device paired</h2>
-      {wearables ? <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
+      {wearables && connectAbove ? <p className="device-connect-hint">Use Connect wearables above to pair a device.</p> : wearables ? <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
         : <button type="button" onClick={device.pair} className="btn-primary"><Bluetooth size={18} aria-hidden="true" />{device.hasPaired ? "Reconnect wearable" : "Connect wearables"}</button>}
       </div>
     </section>;
@@ -531,19 +532,17 @@ function DeviceCard({ onResetScenario, stage }: { onResetScenario: () => void; s
   const context = useDevice();
   const device = context?.status;
   if (!device) return null;
-  const wearables = stage === "active" || stage === "retired" ? context?.bodyDevices : undefined;
+  const wearables = stage ? context?.bodyDevices : undefined;
   if (wearables) {
     const connected = BODY_DEVICES.filter((item) => wearables.paired.has(item.id));
     return <div className="profile-wearables" aria-labelledby="device-card-title">
       <div className="profile-wearables-head">
         <div><p id="device-card-title" className="profile-wearables-title">{connected.length ? `${connected.length} of ${BODY_DEVICES.length} wearables connected` : "No wearables connected"}</p>
-          <p className="profile-wearables-note">{connected.length ? "Simulated readings from these devices appear on the body in Home." : "Switch on Connect wearables to pair your devices."}</p></div>
-        <WearableConnect on={wearables.bluetoothOn} open={wearables.listOpen} paired={wearables.paired} pairing={wearables.pairing} onToggle={wearables.setBluetooth} onOpenChange={wearables.setListOpen} onPair={wearables.pair} onUnpair={wearables.unpair} />
+          <p className="profile-wearables-note">{connected.length ? "Simulated readings from these devices appear on the body in Home." : "Pair your devices with Connect wearables on Home or Trends."}</p></div>
       </div>
       {connected.length ? <ul className="profile-wearable-list" aria-label="Connected wearables">{connected.map((item) => <li key={item.id} className="profile-wearable">
         <span className="wearable-dot" aria-hidden="true" />
         <div className="profile-wearable-text"><p className="profile-wearable-name">{item.name}<span className="body-device-badge">Connected</span></p><p className="profile-wearable-meta">{item.worn} · {item.measures}</p><p className="profile-wearable-meta">Body parts: {item.parts.join(", ")}</p></div>
-        <button type="button" className="btn-secondary" aria-label={`Disconnect ${item.name}`} onClick={() => wearables.unpair(item.id)}>Disconnect</button>
       </li>)}</ul> : null}
     </div>;
   }

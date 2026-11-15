@@ -376,6 +376,24 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByRole("heading", { name: "Sleep" })).not.toBeInTheDocument();
   });
 
+  it("keeps Connect wearables on Trends after pairing, and shows wearables on Profile without pairing controls", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+    await user.click(await screen.findByRole("button", { name: /^Connect wearables/ }));
+    await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
+    await screen.findByRole("button", { name: "Disconnect Actiwatch" });
+    expect(screen.getByRole("button", { name: /^Connect wearables/ })).toHaveTextContent("2/4");
+
+    await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
+    const list = await screen.findByRole("list", { name: "Connected wearables" });
+    expect(list).toHaveTextContent("Astroskin shirt");
+    expect(list).toHaveTextContent("Actiwatch");
+    expect(screen.queryByRole("button", { name: /^Connect wearables/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Disconnect/ })).not.toBeInTheDocument();
+  });
+
   it("opens the plain-language reason for a trend alert", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
