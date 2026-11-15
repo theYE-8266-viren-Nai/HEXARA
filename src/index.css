@@ -1551,8 +1551,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 /* Start page top bar: only the logo, and it stays at the top while the page scrolls. The badge sits just below it. */
 .landing-topbar { position: sticky; top: 0; z-index: 20; justify-content: flex-start; gap: 20px; flex-wrap: wrap; }
 .landing-topbar::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw); background: rgba(5, 11, 20, .97); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-.landing-copy > .landing-eyebrow { font-size: 11px; padding: 5px 11px; }
-.landing-title { margin-top: clamp(10px, 1.8vh, 18px); }
 @media (max-width: 899px) {
   .landing-topbar { padding: 10px 0; min-height: 0; }
 }
@@ -1564,3 +1562,30 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
 .checkin-ai-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .checkin-ai-head h3 { margin: 0; color: var(--text-primary); font-size: 15px; font-weight: 600; }
 .checkin-ai-feedback .ai-feedback { margin: 0; }
+
+/* Start page, final layout: bigger logo with the badge beside it in the top bar (which stays at the top),
+   and the content fills the screen height so there is no empty band below the stage boxes. */
+.landing-topbar { gap: 14px 26px; align-items: center; }
+.landing-topbar .brand { gap: 14px; }
+.landing-topbar .brand-symbol, .landing-topbar .brand-symbol svg { width: 88px; height: 64px; }
+.landing-topbar .brand-name { font-size: 34px; letter-spacing: -1px; }
+.landing-topbar .brand-caption { font-size: 9px; margin-top: 6px; }
+.landing-topbar .landing-eyebrow { font-size: 12px; padding: 7px 13px; }
+.landing-title { margin-top: 0; }
+@media (min-width: 900px) {
+  .landing-content { min-height: 100dvh; display: flex; flex-direction: column; }
+  .landing-topbar { min-height: clamp(76px, 11vh, 108px); }
+  .landing-hero { flex: 1; align-items: center; padding: clamp(14px, 3vh, 36px) 0; }
+  .landing-intro { margin-top: clamp(10px, 2vh, 20px); }
+  .landing-stage-title { margin-top: clamp(16px, 3.6vh, 40px); }
+  .landing-stages { gap: clamp(8px, 1.3vh, 14px); margin-top: clamp(10px, 1.6vh, 16px); max-width: 520px; }
+  .landing-stage-title { max-width: 520px; }
+  .landing-stage { min-height: clamp(46px, 7.2vh, 74px); }
+  .landing-stage-icon { width: clamp(32px, 4.4vh, 44px); height: clamp(32px, 4.4vh, 44px); }
+  .landing-stage-name { font-size: clamp(15px, 2vh, 19px); }
+}
+@media (max-width: 899px) {
+  .landing-topbar .brand-symbol, .landing-topbar .brand-symbol svg { width: 70px; height: 51px; }
+  .landing-topbar .brand-name { font-size: 28px; }
+  .landing-topbar .landing-eyebrow { font-size: 11px; padding: 5px 11px; }
+}
