@@ -262,7 +262,7 @@ function ResultStep({ check, onRepeat, repository, onSavedToBody, onRequestCrewM
       onSavedToBody?.(check);
     } else setSave({ state: "failed", reason: outcome.reason });
   };
-  return <div className="grid gap-5 lg:grid-cols-2">
+  return <div className="grid gap-6">
     <section className={panelClass} aria-labelledby="result-title">
       <div className="flex flex-wrap items-center gap-2"><h2 id="result-title" className="text-xl font-semibold text-white">Observation summary</h2>{check.isSynthetic ? <span className="rounded-full border border-purple-300/40 bg-purple-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-purple-100">Synthetic demo result</span> : null}</div>
       <div className="movement-status-box" data-status={movementStatus.status} role={movementStatus.status === "stop_and_check_in" ? "alert" : "status"} aria-live="polite">

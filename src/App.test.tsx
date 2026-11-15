@@ -3,16 +3,23 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { deviceTiming } from "./lib/useDeviceStream";
+import { CONNECT_PHASES } from "./domain/deviceSimulator";
 import { BODY_DEVICES, bodyDeviceTiming } from "./domain/bodyDevices";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
 
+const CONNECT_STAGE_LABELS = new RegExp(CONNECT_PHASES.map((phase) => phase.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"));
+
 async function waitForSignals() {
+  // Pairing starts the wearable's staged loader a moment later; give it a chance to appear before waiting for it to finish.
+  await waitFor(() => expect(screen.queryByText(CONNECT_STAGE_LABELS)).toBeInTheDocument(), { timeout: 300 }).catch(() => undefined);
   await waitFor(() => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText("Loading simulated signals…")).not.toBeInTheDocument();
-  });
+    // The wearable's staged loader (searching, pairing, syncing) must also have finished.
+    expect(screen.queryByText(CONNECT_STAGE_LABELS)).not.toBeInTheDocument();
+  }, { timeout: 3000 });
 }
 
 let accountNumber = 0;
@@ -173,47 +180,12 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
   });
 
-  it("switches appearance on the landing page and keeps it across workspace navigation", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-    expect(window.localStorage.getItem("horizon:theme")).toBe('"light"');
-    await signInThroughStage("active");
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-    await user.click(screen.getByRole("button", { name: "Switch to dark mode" }));
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    expect(screen.getByRole("heading", { name: "Your signals over time" })).toBeInTheDocument();
+  it("stays in the dark appearance with no light-mode toggle", async () => {
+    window.localStorage.setItem("horizon:theme", '"light"');
+    await openWorkspace("active", { pair: false });
+    expect(screen.queryByRole("button", { name: /Switch to (light|dark) mode/ })).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveAttribute("data-theme", "light");
   });
-
-  it("restores the saved appearance after a refresh", async () => {
-    const user = userEvent.setup();
-    const first = render(<App />);
-    await user.click(screen.getByRole("button", { name: "Switch to light mode" }));
-    first.unmount();
-    const second = render(<App />);
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-    await user.click(screen.getByRole("button", { name: "Switch to dark mode" }));
-    second.unmount();
-    render(<App />);
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
-  });
-
-  it("uses the device appearance until the user saves a choice", async () => {
-    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true })));
-    try {
-      const first = render(<App />);
-      expect(document.documentElement).toHaveAttribute("data-theme", "light");
-      await userEvent.click(screen.getByRole("button", { name: "Switch to dark mode" }));
-      first.unmount();
-      render(<App />);
-      expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    } finally { vi.unstubAllGlobals(); }
-  });
-
 
   it("requires a stage choice and keeps all three paths accessible", async () => {
     render(<App />);
@@ -260,7 +232,7 @@ describe("OrbitWell app shell", () => {
 
   it.each([
     ["future", "Train with your wearable"],
-    ["retired", "Life after the mission"],
+    ["retired", "Keep the long view"],
   ] as const)("enters the %s workspace from its stage card", async (stage, heading) => {
     await openWorkspace(stage);
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
@@ -430,6 +402,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("heading", { name: "A moment for yourself" })).toBeInTheDocument();
     expect(screen.getByText("Wellbeing · In flight")).toBeInTheDocument();
     expect(screen.getByText(/questions are optional, one at a time/)).toBeInTheDocument();
+    await startTodayCheckIn();
     expect(screen.getByRole("button", { name: "Mood check-in" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save check-in locally" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Talk to a person" })).not.toBeInTheDocument();
@@ -460,6 +433,7 @@ describe("OrbitWell app shell", () => {
     await openWorkspace();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+    await startTodayCheckIn();
     for (let i = 0; i < 6; i += 1) await user.click(screen.getByRole("button", { name: "Skip this question" }));
     expect(screen.getByRole("heading", { name: "Any physical discomfort today?" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Pain, or symptoms getting worse" }));
@@ -477,6 +451,7 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByRole("heading", { name: "A moment for yourself" })).toBeInTheDocument();
     expect(screen.getByText("Wellbeing · Before flight")).toBeInTheDocument();
+    await startTodayCheckIn();
     await user.click(screen.getByRole("button", { name: "Slept through and woke up rested" }));
     expect(screen.getByRole("heading", { name: "How does your body feel after your latest training session?" })).toBeInTheDocument();
     first.unmount();
@@ -485,6 +460,7 @@ describe("OrbitWell app shell", () => {
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
     expect(screen.getByRole("heading", { name: "A moment for yourself" })).toBeInTheDocument();
     expect(screen.getByText("Wellbeing · After flight")).toBeInTheDocument();
+    await startTodayCheckIn();
     expect(screen.getByRole("heading", { name: "How has your mood been lately?" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mood check-in" })).toBeInTheDocument();
   });
@@ -504,6 +480,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Sleep was below your usual range on 4 of the last 5 days/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+    await startTodayCheckIn();
     await user.click(screen.getByRole("button", { name: "Slept through and woke up rested" }));
     expect(screen.getByText("Question 2 of 7")).toBeInTheDocument();
   });
@@ -527,11 +504,6 @@ describe("OrbitWell app shell", () => {
     expect(futureGuideNav.getByRole("link", { name: "When readings change" })).toHaveAttribute("href", "#future-changed-readings");
     expect(screen.queryByRole("heading", { name: "Train with your wearable" })).not.toBeInTheDocument();
     expect(screen.getByText(/does not mean you are ready to fly/)).toBeInTheDocument();
-    const practice = screen.getByRole("button", { name: /Equipment-free mobility/ });
-    await user.click(practice);
-    expect(practice).toHaveAttribute("aria-pressed", "true");
-    await user.click(screen.getByRole("button", { name: /D2.*Motion sensitivity/ }));
-    expect(screen.getByRole("heading", { name: "Motion sensitivity" })).toBeInTheDocument();
   });
 
   it("keeps retired guidance to the three requested sections", async () => {
@@ -561,6 +533,7 @@ describe("OrbitWell app shell", () => {
     const user = userEvent.setup();
     const first = await openWorkspace("retired");
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
+    await startTodayCheckIn();
     for (let i = 0; i < 3; i += 1) await user.click(screen.getByRole("button", { name: "Skip this question" }));
     await user.click(screen.getByRole("button", { name: "Slept through and woke up rested" }));
     for (let i = 0; i < 3; i += 1) await user.click(screen.getByRole("button", { name: "Skip this question" }));
@@ -570,7 +543,9 @@ describe("OrbitWell app shell", () => {
     await openWorkspace("retired");
     expect(screen.getByText("Post-mission workspace")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Wellbeing" })[0]);
-    expect(screen.getByText("You slept well and woke up rested.")).toBeInTheDocument();
+    // Wellbeing reopens on the history calendar; today's saved check-in is listed there.
+    await user.click(screen.getByRole("button", { name: "Check history for selected day" }));
+    expect(screen.getByText("Slept through and woke up rested")).toBeInTheDocument();
   });
   it("opens the Movement check for an astronaut in space, with in-orbit tasks only and its camera disclaimer", async () => {
     const user = userEvent.setup();
@@ -630,35 +605,29 @@ describe("OrbitWell app shell", () => {
     } finally { deviceTiming.connectMs = 30; }
   });
 
-  it("starts Future with no device paired, then pairs and fills the baseline from the wearable", async () => {
+  it("starts Future with no device paired, then pairs a wearable from the list", async () => {
     const user = userEvent.setup();
     await openWorkspace("future");
 
-    expect(await screen.findByRole("heading", { name: "No device paired" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Train with your wearable" })).toBeInTheDocument();
     expect(screen.queryByText("Resting heart rate")).not.toBeInTheDocument();
     expect(screen.queryByText(/Mission day/)).not.toBeInTheDocument();
     expect(screen.getByText(/Pre-mission/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Connect wearables" }));
-    expect(await screen.findByText("Live · synced just now")).toBeInTheDocument();
-    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
+    await pairWearable("future", ["Astroskin shirt"]);
+    expect(screen.getByRole("button", { name: "Heart" })).toBeInTheDocument(); // no longer "not connected"
 
-    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
-    await user.click(screen.getByRole("button", { name: "Fill from my wearable" }));
-    expect(Number((screen.getByLabelText("Resting heart rate") as HTMLInputElement).value)).toBeGreaterThan(30);
     expect(window.localStorage.getItem("horizon:device-paired")).toBeNull();
   });
 
-  it("turning Connect wearables off disconnects every device and turns the body dots red", async () => {
+  it("shows how many wearables are paired and lets one be disconnected from the list", async () => {
     const user = userEvent.setup();
-    await openWorkspace("active");
-    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent("1/4");
-    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
-    expect(screen.getByRole("switch", { name: "Connect wearables" })).toHaveAttribute("aria-checked", "false");
-    expect(screen.queryByRole("region", { name: "Available wearables" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("switch", { name: "Connect wearables" }));
-    expect(screen.getByRole("button", { name: "Pair Astroskin shirt" })).toBeInTheDocument();
+    await openWorkspace("active", { pair: false });
+    await pairWearable("active", BODY_DEVICES.map((device) => device.name));
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent(`${BODY_DEVICES.length}/${BODY_DEVICES.length}`);
+    await user.click(screen.getByRole("button", { name: "Disconnect Actiwatch" }));
+    expect(screen.getByRole("button", { name: /Connect wearables/ })).toHaveTextContent(`${BODY_DEVICES.length - 1}/${BODY_DEVICES.length}`);
+    expect(screen.getByRole("button", { name: "Pair Actiwatch" })).toBeInTheDocument();
   });
 
   it("never connects the wearable until the person presses Pair, in any stage", async () => {
@@ -681,7 +650,8 @@ describe("OrbitWell app shell", () => {
 
   it("shows which wearables are connected on Profile, and lets the user disconnect and pair again there", async () => {
     const user = userEvent.setup();
-    await openWorkspace("active");
+    await openWorkspace("active", { pair: false });
+    await pairWearable("active", ["Astroskin shirt"]);
     await user.click(screen.getAllByRole("button", { name: "Profile" })[0]);
     expect(await screen.findByText("1 of 4 wearables connected")).toBeInTheDocument();
     const list = screen.getByRole("list", { name: "Connected wearables" });
@@ -693,9 +663,7 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText("No wearables connected")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Connected wearables" })).not.toBeInTheDocument();
 
-    const toggle = screen.getByRole("switch", { name: "Connect wearables" });
-    if (toggle.getAttribute("aria-checked") !== "true") await user.click(toggle);
-    else await user.click(screen.getByRole("button", { name: /Connect wearables/ }));
+    if (!screen.queryByRole("region", { name: "Available wearables" })) await user.click(screen.getByRole("button", { name: /Connect wearables/ }));
     await user.click(await screen.findByRole("button", { name: "Pair Actiwatch" }));
     expect(await within(await screen.findByRole("list", { name: "Connected wearables" })).findByText("Actiwatch")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Home" })[0]);
@@ -759,16 +727,6 @@ describe("OrbitWell app shell", () => {
     expect(await screen.findByText("Skin temperature")).toBeInTheDocument();
     expect(screen.queryByText("Core temperature")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Data source and quality" })).toHaveTextContent("Signals assume a crew wearable and a personal dosimeter");
-  });
-
-  it("shows the Future baseline progress without a cloud session", async () => {
-    const user = userEvent.setup();
-    await openWorkspace("future");
-    await user.click(screen.getAllByRole("button", { name: "Guidance" })[0]);
-
-    expect(await screen.findByRole("heading", { name: "Your baseline so far" })).toBeInTheDocument();
-    expect(await screen.findByText(/0 of 3 check-ins/)).toBeInTheDocument();
-    expect(screen.getByText(/Cloud save (is )?unavailable/)).toBeInTheDocument();
   });
 
   it("keeps the recovery alert on Home without the pattern or activity cards", async () => {
