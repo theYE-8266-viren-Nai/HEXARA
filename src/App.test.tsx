@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { deviceTiming } from "./lib/useDeviceStream";
-import { bodyDeviceTiming } from "./domain/bodyDevices";
+import { BODY_DEVICES, bodyDeviceTiming } from "./domain/bodyDevices";
 
 // Keep UI tests offline and deterministic even when a local .env.local configures Supabase.
 vi.mock("./lib/supabase", () => ({ supabase: null, supabaseConfigured: false }));
@@ -21,6 +21,9 @@ const labels = { active: "Active astronaut", future: "Astronaut in Training", re
 /** On a stage's account screen: continue a remembered account, or create a new one for that stage. */
 async function signInThroughStage(stage: keyof typeof labels) {
   await userEvent.click(await screen.findByRole("button", { name: labels[stage] }));
+  // Still logged in (for example after a refresh): the stage card opens the workspace directly.
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Log out" }) ?? screen.queryByRole("button", { name: /^Continue|Create an account/ })).toBeTruthy());
+  if (screen.queryByRole("button", { name: "Log out" })) return;
   const remembered = screen.queryByRole("button", { name: /^Continue/ });
   if (remembered) { await userEvent.click(remembered); await screen.findByRole("button", { name: "Log out" }); return; }
   await userEvent.click(await screen.findByRole("button", { name: "Create an account" }));
@@ -36,14 +39,20 @@ async function signInThroughStage(stage: keyof typeof labels) {
   await screen.findByRole("button", { name: "Log out" });
 }
 
-/** Active and retired astronauts pair body wearables; Future uses the simulated wearable card. */
-async function pairWearable(stage: keyof typeof labels) {
-  if (stage === "future") { await userEvent.click(await screen.findByRole("button", { name: "Connect wearables" })); return; }
+/** Every stage pairs body wearables from the Connect wearables list: one by default (Former astronauts no longer see the Astroskin shirt), or the devices a test asks for. */
+async function pairWearable(stage: keyof typeof labels, devices?: readonly string[]) {
   const control = await screen.findByRole("button", { name: /Connect wearables/ });
   if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(control);
-  const wearable = stage === "retired" ? "Actiwatch" : "Astroskin shirt";
-  await userEvent.click(await screen.findByRole("button", { name: `Pair ${wearable}` }));
-  await screen.findByRole("button", { name: `Disconnect ${wearable}` });
+  for (const name of devices ?? [stage === "retired" ? "Actiwatch" : "Astroskin shirt"]) {
+    await userEvent.click(await screen.findByRole("button", { name: `Pair ${name}` }));
+    await screen.findByRole("button", { name: `Disconnect ${name}` });
+  }
+}
+
+/** Wellbeing opens on the history calendar: start today's check-in and skip the optional mood screen to reach the questions. */
+async function startTodayCheckIn() {
+  await userEvent.click(await screen.findByRole("button", { name: "Check in for today" }));
+  await userEvent.click(screen.getByRole("button", { name: "Skip mood check-in" }));
 }
 
 /** Enters a workspace through its stage card (an account is required). The wearable never connects by itself, so pair it unless a test says not to. */
@@ -57,6 +66,8 @@ async function openWorkspace(stage: keyof typeof labels = "active", { pair = sta
 describe("OrbitWell app shell", () => {
   beforeEach(() => {
     bodyDeviceTiming.pairMs = 10;
+    // The simulated wearable's connect step defaults to 3.6 s; keep it short so tests do not depend on running order.
+    deviceTiming.connectMs = 30;
     window.localStorage.clear();
   });
 
