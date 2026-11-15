@@ -126,7 +126,7 @@ export function VisualCheckView({ stage, profileId, repository, seed, initialTas
   // Movement is not offered to Future travelers. The view is never routed to them, but fail safe if it is ever rendered.
   if (!tasks.length) return <section className={panelClass} role="status"><h1 className="text-xl font-semibold text-white">No movement checks are available</h1></section>;
   const copy = stageCopy[stage];
-  return <div className="space-y-7">
+  return <div className="movement-page space-y-7">
     <header><p className="text-sm font-medium uppercase tracking-[0.2em] text-cyan-200">{copy.eyebrow}</p><h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">{copy.title}</h1></header>
     <div className="max-w-2xl space-y-1 text-xs leading-5">
       <p role="note" className="flex items-start gap-2 text-amber-100"><Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{VISUAL_CHECK_DISCLAIMER}</p>
