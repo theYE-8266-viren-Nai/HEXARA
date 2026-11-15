@@ -353,7 +353,7 @@ function HorizonApp() {
   const content = (() => {
     switch (view) {
       case "trends":
-        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} monthlyHistoryNote={monthlyWindow.note} />;
+        return <TrendsView stage={stage} metrics={liveMetrics} alert={liveAlert} dataQuality={dataQuality} loading={viewLoading} source={viewSource} warning={viewWarning} monthlyHistory={monthlyHistory} monthlyHistoryNote={monthlyWindow.note} onViewChange={changeView} />;
       case "movement":
         return <VisualCheckView key={`${stage}:${profile.id}:${movementLaunch?.nonce ?? "nav"}`} stage={stage} profileId={profile.id} repository={visualCheckRepository} seed={seed} initialTask={movementLaunch?.task} onSavedToBody={showSavedMovementOnBody} onRequestCrewMedic={() => setActiveView("wellbeing")} />;
       case "wellbeing":
