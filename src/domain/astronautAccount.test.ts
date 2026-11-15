@@ -8,6 +8,24 @@ describe("astronaut profile", () => {
     expect(profileGroups("retired")[2].fields.map((field) => field.label)).toContain("Primary doctor");
   });
 
+  it("asks each stage for the two dates that bound its monthly history", () => {
+    const keys = (stage: "future" | "active" | "retired") => profileGroups(stage)[1].fields.filter((field) => field.kind === "date").map((field) => field.key);
+    expect(keys("active")).toEqual(["launchDate", "plannedReturn"]);
+    expect(keys("retired")).toEqual(["lastLaunch", "lastLanding"]);
+    expect(keys("future")).toEqual(["trainingStart", "targetLaunch"]);
+  });
+
+  it("rejects an end date before its start date, for every stage, and accepts same-day or later", () => {
+    const pairs = [["active", "launchDate", "plannedReturn"], ["retired", "lastLaunch", "lastLanding"], ["future", "trainingStart", "targetLaunch"]] as const;
+    for (const [stage, start, end] of pairs) {
+      const base = { ...emptyProfile(stage), fullName: "Ada Vance" };
+      expect(validateProfile({ ...base, journey: { [start]: "2026-05-01", [end]: "2026-04-30" } })[`journey.${end}`], stage).toBe("Choose a date on or after the start date.");
+      expect(validateProfile({ ...base, journey: { [start]: "2026-05-01", [end]: "2026-05-01" } }), stage).toEqual({});
+      expect(validateProfile({ ...base, journey: { [start]: "2026-05-01", [end]: "2026-12-31" } }), stage).toEqual({});
+      expect(validateProfile({ ...base, journey: { [start]: "2026-05-01" } }), stage).toEqual({});
+    }
+  });
+
   it("requires a name and checks number ranges", () => {
     expect(validateProfile(emptyProfile("active")).fullName).toBe("Enter your full name.");
     const profile = { ...emptyProfile("active"), fullName: "Ada Vance", personal: { age: "7", height: "abc" } };
