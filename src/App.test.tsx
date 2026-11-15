@@ -364,6 +364,18 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByText(/Reconnect it from Profile/)).toBeInTheDocument();
   });
 
+  it("shows Trends for the paired wearables only, without requiring every device", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("active");
+    await waitForSignals();
+    await user.click(screen.getAllByRole("button", { name: "Trends" })[0]);
+
+    expect(await screen.findByText(/Showing charts from: Astroskin shirt\./)).toBeInTheDocument();
+    expect(screen.queryByText("Complete device pairing to view trends")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "HRV" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Sleep" })).not.toBeInTheDocument();
+  });
+
   it("opens the plain-language reason for a trend alert", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
