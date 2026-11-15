@@ -158,7 +158,8 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
       {(() => {
         const selectedTask = movementRegion ? movementTaskForRegion(movementRegion, stage) : undefined;
         const combined = layer === 'movement' && focusedRegions.length > 1 && selectedTask ? taskFor(selectedTask).label : `${region.label} movement`;
-        const note = combined === 'Sit-to-stand' || combined === 'Anchored lower-body flexion' ? 'Linked movement context for your spine, hips, knees, and legs. These derived numbers help you notice your own practice; they do not measure spinal health, strength, or injury.' : region.note;
+        const shirtUnavailable = stage === 'retired' && 'device' in region && region.device === 'astroskin';
+        const note = shirtUnavailable ? 'This region has no wearable signal source in the Former astronaut workspace.' : combined === 'Sit-to-stand' || combined === 'Anchored lower-body flexion' ? 'Linked movement context for your spine, hips, knees, and legs. These derived numbers help you notice your own practice; they do not measure spinal health, strength, or injury.' : region.note;
         const panelTitle = layer === 'movement'
           ? focusedRegions.length > 1 && selectedTask
             ? `${taskFor(selectedTask).label} movement`
@@ -167,6 +168,7 @@ export default function HumanBodyViewer({ stage = 'active', metrics = [], alert 
         return <><div className="body-region-heading"><div><p className="eyebrow">Selected region</p><h3 id="body-region-title" aria-live="polite">{panelTitle}</h3></div><button type="button" className="body-panel-close" onClick={closePanel} aria-label={`Close ${region.label} ${layer === 'movement' ? 'movement' : 'signals'}`}>×</button></div>
       <p className="body-region-note">{note}</p>
       {layer === 'signals' && !connectedIds.has(region.id) && 'device' in region ? (() => {
+        if (shirtUnavailable) return <p className="body-signal-notice" role="status">No wearable signal is available for this region in the Former astronaut workspace.</p>;
         const needed = BODY_DEVICES.find(item => item.id === region.device)!;
         return <div className="body-unpaired"><p className="body-signal-notice" role="status">Not connected. Pair the {needed.name} to see {region.label.toLowerCase()} signals.</p>
           <button type="button" className="btn-primary" disabled={Boolean(pairingDevice)} onClick={() => onPairDevice?.(needed.id)}>{pairingDevice === needed.id ? 'Pairing…' : `Pair ${needed.name}`}</button></div>;

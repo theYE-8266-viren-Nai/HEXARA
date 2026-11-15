@@ -1,3 +1,5 @@
+import type { LifeStage } from "../types/horizon";
+
 /**
  * Wearables an active astronaut can pair for the 3D body overview. Each device unlocks only the body
  * parts it measures. All readings are simulated for the research demo; nothing is measured by OrbitWell.
@@ -12,6 +14,11 @@ export const BODY_DEVICES: BodyDevice[] = [
   { id: "dosimeter", name: "Personal dosimeter", worn: "Chest pocket", measures: "Radiation dose", parts: ["Chest"] },
   { id: "motion", name: "Motion sensors", worn: "Thighs and lower back", measures: "Leg and back movement", parts: ["Legs", "Back"] },
 ];
+
+/** The former-astronaut workspace does not offer the Astroskin shirt. */
+export function bodyDevicesForStage(stage: LifeStage): BodyDevice[] {
+  return stage === "retired" ? BODY_DEVICES.filter((device) => device.id !== "astroskin") : BODY_DEVICES;
+}
 
 /** How long the simulated pairing and the "searching for devices" step take. Tests shorten them. */
 export const bodyDeviceTiming = { pairMs: 1200, scanMs: 700 };

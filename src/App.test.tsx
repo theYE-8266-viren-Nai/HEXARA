@@ -41,8 +41,9 @@ async function pairWearable(stage: keyof typeof labels) {
   if (stage === "future") { await userEvent.click(await screen.findByRole("button", { name: "Connect wearables" })); return; }
   const control = await screen.findByRole("button", { name: /Connect wearables/ });
   if (!screen.queryByRole("region", { name: "Available wearables" })) await userEvent.click(control);
-  await userEvent.click(await screen.findByRole("button", { name: "Pair Astroskin shirt" }));
-  await screen.findByRole("button", { name: "Disconnect Astroskin shirt" });
+  const wearable = stage === "retired" ? "Actiwatch" : "Astroskin shirt";
+  await userEvent.click(await screen.findByRole("button", { name: `Pair ${wearable}` }));
+  await screen.findByRole("button", { name: `Disconnect ${wearable}` });
 }
 
 /** Enters a workspace through its stage card (an account is required). The wearable never connects by itself, so pair it unless a test says not to. */
@@ -255,6 +256,20 @@ describe("OrbitWell app shell", () => {
     expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
   });
 
+  it("does not offer the Astroskin shirt to former astronauts", async () => {
+    const user = userEvent.setup();
+    await openWorkspace("retired", { pair: false });
+    await user.click(screen.getByRole("button", { name: "Connect wearables" }));
+    const list = await screen.findByRole("region", { name: "Available wearables" });
+    expect(await within(list).findByText("Actiwatch")).toBeInTheDocument();
+    expect(within(list).queryByText("Astroskin shirt")).not.toBeInTheDocument();
+    expect(within(list).getByText("Personal dosimeter")).toBeInTheDocument();
+    expect(within(list).getByText("Motion sensors")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Heart, not connected" }));
+    expect(screen.getByRole("complementary", { name: "Heart signals" })).toHaveTextContent("No wearable signal is available for this region");
+    expect(screen.queryByRole("button", { name: "Pair Astroskin shirt" })).not.toBeInTheDocument();
+  });
+
   it("opens the retired mental friend and reveals wearable information only from body regions", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem("horizon:scenario", JSON.stringify("recovery_concern"));
@@ -267,14 +282,13 @@ describe("OrbitWell app shell", () => {
     expect(screen.queryByRole("heading", { name: "Wearable activity, at a glance" })).not.toBeInTheDocument();
     expect(screen.queryByText("Sleep duration")).not.toBeInTheDocument();
     expect(screen.queryByText("Connected measurements")).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Heart" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Brain" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Chat with ORBIT" }));
     expect(screen.getByRole("dialog", { name: /ORBIT AI/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "I miss the view of Earth" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close chat" }));
-    await user.click(screen.getByRole("button", { name: "Heart" }));
-    expect(screen.getByText("Resting heart rate")).toBeInTheDocument();
-    expect(screen.getByRole("complementary", { name: "Heart signals" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Brain" }));
+    expect(screen.getByRole("complementary", { name: "Brain signals" })).toHaveTextContent("Sleep");
   });
 
   it("keeps the retired body and mental friend visible while wearables are unpaired", async () => {
