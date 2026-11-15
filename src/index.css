@@ -147,6 +147,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .body-reading h4, .body-reading small { font-size: 11px; color: var(--text-secondary); }
 .body-reading > p { font-size: 26px; color: var(--text-primary); margin: 8px 0; }
 .movement-result { display: grid; gap: 14px; }
+.movement-practice-column { min-width: 0; }
+.movement-history-panel { min-width: 0; max-width: none; }
+@media (min-width: 1024px) {
+  .workspace-content > .space-y-7:has(.movement-history-panel) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: start; gap: 28px; }
+  .workspace-content > .space-y-7:has(.movement-history-panel) > header,
+  .workspace-content > .space-y-7:has(.movement-history-panel) > .max-w-2xl { grid-column: 1 / -1; }
+  .workspace-content > .space-y-7:has(.movement-history-panel) > .movement-practice-column { grid-column: 1; }
+  .workspace-content > .space-y-7:has(.movement-history-panel) > .movement-history-panel { grid-column: 2; position: sticky; top: 24px; }
+}
 .movement-result-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
 .movement-result-head div { display: grid; gap: 4px; }
 .movement-result-head strong { color: var(--text-primary); font-size: 14px; }
