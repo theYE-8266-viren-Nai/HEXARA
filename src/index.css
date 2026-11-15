@@ -1515,3 +1515,8 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
   .landing-stage-icon svg { width: 17px; height: 17px; }
   .landing-stage-name { font-size: 16px; }
 }
+
+/* Trends has its own Connect wearables button at the top right, so more devices can be paired here. */
+.trends-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.trends-header .wearable-dropdown { left: auto; right: 0; }
+.device-connect-hint { margin-top: 4px; font-size: 13px; color: var(--muted); }
