@@ -1589,3 +1589,6 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
   .landing-topbar .brand-name { font-size: 28px; }
   .landing-topbar .landing-eyebrow { font-size: 11px; padding: 5px 11px; }
 }
+/* Badge at the far right end of the top bar (logo stays on the left). */
+.landing-topbar { justify-content: space-between; }
+@media (max-width: 599px) { .landing-topbar { justify-content: flex-start; } }
