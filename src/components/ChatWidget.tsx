@@ -180,8 +180,18 @@ export function ChatWidget({ stage, client, userId, avatarSrc, openRequest }: { 
         {visibleMessages.length > 0 && !busy && !loading && !supportTopic && !pendingResearch ? (() => {
           // Keep suggestions available after the first question, skipping ones already asked.
           const asked = new Set(visibleMessages.filter((message) => message.role === "user").map((message) => message.content.trim()));
-          const remaining = privateMode ? RETIRED_SUGGESTIONS.filter((suggestion) => !asked.has(suggestion)).map((suggestion) => ({ key: suggestion, label: suggestion, question: suggestion })) : faqs.filter((faq) => !asked.has(faq.question)).map((faq) => ({ key: faq.question, label: faq.title, question: faq.question }));
-          return remaining.length ? <div className="chat-suggestions" role="group" aria-label="Suggested questions"><span>Try another question</span><div>{remaining.slice(0, 4).map((item) => <button key={item.key} type="button" title={item.question} onClick={() => void send(item.question)}>{item.label}<ArrowUpRight size={12} aria-hidden="true" /></button>)}</div></div> : null;
+          const remaining = privateMode
+            ? RETIRED_SUGGESTIONS.filter((suggestion) => !asked.has(suggestion)).map((suggestion) => ({ key: suggestion, label: suggestion, description: undefined, question: suggestion }))
+            : faqs.filter((faq) => !asked.has(faq.question)).map((faq) => ({ key: faq.question, label: faq.title, description: faq.description, question: faq.question }));
+          return remaining.length ? <div className="chat-suggestions" role="group" aria-label="Suggested questions">
+            <p className="chat-suggestions-title">Try another question</p>
+            <div className="chat-suggestions-list">
+              {remaining.slice(0, 4).map((item) => <button className="chat-suggestion" key={item.key} type="button" title={item.question} onClick={() => void send(item.question)}>
+                <span className="chat-suggestion-copy"><strong>{item.label}</strong>{item.description ? <small>{item.description}</small> : null}</span>
+                <ArrowUpRight className="chat-suggestion-icon" size={12} aria-hidden="true" />
+              </button>)}
+            </div>
+          </div> : null;
         })() : null}
         {supportTopic ? <div className="chat-followups" aria-label="Urgent guidance options"><button type="button" onClick={leaveUrgentMode}>Return to {privateMode ? "private chat" : "NASA research"}</button><button type="button" className="chat-followup-secondary" onClick={() => setPendingResearch({ topic: supportTopic, query: sanitizedNasaQuery(supportTopic) })}><BookOpen size={13} aria-hidden="true" />Ask NASA about this topic</button></div> : null}
         {pendingResearch ? <div className="chat-research-confirm" role="group" aria-label="Confirm sanitized NASA research question"><p>Your personal message stays in this browser session. Send this neutral research question instead?</p><blockquote>{pendingResearch.query}</blockquote><div><button type="button" className="btn-primary" onClick={() => void confirmResearch()}>Send sanitized question</button><button type="button" className="btn-secondary" onClick={() => setPendingResearch(undefined)}>Cancel</button></div></div> : null}
