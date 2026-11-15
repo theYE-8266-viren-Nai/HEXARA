@@ -1494,3 +1494,24 @@ button.metric-tile:hover { border-color: var(--line-strong); background: var(--s
    While the list is open it sits above the floating ORBIT chat button. */
 .profile-wearables-head .wearable-dropdown { left: auto; right: 0; }
 .wearable-connect:has(.wearable-dropdown) { z-index: 60; }
+
+/* ORBIT chat button: sit closer to the right edge, and leave room under each page so the last
+   card (for example Profile's Connect wearables) can scroll clear of it. */
+.chat-launcher { right: 6px; }
+.workspace-content { padding-bottom: 160px; }
+
+/* Start page fits one screen on laptops and desktops: spacing and sizes shrink with the screen height. */
+@media (min-width: 900px) {
+  .onboarding.landing-space { min-height: 100dvh; padding-bottom: 0; }
+  .landing-topbar { min-height: clamp(56px, 9vh, 92px); }
+  .landing-hero { padding: clamp(12px, 3vh, 32px) 0 clamp(12px, 3vh, 28px); }
+  .landing-title { margin-top: clamp(10px, 2vh, 20px); font-size: min(clamp(40px, 4.6vw, 62px), 7.4vh); }
+  .landing-intro { margin-top: clamp(8px, 1.6vh, 16px); font-size: 16px; line-height: 1.55; }
+  .landing-stage-title { margin-top: clamp(14px, 2.8vh, 28px); font-size: 12px; }
+  .landing-stages { gap: 8px; margin-top: 10px; max-width: 480px; }
+  .landing-stage-title { max-width: 480px; }
+  .landing-stage { min-height: clamp(46px, 6.6vh, 60px); padding: 8px 14px; gap: 12px; border-radius: 12px; }
+  .landing-stage-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .landing-stage-icon svg { width: 17px; height: 17px; }
+  .landing-stage-name { font-size: 16px; }
+}
