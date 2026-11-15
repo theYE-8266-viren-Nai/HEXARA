@@ -52,6 +52,9 @@ describe("ORBIT NASA research assistant", () => {
     await screen.findByText(/Microgravity changes vestibular inputs/);
     const suggestions = screen.getByRole("group", { name: "Suggested questions" });
     expect(suggestions).toBeInTheDocument();
+    expect(suggestions.querySelector(".chat-suggestions-list")).toBeInTheDocument();
+    expect(suggestions.querySelectorAll(".chat-suggestion").length).toBeGreaterThan(1);
+    expect(within(suggestions).getByText("Learn how NASA studies the body during spaceflight.")).toBeInTheDocument();
     expect(within(suggestions).queryByRole("button", { name: /Mission support/i })).not.toBeInTheDocument();
     await user.click(within(suggestions).getByRole("button", { name: /Health in space/i }));
     expect(mock.sendMessage).toHaveBeenCalledTimes(2);
