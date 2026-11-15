@@ -415,6 +415,27 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .chat-message.user small { text-align: right; }
 .chat-message.user > p { background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 3px; }
 .chat-message.assistant > p { background: var(--surface-inset); border: 1px solid var(--glass-border); border-bottom-left-radius: 3px; }
+.orbit-answer-card { display: grid; gap: 13px; margin-top: 10px; padding: 12px; border: 1px solid var(--glass-border); border-radius: 12px; background: color-mix(in srgb, var(--surface-inset) 72%, transparent); font-size: 11px; line-height: 1.5; }
+.orbit-answer-card section { display: grid; gap: 6px; min-width: 0; }
+.orbit-answer-card h4 { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text-primary); font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.orbit-answer-card ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.orbit-answer-card li { display: flex; align-items: flex-start; gap: 6px; min-width: 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.orbit-answer-card li > svg { flex: 0 0 auto; margin-top: 3px; color: var(--accent-text); }
+.orbit-confidence { justify-self: start; padding: 3px 7px; border: 1px solid var(--glass-border); border-radius: 99px; color: var(--accent-text); font-size: 9px; text-transform: capitalize; }
+.orbit-answer-warnings { padding: 9px; border: 1px solid color-mix(in srgb, var(--chart-alert) 40%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--chart-alert) 8%, transparent); }
+.orbit-answer-warnings h4 { color: var(--chart-alert); }
+.orbit-related-resources { gap: 7px !important; }
+.orbit-related-resources > a { position: relative; display: grid; gap: 3px; min-width: 0; padding: 9px 27px 9px 10px; border: 1px solid var(--glass-border); border-radius: 9px; background: var(--surface-inset); color: var(--text-primary); text-decoration: none; }
+.orbit-related-resources > a:hover { border-color: var(--accent); }
+.orbit-related-resources > a > span { color: var(--accent-text); font-size: 8px; letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.orbit-related-resources > a > strong { min-width: 0; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.orbit-related-resources > a > small { min-width: 0; color: var(--muted); font-size: 9px; line-height: 1.45; overflow-wrap: anywhere; }
+.orbit-related-resources > a > svg { position: absolute; top: 10px; right: 9px; color: var(--muted); }
+.orbit-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding-top: 2px; color: var(--text-secondary); }
+.orbit-feedback > span { margin-right: auto; }
+.orbit-feedback > button { padding: 4px 8px; border: 1px solid var(--glass-border); border-radius: 7px; background: transparent; color: var(--text-secondary); font-size: 10px; }
+.orbit-feedback > button:hover { border-color: var(--accent); color: var(--accent-text); }
+.orbit-feedback-thanks { margin: 0; color: var(--accent-text); font-size: 10px; }
 .chat-followups { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 14px; }
 .chat-followups > button { padding: 7px 9px; border: 1px solid var(--glass-border); border-radius: 99px; background: var(--surface-inset); color: var(--text-secondary); font-size: 10px; line-height: 1.5; }
 .chat-followups > button:last-child { background: transparent; border-style: dashed; }
