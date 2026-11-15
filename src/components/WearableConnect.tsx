@@ -8,6 +8,10 @@ import type { LifeStage } from "../types/horizon";
  * screen. Opening it scans briefly for nearby devices; each device can then be paired or disconnected.
  * `on` / `onToggle` are accepted for compatibility with existing callers and are not needed any more.
  */
+// Whether the currently open list has already shown its "searching" step. Module-level, because the header remounts this
+// component when the first device pairs; without it the list would search again after every pairing.
+let searchedWhileOpen = false;
+
 export function WearableConnect({ stage = "active", open, paired, pairing, onOpenChange, onPair, onUnpair }: {
   stage?: LifeStage;
   on?: boolean;
@@ -22,7 +26,7 @@ export function WearableConnect({ stage = "active", open, paired, pairing, onOpe
   const devices = bodyDevicesForStage(stage);
   const pairedCount = devices.filter((device) => paired.has(device.id)).length;
   const root = useRef<HTMLDivElement>(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(() => open && !searchedWhileOpen);
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => { if (root.current && !root.current.contains(event.target as Node)) onOpenChange(false); };
@@ -33,9 +37,10 @@ export function WearableConnect({ stage = "active", open, paired, pairing, onOpe
   }, [open, onOpenChange]);
   // Each time the list opens, show a short "searching" step before the devices appear.
   useEffect(() => {
-    if (!open) { setScanning(false); return; }
+    if (!open) { searchedWhileOpen = false; setScanning(false); return; }
+    if (searchedWhileOpen) { setScanning(false); return; }
     setScanning(true);
-    const timer = window.setTimeout(() => setScanning(false), bodyDeviceTiming.scanMs);
+    const timer = window.setTimeout(() => { searchedWhileOpen = true; setScanning(false); }, bodyDeviceTiming.scanMs);
     return () => window.clearTimeout(timer);
   }, [open]);
   const connected = pairedCount > 0;
